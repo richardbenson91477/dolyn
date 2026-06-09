@@ -107,7 +107,7 @@ void *a_calloc(size_t size);
 // Common Model Interface
 
 #define PROMPT_N_MAX_DEFAULT 32768
-#define TEMP_DEFAULT 0.6
+#define TEMP_DEFAULT 0.2
 #define TOP_P_DEFAULT 0.95
 
 
