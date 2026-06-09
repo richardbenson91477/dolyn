@@ -347,31 +347,32 @@ void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int 
     }
 
     // RoPE: parallelize over heads instead of rotary_dim
-    int rotary_dim = head_size / 4;
-    int rotary_half = rotary_dim / 2;
+    // should not be hardcoded, rather based on "text_config/rope_parameters/partial_rotary_factor" from the "config.json"
+    int rotary_dim = (int)((float)head_size * 0.25f);
+    int rotary_partial = (int)((float)rotary_dim * 0.25f);
 
-    if (rotary_half > 0 && s->cos_cache != NULL) {
-        float *cos_row = s->cos_cache + pos * rotary_half;
-        float *sin_row = s->sin_cache + pos * rotary_half;
+    if (rotary_partial > 0 && s->cos_cache != NULL) {
+        float *cos_row = s->cos_cache + pos * rotary_partial;
+        float *sin_row = s->sin_cache + pos * rotary_partial;
 
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * head_size;
-            for (int i = 0; i < rotary_half; i++) {
+            for (int i = 0; i < rotary_partial; i++) {
                 float c = cos_row[i], sn = sin_row[i];
-                float q0 = q[i], q1 = q[i + rotary_half];
+                float q0 = q[i], q1 = q[i + rotary_partial];
                 q[i] = q0 * c - q1 * sn;
-                q[i + rotary_half] = q0 * sn + q1 * c;
+                q[i + rotary_partial] = q0 * sn + q1 * c;
             }
         }
         #pragma omp parallel for
         for (int h = 0; h < p->n_kv_heads; h++) {
             float *k = s->k + h * head_size;
-            for (int i = 0; i < rotary_half; i++) {
+            for (int i = 0; i < rotary_partial; i++) {
                 float c = cos_row[i], sn = sin_row[i];
-                float k0 = k[i], k1 = k[i + rotary_half];
+                float k0 = k[i], k1 = k[i + rotary_partial];
                 k[i] = k0 * c - k1 * sn;
-                k[i + rotary_half] = k0 * sn + k1 * c;
+                k[i + rotary_partial] = k0 * sn + k1 * c;
             }
         }
     }
@@ -449,6 +450,11 @@ void forward_qwen3_5_linear_attention_layer(Qwen3_5 *model_qwen3_5, int l, int l
     float *linear_norm = w->linear_norm + (long long)ld * d_v;
     float *conv_state = s->conv_state + (long long)ld * conv_dim * conv_kernel;
     float *S = s->S + (long long)ld * n_v_heads * d_k * d_v;
+
+    if (pos == 0) {
+        memset(conv_state, 0, (size_t)conv_dim * conv_kernel * sizeof(float));
+        memset(S, 0, (size_t)n_v_heads * d_k * d_v * sizeof(float));
+    }
 
     rmsnorm_gemma(s->xb, x, rms_att_weight, dim, eps);
 
