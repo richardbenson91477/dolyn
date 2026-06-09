@@ -1,4 +1,5 @@
-Here is the reference implementation of Qwen3 from huggingface transformers (file 1 of 2):
+Here is the fully working reference implementation of Qwen3 from huggingface transformers for comparison:
+(file 1 of 2):
 ```
 # Copyright 2024 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 #

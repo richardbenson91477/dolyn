@@ -1,4 +1,5 @@
-Here is the reference implementation of Qwen3.5 from huggingface transformers (file 1 of 2):
+Here is the fully working reference implementation of Qwen3.5 from huggingface transformers for comparison:
+(file 1 of 2):
 ```
 from ...configuration_utils import PreTrainedConfig, layer_type_validation
 from ...modeling_rope_utils import RopeParameters
