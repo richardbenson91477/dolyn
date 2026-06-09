@@ -26,7 +26,7 @@ int load_config_qwen3_5(const char *model_dir, config_qwen3_5 *config) {
 
     FILE *f = fopen(config_path, "rb");
     if (! f) {
-        fprintf(stderr, "Could not open config.json at %s\n", config_path);
+        fprintf(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
 
@@ -51,7 +51,7 @@ int load_config_qwen3_5(const char *model_dir, config_qwen3_5 *config) {
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
     if (! root) {
-        fprintf(stderr, "Failed to parse config.json: %s\n", error);
+        fprintf(stderr, "ERROR: Failed to parse config.json: %s\n", error);
         return -1;
     }
 
@@ -72,19 +72,9 @@ int load_config_qwen3_5(const char *model_dir, config_qwen3_5 *config) {
     config->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 151936);
     config->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
 
-    // REMOVE THIS LINE:
-    // config->rope_theta = json_get_double(json_object_get(cfg, "rope_theta"), 10000.0);
-
     JsonValue *rope_params = json_object_get(cfg, "rope_parameters");
-    if (rope_params && rope_params->type == JSON_OBJECT) {
-        config->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
-        config->rope_partial_rotary_factor = json_get_double(json_object_get(rope_params, "partial_rotary_factor"), 1.0);
-    } else {
-        fprintf(stderr, "DEBUG: this happened\n");
-        fflush(stderr);
-        config->rope_theta = json_get_double(json_object_get(cfg, "rope_theta"), 10000.0);
-        config->rope_partial_rotary_factor = json_get_double(json_object_get(cfg, "partial_rotary_factor"), 1.0);
-    }
+    config->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
+    config->rope_partial_rotary_factor = json_get_double(json_object_get(rope_params, "partial_rotary_factor"), 1.0);
 
     config->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
     config->tie_word_embeddings = json_get_bool(json_object_get(root, "tie_word_embeddings"), 0);
@@ -107,13 +97,15 @@ int load_config_qwen3_5(const char *model_dir, config_qwen3_5 *config) {
 
     json_free(root);
 
-    fprintf(stderr, "Model config loaded\n");
+    fprintf(stderr, "INFO: Model config loaded\n");
     return 0;
 }
 
 void load_qwen3_5_layer_types(Qwen3_5 *model_qwen3_5, const char *model_path) {
     char config_path[4096];
+
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_path);
+
     FILE *f = fopen(config_path, "rb");
     if (! f) {
         return;
@@ -122,6 +114,7 @@ void load_qwen3_5_layer_types(Qwen3_5 *model_qwen3_5, const char *model_path) {
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
+
     char *json_str = (char *)a_calloc(size + 1);
     if ((! json_str) || fread(json_str, 1, size, f) != (size_t)size) {
         if (json_str) {
@@ -172,10 +165,10 @@ static void process_qwen3_5_safetensors_file(Qwen3_5 *model_qwen3_5, safetensors
     char filepath[4096];
     snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
 
-    fprintf(stderr, "Loading shard: %s\n", filename);
+    fprintf(stderr, "INFO: Loading shard: %s\n", filename);
     csafetensors_t st;
     if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
-        fprintf(stderr, "Failed to load %s\n", filepath);
+        fprintf(stderr, "ERROR: Failed to load %s\n", filepath);
         exit(EXIT_FAILURE);
     }
 
@@ -290,7 +283,7 @@ static void process_qwen3_5_safetensors_file(Qwen3_5 *model_qwen3_5, safetensors
     }
 
     csafetensors_free(&st);
-    fprintf(stderr, "Finished shard: %s\n", filename);
+    fprintf(stderr, "INFO: Finished shard: %s\n", filename);
 }
 
 int load_qwen3_5_from_safetensors(Qwen3_5 *model_qwen3_5, const char *model_dir) {
@@ -299,11 +292,11 @@ int load_qwen3_5_from_safetensors(Qwen3_5 *model_qwen3_5, const char *model_dir)
     safetensors_idx idx;
 
     if (load_safetensors_index(&idx, model_dir) != 0) {
-        fprintf(stderr, "Error: Could not find model.safetensors.index.json in %s\n", model_dir);
+        fprintf(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
         return -1;
     }
 
-    fprintf(stderr, "Found %d safetensors shards\n", idx.n_unique_files);
+    fprintf(stderr, "INFO: Found %d safetensors shards\n", idx.n_unique_files);
     int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
     int kv_dim = p->n_kv_heads * head_size;
     int key_dim = p->n_linear_k_heads * p->d_linear_k;
@@ -349,21 +342,21 @@ int load_qwen3_5_from_safetensors(Qwen3_5 *model_qwen3_5, const char *model_dir)
     if (p->tie_word_embeddings) {
         w->wcls = w->token_embedding_table;
     } else if (w->wcls.q == NULL) {
-         fprintf(stderr, "FATAL: lm_head.weight was not found and tie_word_embeddings is false\n");
+         fprintf(stderr, "ERROR: lm_head.weight was not found and tie_word_embeddings is false\n");
          return -1;
     }
 
     if (w->token_embedding_table.q == NULL) {
-        fprintf(stderr, "FATAL: embed_tokens.weight was not found\n");
+        fprintf(stderr, "ERROR: embed_tokens.weight was not found\n");
         return -1;
     }
 
     if (w->rms_final_weight == NULL) {
-        fprintf(stderr, "FATAL: model.language_model.norm.weight was not found\n");
+        fprintf(stderr, "ERROR: model.language_model.norm.weight was not found\n");
         return -1;
     }
 
-    fprintf(stderr, "Weights loaded successfully\n");
+    fprintf(stderr, "INFO: Weights loaded successfully\n");
 
     free_safetensors_index(&idx);
 
@@ -390,7 +383,7 @@ void build_qwen3_5(Qwen3_5 *model_qwen3_5, char *model_path) {
 void save_quantized_qwen3_5(const char *filepath, Qwen3_5* model_qwen3_5) {
     FILE *f = fopen(filepath, "wb");
     if (! f) {
-        fprintf(stderr, "Failed to open %s for writing\n", filepath);
+        fprintf(stderr, "ERROR: Failed to open %s for writing\n", filepath);
         exit(EXIT_FAILURE);
     }
     
@@ -455,7 +448,7 @@ void save_quantized_qwen3_5(const char *filepath, Qwen3_5* model_qwen3_5) {
     }
     
     fclose(f);
-    fprintf(stderr, "Quantized model saved to %s\n", filepath);
+    fprintf(stderr, "INFO: Quantized model saved to %s\n", filepath);
 }
 
 int main(int argc, char *argv[]) {

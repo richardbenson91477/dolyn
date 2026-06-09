@@ -3,7 +3,7 @@
  
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
     if (row_idx >= qt->rows || row_idx < 0) {
-        fprintf(stderr, "Row index %d out of bounds (max %d)\n", row_idx, qt->rows);
+        fprintf(stderr, "ERROR: Row index %d out of bounds (max %d)\n", row_idx, qt->rows);
         exit(EXIT_FAILURE);
     }
     int num_groups = (qt->cols + GS - 1) / GS;
@@ -248,7 +248,8 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
             str_buffer[len] = '\0';
             int id = str_lookup(str_buffer, t->sorted_vocab, t->vocab_size);
             if (id != -1) {
-                best_len = len; best_id = id;
+                best_len = len;
+                best_id = id;
             }
         }
         if (best_id != -1) {
@@ -264,7 +265,7 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
 
 void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *tokens_n) {
     if (text == NULL) {
-        fprintf(stderr, "cannot encode NULL text\n");
+        fprintf(stderr, "ERROR: Cannot encode NULL text\n");
         exit(EXIT_FAILURE);
     }
 
@@ -330,7 +331,7 @@ void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *
     free(segment);
 }
 
-char *decode(Tokenizer *t, int prev_token, int token) {
+char *decode(Tokenizer *t, int prev_token, int token, bool _debug) {
     char *piece = t->vocab[token];
 
     if ((prev_token == 1) && (piece[0] == ' ')) {
@@ -340,6 +341,13 @@ char *decode(Tokenizer *t, int prev_token, int token) {
     unsigned char byte_val;
     if (sscanf(piece, "<0x%02hhX>", &byte_val) == 1) {
         piece = (char *)t->byte_pieces + byte_val * 2;
+    }
+
+    if (_debug) {
+        printf("\n");
+        for (int c = 0; c < strlen(piece); c ++) {
+            printf("<%ld>", piece[c]);
+        }
     }
 
     return piece;
@@ -366,31 +374,31 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_m
 
     FILE *file = fopen(tokenizer_path, "rb");
     if (! file) {
-        fprintf(stderr, "couldn't load %s\n", tokenizer_path);
+        fprintf(stderr, "ERROR: Couldn't load %s\n", tokenizer_path);
         exit(EXIT_FAILURE);
     }
 
     if (fread(&t->max_token_length, sizeof(int), 1, file) != 1) {
-        fprintf(stderr, "failed read\n");
+        fprintf(stderr, "ERROR: Failed read\n");
         exit(EXIT_FAILURE);
     }
 
     int len;
     for (int i = 0; i < vocab_size; i++) {
         if (fread(t->vocab_scores + i, sizeof(float), 1, file) != 1) {
-            fprintf(stderr, "failed read\n");
+            fprintf(stderr, "ERROR: Failed read\n");
             exit(EXIT_FAILURE);
         }
 
         if (fread(&len, sizeof(int), 1, file) != 1) {
-            fprintf(stderr, "failed read\n");
+            fprintf(stderr, "ERROR: Failed read\n");
             exit(EXIT_FAILURE);
         }
 
         t->vocab[i] = (char *)a_calloc(len + 1);
         if (len > 0) {
             if (fread(t->vocab[i], len, 1, file) != 1) {
-                fprintf(stderr, "failed read\n");
+                fprintf(stderr, "ERROR: Failed read\n");
                 exit(EXIT_FAILURE);
             }
         }
@@ -468,7 +476,8 @@ int sample_topp(float *probs, int n, float topp, ProbIndex *probindex, float coi
 
     for (int i = 0; i < n; i++) {
         if (probs[i] >= cutoff) {
-            probindex[n0].index = i; probindex[n0].prob = probs[i];
+            probindex[n0].index = i;
+            probindex[n0].prob = probs[i];
             n0++;
         }
     }
@@ -584,7 +593,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
     encode(tokenizer, prompt, 1, 0, prompt_tokens, &prompt_tokens_n);
 
     if (prompt_tokens_n < 1) {
-        fprintf(stderr, "something is wrong, expected at least 1 prompt token\n");
+        fprintf(stderr, "ERROR: Expected at least 1 prompt token\n");
         exit(EXIT_FAILURE);
     }
 
@@ -607,7 +616,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
             break;
         }
 
-        char *piece = decode(tokenizer, token, next);
+        char *piece = decode(tokenizer, token, next, false);
         printf("%s", piece);
         fflush(stdout);
 
@@ -622,14 +631,15 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 
     if (pos > 1) {
         long end = time_in_ms();
-        fprintf(stderr, "tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
+        fprintf(stderr, "INFO: %f tokens per second.\n", (pos-1) / (double)(end-start)*1000);
     }
 
     free(prompt_tokens);
 }
 
 void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
-        char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max) {
+        char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max,
+        bool _debug) {
     int rendered_len = 0;
     char *rendered_prompt = NULL;
     int prompt_tokens_n = 0;
@@ -647,8 +657,9 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 
     while (pos < steps_n_max) {
         if (user_turn) {
-            if (first_turn && (init_prompt != NULL))
+            if (first_turn && (init_prompt != NULL)) {
                 strcpy(prompt, init_prompt);
+            }
             else {
                 read_stdin("In: ", prompt, prompt_n_max);
             }
@@ -733,7 +744,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
                 }
                 user_turn = 1;
             } else {
-                char *piece = decode(tokenizer, token, next);
+                char *piece = decode(tokenizer, token, next, _debug);
                 printf("%s", piece);
                 fflush(stdout);
                 generated_tokens++;
@@ -762,6 +773,7 @@ void error_usage(const char *prog_name) {
     fprintf(stderr, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
     fprintf(stderr, " -m  | --mode <str>: mode:    generate|chat, default: chat\n");
     fprintf(stderr, " -sp | --system_prompt <str>: system prompt, default: none\n");
+    fprintf(stderr, " -d  | --debug <int>:         enable debug output, default: 0\n");
     exit(EXIT_FAILURE);
 }
 
@@ -776,6 +788,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     char *tokenizer_path = "tokenizer.bin";
     char *mode = "chat";
     char *system_prompt = NULL;
+    bool _debug = false;
 
     if (argc >= 2) {
         model_path = argv[1];
@@ -817,6 +830,9 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
             system_prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(system_prompt, argv[i + 1]);
         }
+        else if ((! strcmp(argv[i], "-d")) || (! strcmp(argv[i], "--debug"))) {
+            _debug = atoi(argv[i + 1]);
+        }
         else {
             error_usage(prog_name);
         }
@@ -825,6 +841,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     if (rng_seed == 0) {
         rng_seed = (unsigned int)time(NULL);
     }
+    fprintf(stderr, "INFO: Using seed %lu\n", rng_seed);
 
     model_iface *model_i = init_fn(model_path, seq_n_max);
     if (! model_i) {
@@ -841,10 +858,10 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         generate_common(model_i, &tokenizer, &sampler, prompt, model_i->seq_n_max);
     }
     else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
-        chat_common(model_i, &tokenizer, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max);
+        chat_common(model_i, &tokenizer, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, _debug);
     }
     else {
-        fprintf(stderr, "unknown mode: %s\n", mode);
+        fprintf(stderr, "ERROR: Unknown mode: %s\n", mode);
         error_usage(prog_name);
     }
 

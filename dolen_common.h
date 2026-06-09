@@ -11,6 +11,7 @@
 #include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 
 // Quantized Tensor
@@ -66,7 +67,7 @@ int compare_tokens(const void *a, const void *b);
 int str_lookup(char *str, token_map *sorted_vocab, int vocab_size);
 void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n);
 void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *tokens_n);
-char *decode(Tokenizer *t, int prev_token, int token);
+char *decode(Tokenizer *t, int prev_token, int token, bool debug);
 void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_map *special_tokens);
 void free_tokenizer(Tokenizer *t);
 
@@ -130,7 +131,7 @@ typedef struct {
 void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
         char *prompt, int steps_n_max);
 void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
-        char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max);
+        char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max, bool _debug);
 void error_usage(const char *prog_name);
 int common_main(int argc, char *argv[],
         model_iface *(*init_fn)(const char *model_path, int seq_n_max),
