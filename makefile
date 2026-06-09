@@ -1,7 +1,7 @@
 export OMP_NUM_THREADS := 11
 export OMP_PLACES := cores
 export OMP_PROC_BIND := close
-CC := ccache gcc
+CC := gcc
 CFLAGS = -fPIC 
 CFLAGS_OPT = $(CFLAGS) -fopenmp -O3 -pipe -march=x86-64-v4 -fomit-frame-pointer -funroll-loops -fpermissive
 CFLAGS_DBG = $(CFLAGS) -fopenmp -Og -ggdb -fkeep-inline-functions
