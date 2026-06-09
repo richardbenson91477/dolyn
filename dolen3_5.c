@@ -346,10 +346,7 @@ void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int 
         rmsnorm_gemma(k_ptr, k_ptr, k_norm, head_size, eps);
     }
 
-    // RoPE: parallelize over heads instead of rotary_dim
-    // should not be hardcoded, rather based on "text_config/rope_parameters/partial_rotary_factor" from the "config.json"
-    int rotary_dim = (int)((float)head_size * 0.25f);
-    int rotary_partial = (int)((float)rotary_dim * 0.25f);
+    int rotary_partial = (int)((float)head_size * p->rope_partial_rotary_factor);
 
     if (rotary_partial > 0 && s->cos_cache != NULL) {
         float *cos_row = s->cos_cache + pos * rotary_partial;

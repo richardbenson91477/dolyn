@@ -71,7 +71,21 @@ int load_config_qwen3_5(const char *model_dir, config_qwen3_5 *config) {
         config->n_mlp = json_get_int(json_object_get(cfg, "shared_expert_intermediate_size"), 4864);
     config->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 151936);
     config->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
-    config->rope_theta = json_get_double(json_object_get(cfg, "rope_theta"), 10000.0);
+
+    // REMOVE THIS LINE:
+    // config->rope_theta = json_get_double(json_object_get(cfg, "rope_theta"), 10000.0);
+
+    JsonValue *rope_params = json_object_get(cfg, "rope_parameters");
+    if (rope_params && rope_params->type == JSON_OBJECT) {
+        config->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
+        config->rope_partial_rotary_factor = json_get_double(json_object_get(rope_params, "partial_rotary_factor"), 1.0);
+    } else {
+        fprintf(stderr, "DEBUG: this happened\n");
+        fflush(stderr);
+        config->rope_theta = json_get_double(json_object_get(cfg, "rope_theta"), 10000.0);
+        config->rope_partial_rotary_factor = json_get_double(json_object_get(cfg, "partial_rotary_factor"), 1.0);
+    }
+
     config->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
     config->tie_word_embeddings = json_get_bool(json_object_get(root, "tie_word_embeddings"), 0);
     config->d_head = json_get_int(json_object_get(cfg, "head_dim"), config->dim / config->n_heads);

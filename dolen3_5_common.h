@@ -12,6 +12,7 @@ typedef struct {
     int vocab_size;
     int seq_len;
     float rope_theta;
+    float rope_partial_rotary_factor;
     float rms_norm_eps;
     int tie_word_embeddings;
     int d_head;

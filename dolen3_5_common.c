@@ -68,17 +68,16 @@ void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
         s->delta_S = a_calloc((size_t)p->n_linear_v_heads * p->d_linear_v * sizeof(float));
     }
 
-    // should not be hardcoded, rather based on "text_config/rope_parameters/partial_rotary_factor" from the "config.json"
-    int rotary_dim = (int)((float)head_size * 0.25f);
-    int rotary_partial = (int)((float)rotary_dim * 0.25f);
- 
+    int rotary_partial = (int)((float)head_size * p->rope_partial_rotary_factor);
+
     if (rotary_partial > 0) {
         s->cos_cache = (float *)a_calloc((size_t)p->seq_len * rotary_partial * sizeof(float));
         s->sin_cache = (float *)a_calloc((size_t)p->seq_len * rotary_partial * sizeof(float));
         float theta = p->rope_theta;
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < rotary_partial; i++) {
-                float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_dim);
+                // FIX: Denominator must be rotary_partial to match HF's inv_freq calculation
+                float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_partial); 
                 float val = pos * freq;
                 s->cos_cache[pos * rotary_partial + i] = cosf(val);
                 s->sin_cache[pos * rotary_partial + i] = sinf(val);
