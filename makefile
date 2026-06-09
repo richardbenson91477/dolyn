@@ -36,11 +36,13 @@ INC3_5 = dolen3_5_common.h dolen_common.h
 SRC3_5Q = dolen3_5_quantize.c dolen3_5_common.c dolen_q_common.c dolen_common.c
 INC3_5Q = dolen3_5_common.h dolen_q_common.h dolen_common.h
 
+
 all: $(BINS) $(BINS_DBG)
 
 test: test3_5
 test_dbg: test3_5_dbg
 debug: debug3_5
+
 
 $(BIN3_5): $(SRC3_5) $(INC3_5)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC3_5) -lm
