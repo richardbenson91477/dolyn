@@ -5,8 +5,8 @@ CC := gcc
 CFLAGS = -fPIC 
 CFLAGS_OPT = $(CFLAGS) -fopenmp -O3 -pipe -march=x86-64-v4 -fomit-frame-pointer -funroll-loops -fpermissive
 CFLAGS_DBG = $(CFLAGS) -fopenmp -Og -ggdb -fkeep-inline-functions
-PROMPT := "Please count from 1 to 10."
-SYS_PROMPT := "You are a helpful assistant."
+PROMPT := "Please count from 1 to 10 using a comma separated list."
+SYS_PROMPT := "You are Qwen, a helpful assistant from Tongyi Lab at AliBaba Group."
 MODEL_PATH := /home/models/dolen_models
 MODEL3 := "$(MODEL_PATH)/qwen3_1b"
 MODEL3_5 := "$(MODEL_PATH)/qwen3_5_1b"
@@ -39,12 +39,8 @@ INC3_5Q = dolen3_5_common.h dolen_q_common.h dolen_common.h
 all: $(BINS) $(BINS_DBG)
 
 test: test3_5
-
+test_dbg: test3_5_dbg
 debug: debug3_5
-
-clean:
-	rm -vf $(BINS) $(BINS_DBG)
-
 
 $(BIN3_5): $(SRC3_5) $(INC3_5)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC3_5) -lm
@@ -92,4 +88,8 @@ test3_dbg: $(BIN3_DBG)
 
 debug3: $(BIN3_DBG)
 	./run_gdb_3 $(BIN3_DBG) $(MODEL3) $(TOKENIZER3) $(PROMPT) $(SYS_PROMPT) $(SEQN3)
+
+
+clean:
+	rm -vf $(BINS) $(BINS_DBG)
 
