@@ -1,11 +1,12 @@
 #!/bin/sh
 
-model="/home/models/dolen_models/qwen3_5_9b"
-tokenizer="/home/models/dolen_models/qwen3_5_tokenizer.bin"
+model_path="/home/models/dolen_models"
+model="${model_path}/qwen3_5_9b"
+tokenizer="${model_path}/qwen3_5_tokenizer.bin"
 prompt_file="/scratch/prompt"
 system_prompt="You are Qwen, a helpful assistant from Tongyi Lab at AliBaba Group. You use deep thinking to best solve problems."
 seq_n=8192
-log="/scratch/log"
+log="/scratch/prompt_log"
 seed=85
 temp="0.2"
 top_p="0.95"
