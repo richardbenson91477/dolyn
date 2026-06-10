@@ -59,10 +59,10 @@ $(BIN3_5Q_DBG): $(SRC3_5Q) $(LIB_SRCS) $(INC3_5Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC3_5Q) $(LIB_SRCS) -lm
 
 test3_5: $(BIN3_5)
-	./$(BIN3_5) $(MODEL3_5) -tk $(TOKENIZER3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3_5)
+	./$(BIN3_5) -m $(MODEL3_5) -tk $(TOKENIZER3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3_5)
 
 test3_5_dbg: $(BIN3_5_DBG)
-	./$(BIN3_5_DBG) $(MODEL3_5) -tk $(TOKENIZER3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3_5)
+	./$(BIN3_5_DBG) -m $(MODEL3_5) -tk $(TOKENIZER3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3_5)
 
 debug3_5: $(BIN3_5_DBG)
 	./run_gdb_3_5 $(BIN3_5_DBG) $(MODEL3_5) $(TOKENIZER3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN3_5)
@@ -83,10 +83,10 @@ $(BIN3Q_DBG): $(SRC3Q) $(LIB_SRCS) $(INC3Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC3Q) $(LIB_SRCS) -lm
 
 test3: $(BIN3)
-	./$(BIN3) $(MODEL3) -tk $(TOKENIZER3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3)
+	./$(BIN3) -m $(MODEL3) -tk $(TOKENIZER3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3)
 
 test3_dbg: $(BIN3_DBG)
-	./$(BIN3_DBG) $(MODEL3) -tk $(TOKENIZER3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3)
+	./$(BIN3_DBG) -m $(MODEL3) -tk $(TOKENIZER3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3)
 
 debug3: $(BIN3_DBG)
 	./run_gdb_3 $(BIN3_DBG) $(MODEL3) $(TOKENIZER3) $(PROMPT) $(SYS_PROMPT) $(SEQN3)

@@ -4,7 +4,7 @@
 int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
-        fprintf(stderr, "ERROR: Failed to open %s for reading\n", filepath);
+        log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
 
@@ -12,26 +12,26 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     uint32_t magic, version;
     if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
-        fprintf(stderr, "ERROR: Failed to read header from %s\n", filepath);
+        log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
     }
     
     // 'QW35'
     if (magic != 0x35335751) {
-        fprintf(stderr, "ERROR: Invalid magic number in %s\n", filepath);
+        log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
         fclose(f);
         return -1;
     }
     
     if (version != 1) {
-        fprintf(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
+        log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
         fclose(f);
         return -1;
     }
     
     if (fread(&model_qwen3_5->config, sizeof(config_qwen3_5), 1, f) != 1) {
-        fprintf(stderr, "ERROR: Failed to read config from %s\n", filepath);
+        log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
         fclose(f);
         return -1;
     }
@@ -49,13 +49,13 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     if (!model_qwen3_5->layer_types || !model_qwen3_5->attn_layer_indices || 
         !model_qwen3_5->deltanet_layer_indices) {
-        fprintf(stderr, "ERROR: Failed to allocate memory for layer indices\n");
+        log_msg(stderr, "ERROR: Failed to allocate memory for layer indices\n");
         fclose(f);
         return -1;
     }
     
     if (fread(model_qwen3_5->layer_types, sizeof(int), (size_t)p->n_layer, f) != (size_t)p->n_layer) {
-        fprintf(stderr, "ERROR: Failed to read layer_types from %s\n", filepath);
+        log_msg(stderr, "ERROR: Failed to read layer_types from %s\n", filepath);
         fclose(f);
         return -1;
     }
@@ -73,12 +73,12 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     w->rms_att_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
     if (!w->rms_att_weight) {
-        fprintf(stderr, "ERROR: Failed to allocate rms_att_weight\n");
+        log_msg(stderr, "ERROR: Failed to allocate rms_att_weight\n");
         fclose(f);
         return -1;
     }
     if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        fprintf(stderr, "ERROR: Failed to read rms_att_weight\n");
+        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
         fclose(f);
         return -1;
     }
@@ -89,7 +89,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     w->wo = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
 
     if (!w->wq || !w->wk || !w->wv || !w->wo) {
-        fprintf(stderr, "ERROR: Failed to allocate attention weights\n");
+        log_msg(stderr, "ERROR: Failed to allocate attention weights\n");
         fclose(f);
         return -1;
     }
@@ -106,17 +106,17 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     w->q_norm = (float *)a_calloc((size_t)p->n_full_attn_layers * head_size * sizeof(float));
     w->k_norm = (float *)a_calloc((size_t)p->n_full_attn_layers * head_size * sizeof(float));
     if (!w->q_norm || !w->k_norm) {
-        fprintf(stderr, "ERROR: Failed to allocate norm weights\n");
+        log_msg(stderr, "ERROR: Failed to allocate norm weights\n");
         fclose(f);
         return -1;
     }
     if (fread(w->q_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) != (size_t)p->n_full_attn_layers * head_size) {
-        fprintf(stderr, "ERROR: Failed to read q_norm\n");
+        log_msg(stderr, "ERROR: Failed to read q_norm\n");
         fclose(f);
         return -1;
     }
     if (fread(w->k_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) != (size_t)p->n_full_attn_layers * head_size) {
-        fprintf(stderr, "ERROR: Failed to read k_norm\n");
+        log_msg(stderr, "ERROR: Failed to read k_norm\n");
         fclose(f);
         return -1;
     }
@@ -129,7 +129,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         w->in_proj_qkv = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
         w->in_proj_z = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
         if (!w->in_proj_qkv || !w->in_proj_z) {
-            fprintf(stderr, "ERROR: Failed to allocate linear attention projections\n");
+            log_msg(stderr, "ERROR: Failed to allocate linear attention projections\n");
             fclose(f);
             return -1;
         }
@@ -146,51 +146,51 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         w->linear_norm = (float *)a_calloc((size_t)p->n_linear_attn_layers * p->d_linear_v * sizeof(float));
         
         if (!w->in_proj_b || !w->in_proj_a || !w->conv1d_weight || !w->dt_bias || !w->A_log || !w->linear_norm) {
-            fprintf(stderr, "ERROR: Failed to allocate linear attention weights\n");
+            log_msg(stderr, "ERROR: Failed to allocate linear attention weights\n");
             fclose(f);
             return -1;
         }
         
         if (fread(w->in_proj_b, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f) != 
             (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
-            fprintf(stderr, "ERROR: Failed to read in_proj_b\n");
+            log_msg(stderr, "ERROR: Failed to read in_proj_b\n");
             fclose(f);
             return -1;
         }
         if (fread(w->in_proj_a, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f) != 
             (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
-            fprintf(stderr, "ERROR: Failed to read in_proj_a\n");
+            log_msg(stderr, "ERROR: Failed to read in_proj_a\n");
             fclose(f);
             return -1;
         }
         if (fread(w->conv1d_weight, sizeof(float), (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel, f) != 
             (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel) {
-            fprintf(stderr, "ERROR: Failed to read conv1d_weight\n");
+            log_msg(stderr, "ERROR: Failed to read conv1d_weight\n");
             fclose(f);
             return -1;
         }
         if (fread(w->dt_bias, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f) != 
             (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
-            fprintf(stderr, "ERROR: Failed to read dt_bias\n");
+            log_msg(stderr, "ERROR: Failed to read dt_bias\n");
             fclose(f);
             return -1;
         }
         if (fread(w->A_log, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f) != 
             (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
-            fprintf(stderr, "ERROR: Failed to read A_log\n");
+            log_msg(stderr, "ERROR: Failed to read A_log\n");
             fclose(f);
             return -1;
         }
         if (fread(w->linear_norm, sizeof(float), (size_t)p->n_linear_attn_layers * p->d_linear_v, f) != 
             (size_t)p->n_linear_attn_layers * p->d_linear_v) {
-            fprintf(stderr, "ERROR: Failed to read linear_norm\n");
+            log_msg(stderr, "ERROR: Failed to read linear_norm\n");
             fclose(f);
             return -1;
         }
         
         w->out_proj = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
         if (!w->out_proj) {
-            fprintf(stderr, "ERROR: Failed to allocate out_proj\n");
+            log_msg(stderr, "ERROR: Failed to allocate out_proj\n");
             fclose(f);
             return -1;
         }
@@ -201,12 +201,12 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
     if (!w->rms_ffn_weight) {
-        fprintf(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
+        log_msg(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
         fclose(f);
         return -1;
     }
     if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        fprintf(stderr, "ERROR: Failed to read rms_ffn_weight\n");
+        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
         fclose(f);
         return -1;
     }
@@ -215,7 +215,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     if (!w->w1 || !w->w2 || !w->w3) {
-        fprintf(stderr, "ERROR: Failed to allocate MLP weights\n");
+        log_msg(stderr, "ERROR: Failed to allocate MLP weights\n");
         fclose(f);
         return -1;
     }
@@ -227,12 +227,12 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
     if (!w->rms_final_weight) {
-        fprintf(stderr, "ERROR: Failed to allocate rms_final_weight\n");
+        log_msg(stderr, "ERROR: Failed to allocate rms_final_weight\n");
         fclose(f);
         return -1;
     }
     if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
-        fprintf(stderr, "ERROR: Failed to read rms_final_weight\n");
+        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
         fclose(f);
         return -1;
     }
@@ -245,7 +245,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     fclose(f);
 
-    fprintf(stderr, "INFO: Quantized model loaded from %s\n", filepath);
+    log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
 
     alloc_state_qwen3_5(&(model_qwen3_5->state), &(model_qwen3_5->config));
 

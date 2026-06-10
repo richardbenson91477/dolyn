@@ -90,11 +90,11 @@ void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
 
     if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
             !s->att || !s->logits || !s->gate || !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
-        fprintf(stderr, "ERROR: Alloc failed!\n");
+        log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
     if (n_kv_layers > 0 && (!s->key_cache || !s->value_cache)) {
-        fprintf(stderr, "ERROR: alloc failed for KV cache!\n");
+        log_msg(stderr, "ERROR: alloc failed for KV cache!\n");
         exit(EXIT_FAILURE);
     }
 

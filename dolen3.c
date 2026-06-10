@@ -19,7 +19,7 @@ typedef struct {
 int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
-        fprintf(stderr, "ERROR: Failed to open %s for reading\n", filepath);
+        log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
     
@@ -27,19 +27,19 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
 
     uint32_t magic, version;
     if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
-        fprintf(stderr, "ERROR: Failed to read header from %s\n", filepath);
+        log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
     }
     
     if (magic != 0x30335751) { // 'QW30'
-        fprintf(stderr, "ERROR: Invalid magic number in %s\n", filepath);
+        log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
         fclose(f);
         return -1;
     }
     
     if (version != 2) {
-        fprintf(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
+        log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
         fclose(f);
         return -1;
     }
@@ -47,7 +47,7 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     config_qwen3 *p = &model_qwen3->config;
 
     if (fread(p, sizeof(config_qwen3), 1, f) != 1) {
-        fprintf(stderr, "ERROR: Failed to read config from %s\n", filepath);
+        log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
         fclose(f);
         return -1;
     }
@@ -67,7 +67,7 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     
     if (!w->rms_att_weight || !w->rms_ffn_weight || !w->rms_final_weight || 
         !w->q_norm_weights || !w->k_norm_weights) {
-        fprintf(stderr, "ERROR: Failed to allocate memory for weights\n");
+        log_msg(stderr, "ERROR: Failed to allocate memory for weights\n");
         fclose(f);
         return -1;
     }
@@ -76,31 +76,31 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     read_qt(f, &w->token_embedding_table);
     
     if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
-        fprintf(stderr, "ERROR: Failed to read rms_att_weight\n");
+        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
         fclose(f);
         return -1;
     }
     
     if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
-        fprintf(stderr, "ERROR: Failed to read rms_ffn_weight\n");
+        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
         fclose(f);
         return -1;
     }
     
     if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
-        fprintf(stderr, "ERROR: Failed to read rms_final_weight\n");
+        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
         fclose(f);
         return -1;
     }
     
     if (fread(w->q_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f) != (size_t)p->n_layers * p->head_dim) {
-        fprintf(stderr, "ERROR: Failed to read q_norm_weights\n");
+        log_msg(stderr, "ERROR: Failed to read q_norm_weights\n");
         fclose(f);
         return -1;
     }
     
     if (fread(w->k_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f) != (size_t)p->n_layers * p->head_dim) {
-        fprintf(stderr, "ERROR: Failed to read k_norm_weights\n");
+        log_msg(stderr, "ERROR: Failed to read k_norm_weights\n");
         fclose(f);
         return -1;
     }
@@ -121,7 +121,7 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     
     if (!w->wq || !w->wk || !w->wv || !w->wo || !w->w1 || !w->w2 || !w->w3) {
-        fprintf(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
+        log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(f);
         return -1;
     }
@@ -138,7 +138,7 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     }
     
     fclose(f);
-    fprintf(stderr, "INFO: Quantized model loaded from %s\n", filepath);
+    log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
 
     alloc_state_qwen3(&(model_qwen3->state), &(model_qwen3->config));
 

@@ -100,9 +100,11 @@ void free_sampler(Sampler *sampler);
 
 // I/O Utilities
 
-long time_in_ms(void);
-void read_stdin(const char *guide, char *buffer, size_t bufsize);
+extern char *log_path;
 
+long time_in_ms(void);
+void log_msg(FILE *stream, const char *format, ...);
+void read_msg(char *buffer, size_t bufsize);
 void *a_calloc(size_t size);
 
 // Common Model Interface

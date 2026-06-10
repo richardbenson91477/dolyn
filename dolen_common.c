@@ -1,9 +1,13 @@
 #include "dolen_common.h"
+#include <stdarg.h>
 
- 
+
+char *log_path = NULL;
+
+
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
     if (row_idx >= qt->rows || row_idx < 0) {
-        fprintf(stderr, "ERROR: Row index %d out of bounds (max %d)\n", row_idx, qt->rows);
+        log_msg(stderr, "ERROR: Row index %d out of bounds (max %d)\n", row_idx, qt->rows);
         exit(EXIT_FAILURE);
     }
     int num_groups = (qt->cols + GS - 1) / GS;
@@ -265,7 +269,7 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
 
 void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *tokens_n) {
     if (text == NULL) {
-        fprintf(stderr, "ERROR: Cannot encode NULL text\n");
+        log_msg(stderr, "ERROR: Cannot encode NULL text\n");
         exit(EXIT_FAILURE);
     }
 
@@ -340,9 +344,9 @@ char *decode(Tokenizer *t, int token, bool _debug) {
     }
 
     if (_debug) {
-        printf("\nDEBUG: token: %u piece:", token);
+        log_msg(stdout, "\nDEBUG: token: %u piece:", token);
         for (int c = 0; c < strlen(piece); c ++) {
-            printf("<%x>", (unsigned char)(piece[c]));
+            log_msg(stdout, "<%x>", (unsigned char)(piece[c]));
         }
     }
 
@@ -370,31 +374,31 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_m
 
     FILE *file = fopen(tokenizer_path, "rb");
     if (! file) {
-        fprintf(stderr, "ERROR: Couldn't load %s\n", tokenizer_path);
+        log_msg(stderr, "ERROR: Couldn't load %s\n", tokenizer_path);
         exit(EXIT_FAILURE);
     }
 
     if (fread(&t->max_token_length, sizeof(int), 1, file) != 1) {
-        fprintf(stderr, "ERROR: Failed read\n");
+        log_msg(stderr, "ERROR: Failed read\n");
         exit(EXIT_FAILURE);
     }
 
     int len;
     for (int i = 0; i < vocab_size; i++) {
         if (fread(t->vocab_scores + i, sizeof(float), 1, file) != 1) {
-            fprintf(stderr, "ERROR: Failed read\n");
+            log_msg(stderr, "ERROR: Failed read\n");
             exit(EXIT_FAILURE);
         }
 
         if (fread(&len, sizeof(int), 1, file) != 1) {
-            fprintf(stderr, "ERROR: Failed read\n");
+            log_msg(stderr, "ERROR: Failed read\n");
             exit(EXIT_FAILURE);
         }
 
         t->vocab[i] = (char *)a_calloc(len + 1);
         if (len > 0) {
             if (fread(t->vocab[i], len, 1, file) != 1) {
-                fprintf(stderr, "ERROR: Failed read\n");
+                log_msg(stderr, "ERROR: Failed read\n");
                 exit(EXIT_FAILURE);
             }
         }
@@ -551,10 +555,30 @@ long time_in_ms(void) {
     return time.tv_sec * 1000 + time.tv_nsec / 1000000;
 }
 
-void read_stdin(const char *guide, char *buffer, size_t bufsize) {
-    printf("%s", guide);
-    fflush(stdout);
+void log_msg(FILE *stream, const char *format, ...) {
+    va_list args1, args2;
 
+    va_start(args1, format);
+    va_copy(args2, args1);
+
+    vfprintf(stream, format, args1);
+    va_end(args1);
+
+    // Append to the log file if a path is provided
+    if (log_path) {
+        FILE *log_file = fopen(log_path, "a");
+        if (log_file != NULL) {
+            vfprintf(log_file, format, args2);
+            fclose(log_file);
+        }
+    }
+
+    va_end(args2);
+
+    fflush(stream);
+}
+
+void read_msg(char *buffer, size_t bufsize) {
     if (fgets(buffer, bufsize, stdin) != NULL) {
         size_t len = strlen(buffer);
         if ((len > 0) && (buffer[len - 1] == '\n')) {
@@ -563,6 +587,8 @@ void read_stdin(const char *guide, char *buffer, size_t bufsize) {
     } else {
         buffer[0] = '\0';
     }
+
+    log_msg(stdout, "%s", buffer);
 }
 
 void *a_calloc(size_t size) {
@@ -589,7 +615,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
     encode(tokenizer, prompt, 1, 0, prompt_tokens, &prompt_tokens_n);
 
     if (prompt_tokens_n < 1) {
-        fprintf(stderr, "ERROR: Expected at least 1 prompt token\n");
+        log_msg(stderr, "ERROR: Expected at least 1 prompt token\n");
         exit(EXIT_FAILURE);
     }
 
@@ -613,8 +639,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
         }
 
         char *piece = decode(tokenizer, next, false);
-        printf("%s", piece);
-        fflush(stdout);
+        log_msg(stdout, "%s", piece);
 
         token = next;
 
@@ -622,12 +647,11 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
             start = time_in_ms();
         }
     }
-    printf("\n");
-    fflush(stdout);
+    log_msg(stdout, "\n");
 
     if (pos > 1) {
         long end = time_in_ms();
-        fprintf(stderr, "INFO: %f tokens per second.\n", (pos-1) / (double)(end-start)*1000);
+        log_msg(stderr, "INFO: %f tokens per second.\n", (pos-1) / (double)(end-start)*1000);
     }
 
     free(prompt_tokens);
@@ -654,10 +678,14 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
     while (pos < steps_n_max) {
         if (user_turn) {
             if (first_turn && (init_prompt != NULL)) {
-                strcpy(prompt, init_prompt);
+                // Replaced strcpy with strncpy to prevent buffer overflow 
+                // when loading large prompts from a file
+                strncpy(prompt, init_prompt, prompt_n_max);
+                prompt[prompt_n_max] = '\0';
             }
             else {
-                read_stdin("In: ", prompt, prompt_n_max);
+                log_msg(stdout, "In: ");
+                read_msg(prompt, prompt_n_max);
             }
             if (prompt[0] == '\0') {
                 continue;
@@ -715,8 +743,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
             generated_tokens = 0;
             start = time_in_ms();
 
-            printf("Out: ");
-            fflush(stdout);
+            log_msg(stdout, "Out: ");
         }
 
         if (user_idx < prompt_tokens_n) {
@@ -732,23 +759,20 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 
         if (user_idx >= prompt_tokens_n) {
             if ((next == model_i->im_end_id) || (next == 2)) {
-                printf("\n");
-                fflush(stdout);
+                log_msg(stdout, "\n");
                 long end = time_in_ms();
                 if ((generated_tokens > 0) && ((end - start) > 0)) {
-                    fprintf(stderr, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
+                    log_msg(stderr, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
                 }
                 user_turn = 1;
             } else {
                 char *piece = decode(tokenizer, next, _debug);
-                printf("%s", piece);
-                fflush(stdout);
+                log_msg(stdout, "%s", piece);
                 generated_tokens++;
             }
         }
     }
-    printf("\n");
-    fflush(stdout);
+    log_msg(stdout, "\n");
 
     if (prompt_tokens) {
         free(prompt_tokens);
@@ -758,46 +782,59 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 }
 
 void error_usage(const char *prog_name) {
-    fprintf(stderr, "Usage:   %s <model> [options]\n", prog_name);
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
-    fprintf(stderr, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
-    fprintf(stderr, " -s  | --seed <int>:          random seed, default: current time\n");
-    fprintf(stderr, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
-    fprintf(stderr, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
-    fprintf(stderr, " -p  | --prompt <str>:        prompt, default: none\n");
-    fprintf(stderr, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
-    fprintf(stderr, " -m  | --mode <str>: mode:    generate|chat, default: chat\n");
-    fprintf(stderr, " -sp | --system_prompt <str>: system prompt, default: none\n");
-    fprintf(stderr, " -d  | --debug <int>:         enable debug output, default: 0\n");
+    log_msg(stderr, "Usage: %s [options]\n", prog_name);
+    log_msg(stderr, "Options:\n");
+    log_msg(stderr, " -m  | --model <str>:         model path, default: none\n");
+    log_msg(stderr, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
+    log_msg(stderr, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
+    log_msg(stderr, " -s  | --seed <int>:          random seed, default: current time\n");
+    log_msg(stderr, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
+    log_msg(stderr, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
+    log_msg(stderr, " -p  | --prompt <str>:        prompt, default: none\n");
+    log_msg(stderr, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
+    log_msg(stderr, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
+    log_msg(stderr, " -M  | --mode <str>: mode:    generate|chat, default: chat\n");
+    log_msg(stderr, " -sp | --system_prompt <str>: system prompt, default: none\n");
+    log_msg(stderr, " -d  | --debug <int>:         enable debug output, default: 0\n");
+    log_msg(stderr, " -l  | --log <str>:           path to append all I/O to, default: none\n");
+    log_msg(stderr, " -h  | --help:                print this help and exit\n");
+
     exit(EXIT_FAILURE);
 }
 
 int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, int), const char *prog_name) {
-    char *model_path = "";
+    char *model_path = NULL;
     float temperature = TEMP_DEFAULT;
     float topp = TOP_P_DEFAULT;
     unsigned long long rng_seed = 0;
     int seq_n_max = 0;
     int prompt_n_max = PROMPT_N_MAX_DEFAULT;
     char *prompt = NULL;
+    char *prompt_file = NULL;
     char *tokenizer_path = "tokenizer.bin";
     char *mode = "chat";
     char *system_prompt = NULL;
     bool _debug = false;
 
-    if (argc >= 2) {
-        model_path = argv[1];
-    } else {
-        error_usage(prog_name);
-    }
 
-    for (int i = 2; i < argc; i+=2) {
-        if ((i + 1 >= argc) || (argv[i][0] != '-')) {
+    for (int i = 1; i < argc; i += 2) {
+        if (argv[i][0] != '-') {
             error_usage(prog_name);
         }
 
-        if ((! strcmp(argv[i], "-t")) || (! strcmp(argv[i], "--temp"))) {
+        if ((! strcmp(argv[i], "-h")) || (! strcmp(argv[i], "--help"))) {
+            error_usage(prog_name);
+        }
+
+        if ((i + 1) >= argc) {
+            error_usage(prog_name);
+        }
+
+
+        if ((! strcmp(argv[i], "-m")) || (! strcmp(argv[i], "--model"))) {
+            model_path = argv[i + 1];
+        }
+        else if ((! strcmp(argv[i], "-t")) || (! strcmp(argv[i], "--temp"))) {
             temperature = atof(argv[i + 1]);
         }
         else if ((! strcmp(argv[i], "-tp")) || (! strcmp(argv[i], "--top_p"))) {
@@ -816,10 +853,13 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
             prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(prompt, argv[i + 1]);
         }
+        else if ((! strcmp(argv[i], "-pf")) || (! strcmp(argv[i], "--prompt_file"))) {
+            prompt_file = argv[i + 1];
+        }
         else if ((! strcmp(argv[i], "-tk")) || (! strcmp(argv[i], "--tokenizer"))) {
             tokenizer_path = argv[i + 1];
         }
-        else if ((! strcmp(argv[i], "-m")) || (! strcmp(argv[i], "--mode"))) {
+        else if ((! strcmp(argv[i], "-M")) || (! strcmp(argv[i], "--mode"))) {
             mode = argv[i + 1];
         }
         else if ((! strcmp(argv[i], "-sp")) || (! strcmp(argv[i], "--system_prompt"))) {
@@ -829,15 +869,56 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         else if ((! strcmp(argv[i], "-d")) || (! strcmp(argv[i], "--debug"))) {
             _debug = atoi(argv[i + 1]);
         }
+        else if ((! strcmp(argv[i], "-l")) || (! strcmp(argv[i], "--log"))) {
+            log_path = argv[i + 1];
+        }
         else {
             error_usage(prog_name);
         }
     }
 
+    if (! model_path) {
+        log_msg(stderr, "ERROR: Model path required.\n");
+        exit(EXIT_FAILURE);
+    }
+
     if (rng_seed == 0) {
         rng_seed = (unsigned int)time(NULL);
     }
-    fprintf(stderr, "INFO: Using seed %lu\n", rng_seed);
+    log_msg(stderr, "INFO: Using seed %lu\n", rng_seed);
+
+    // Handle reading prompt from file
+    if (prompt_file) {
+        if (prompt) {
+            free(prompt);
+            prompt = NULL;
+        }
+        FILE *pf = fopen(prompt_file, "r");
+        if (!pf) {
+            log_msg(stderr, "ERROR: Couldn't load prompt file %s\n", prompt_file);
+            exit(EXIT_FAILURE);
+        }
+        fseek(pf, 0, SEEK_END);
+        long fsize = ftell(pf);
+        fseek(pf, 0, SEEK_SET);
+        
+        if (fsize < 0) {
+            log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", prompt_file);
+            fclose(pf);
+            exit(EXIT_FAILURE);
+        }
+        
+        prompt = (char *)a_calloc(fsize + 1);
+        if (!prompt) {
+            log_msg(stderr, "ERROR: Memory allocation failed for prompt file\n");
+            fclose(pf);
+            exit(EXIT_FAILURE);
+        }
+        
+        size_t read_bytes = fread(prompt, 1, fsize, pf);
+        prompt[read_bytes] = '\0';
+        fclose(pf);
+    }
 
     model_iface *model_i = init_fn(model_path, seq_n_max);
     if (! model_i) {
@@ -857,7 +938,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         chat_common(model_i, &tokenizer, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, _debug);
     }
     else {
-        fprintf(stderr, "ERROR: Unknown mode: %s\n", mode);
+        log_msg(stderr, "ERROR: Unknown mode: %s\n", mode);
         error_usage(prog_name);
     }
 
@@ -870,4 +951,3 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
     return 0;
 }
-

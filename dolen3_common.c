@@ -53,7 +53,7 @@ void alloc_state_qwen3(state_qwen3 *s, config_qwen3 *p) {
             ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
             ! s->key_cache || ! s->value_cache ||
             (rotary_half > 0 && (!s->cos_cache || !s->sin_cache))) {
-        fprintf(stderr, "ERROR: alloc failed!\n");
+        log_msg(stderr, "ERROR: alloc failed!\n");
         exit(EXIT_FAILURE);
     }
 

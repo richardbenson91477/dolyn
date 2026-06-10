@@ -21,7 +21,7 @@ int load_config_qwen3(const char *model_dir, config_qwen3 *config) {
 
     FILE *f = fopen(config_path, "rb");
     if (! f) {
-        fprintf(stderr, "ERROR: Could not open config.json at %s\n", config_path);
+        log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
 
@@ -46,7 +46,7 @@ int load_config_qwen3(const char *model_dir, config_qwen3 *config) {
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
     if (! root) {
-        fprintf(stderr, "ERROR: Failed to parse config.json: %s\n", error);
+        log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error);
         return -1;
     }
 
@@ -77,7 +77,7 @@ int load_config_qwen3(const char *model_dir, config_qwen3 *config) {
 
     json_free(root);
 
-    fprintf(stderr, "INFO: Model config loaded\n");
+    log_msg(stderr, "INFO: Model config loaded\n");
     return 0;
 }
 
@@ -88,10 +88,10 @@ static void process_qwen3_safetensors_file(Qwen3 *model_qwen3, safetensors_idx *
     char filepath[4096];
     snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
 
-    fprintf(stderr, "INFO: Loading shard: %s\n", filename);
+    log_msg(stderr, "INFO: Loading shard: %s\n", filename);
     csafetensors_t st;
     if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
-        fprintf(stderr, "ERROR: Failed to load %s\n", filepath);
+        log_msg(stderr, "ERROR: Failed to load %s\n", filepath);
         exit(EXIT_FAILURE);
     }
 
@@ -117,7 +117,7 @@ static void process_qwen3_safetensors_file(Qwen3 *model_qwen3, safetensors_idx *
             if (! p->shared_classifier) {
                 float *f = load_tensor_from_handle(&st, tname, NULL, 0);
                 if (! f) {
-                    fprintf(stderr, "FATAL: failed to load lm_head.weight\n");
+                    log_msg(stderr, "FATAL: failed to load lm_head.weight\n");
                     exit(EXIT_FAILURE);
                 }
                 quantize_group(&w->wcls, f, p->vocab_size, p->dim);
@@ -164,7 +164,7 @@ static void process_qwen3_safetensors_file(Qwen3 *model_qwen3, safetensors_idx *
         }
     }
     csafetensors_free(&st);
-    fprintf(stderr, "INFO: Finished shard: %s\n", filename);
+    log_msg(stderr, "INFO: Finished shard: %s\n", filename);
 }
 
 int load_qwen3_from_safetensors(Qwen3 *model_qwen3, const char *model_dir) {
@@ -173,11 +173,11 @@ int load_qwen3_from_safetensors(Qwen3 *model_qwen3, const char *model_dir) {
     safetensors_idx idx;
 
     if (load_safetensors_index(&idx, model_dir) != 0) {
-        fprintf(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
+        log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
         return -1;
     }
 
-    fprintf(stderr, "INFO: Found %d safetensors shards\n", idx.n_unique_files);
+    log_msg(stderr, "INFO: Found %d safetensors shards\n", idx.n_unique_files);
 
     w->rms_att_weight = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
     w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
@@ -203,16 +203,16 @@ int load_qwen3_from_safetensors(Qwen3 *model_qwen3, const char *model_dir) {
     if (p->shared_classifier) {
         w->wcls = w->token_embedding_table;
     } else if (w->wcls.q == NULL) {
-        fprintf(stderr, "ERROR: lm_head.weight was not found and tie_word_embeddings is false\n");
+        log_msg(stderr, "ERROR: lm_head.weight was not found and tie_word_embeddings is false\n");
         return -1;
     }
 
     if (w->token_embedding_table.q == NULL) {
-        fprintf(stderr, "ERROR: embed_tokens.weight was not found\n");
+        log_msg(stderr, "ERROR: embed_tokens.weight was not found\n");
         return -1;
     }
 
-    fprintf(stderr, "INFO: Weights loaded successfully\n");
+    log_msg(stderr, "INFO: Weights loaded successfully\n");
 
     free_safetensors_index(&idx);
 
@@ -234,7 +234,7 @@ void build_qwen3(Qwen3 *model_qwen3, char *model_path) {
 void save_quantized_qwen3(const char *filepath, Qwen3* model_qwen3) {
     FILE *f = fopen(filepath, "wb");
     if (! f) {
-        fprintf(stderr, "ERROR: Failed to open %s for writing\n", filepath);
+        log_msg(stderr, "ERROR: Failed to open %s for writing\n", filepath);
         exit(EXIT_FAILURE);
     }
 
@@ -270,7 +270,7 @@ void save_quantized_qwen3(const char *filepath, Qwen3* model_qwen3) {
     }
     
     fclose(f);
-    fprintf(stderr, "INFO: Quantized model saved to %s\n", filepath);
+    log_msg(stderr, "INFO: Quantized model saved to %s\n", filepath);
 }
 
 int main(int argc, char *argv[]) {
@@ -281,7 +281,7 @@ int main(int argc, char *argv[]) {
         model_arg = argv[1];
         output_file = argv[2];
     } else {
-        fprintf(stderr, "Usage:   dolen3_quantize <model> <output_file>\n");
+        log_msg(stderr, "Usage:   dolen3_quantize <model> <output_file>\n");
         exit(EXIT_FAILURE);
     }
     

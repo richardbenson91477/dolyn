@@ -145,7 +145,7 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
 
     size_t num_elements = csafetensors_shape_size(tensor);
     if (expected_size > 0 && (num_elements != expected_size)) {
-        fprintf(stderr, "ERROR: Tensor %s size mismatch: got %zu, expected %zu\n", name, num_elements, expected_size);
+        log_msg(stderr, "ERROR: Tensor %s size mismatch: got %zu, expected %zu\n", name, num_elements, expected_size);
     }
 
     float *output = dest;
@@ -167,7 +167,7 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
     } else if (tensor->dtype == CSAFETENSORS_DTYPE_FLOAT32) {
         memcpy(output, data, num_elements * sizeof(float));
     } else {
-        fprintf(stderr, "ERROR: Unsupported dtype for tensor %s\n", name);
+        log_msg(stderr, "ERROR: Unsupported dtype for tensor %s\n", name);
         if (! dest) {
             free(output);
         }
@@ -179,7 +179,7 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
 float *load_tensor_from_handle(void *st, const char *name, float *dest, size_t expected_size) {
     float *res = extract_tensor_from_handle(st, name, dest, expected_size);
     if ((! res) && dest) {
-        fprintf(stderr, "ERROR: Failed to load tensor %s into provided buffer\n", name);
+        log_msg(stderr, "ERROR: Failed to load tensor %s into provided buffer\n", name);
     }
     return res;
 }
@@ -187,7 +187,7 @@ float *load_tensor_from_handle(void *st, const char *name, float *dest, size_t e
 void load_and_quantize_from_handle(void *st, const char *name, qtensor *qt, int rows, int cols) {
     float *f = extract_tensor_from_handle(st, name, NULL, 0);
     if (! f) {
-        fprintf(stderr, "ERROR: missing tensor %s in current shard\n", name);
+        log_msg(stderr, "ERROR: missing tensor %s in current shard\n", name);
         exit(EXIT_FAILURE);
     }
     quantize_group(qt, f, rows, cols);
