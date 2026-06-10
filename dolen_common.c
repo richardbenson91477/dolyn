@@ -608,13 +608,9 @@ void read_msg(char *buf, size_t buf_len) {
             p += len - 1;
             rem -= len - 1;
         } else {
-            if ((len > 0) && (p[len - 1] == '\n')) {
-                p[len - 1] = '\0';
-            }
             break;
         }
     }
-//    *p = 0;
 
     log_msg(NULL, "%s", buf);
 }

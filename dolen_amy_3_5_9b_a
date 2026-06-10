@@ -3,7 +3,7 @@ export OMP_NUM_THREADS=11
 export OMP_PLACES="cores"
 export OMP_PROC_BIND="close"
 
-model_path="/home/models"
+model_path="/home/models/dolen_models"
 model="${model_path}/qwen3_5_9b"
 tokenizer="${model_path}/qwen3_5_tokenizer.bin"
 prompt="Hi, I'm Rick!"
