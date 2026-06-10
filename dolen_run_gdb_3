@@ -1,0 +1,4 @@
+#!/bin/sh
+
+$lena_root_path/bin/gdb "$1" -ex "run -m \"$2\" -tk \"$3\" -p \"$4\" -sp \"$5\" -n \"$6\""
+
