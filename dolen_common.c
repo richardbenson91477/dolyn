@@ -240,7 +240,7 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
     if (text[0] == '\0') {
         return;
     }
-    char *str_buffer = a_calloc((t->max_token_length + 1) * sizeof(char));
+    char *str_buf = a_calloc((t->max_token_length + 1) * sizeof(char));
     char *pos = text;
     while (*pos != '\0') {
         int best_len = 0, best_id = -1;
@@ -248,9 +248,9 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
             if (((pos[len-1] & 0xC0) == 0x80) && ((len < t->max_token_length) && (pos[len] != '\0'))) {
                 continue;
             }
-            strncpy(str_buffer, pos, len);
-            str_buffer[len] = '\0';
-            int id = str_lookup(str_buffer, t->sorted_vocab, t->vocab_size);
+            strncpy(str_buf, pos, len);
+            str_buf[len] = '\0';
+            int id = str_lookup(str_buf, t->sorted_vocab, t->vocab_size);
             if (id != -1) {
                 best_len = len;
                 best_id = id;
@@ -264,7 +264,7 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
             pos++;
         }
     }
-    free(str_buffer);
+    free(str_buf);
 }
 
 void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *tokens_n) {
@@ -578,17 +578,17 @@ void log_msg(FILE *stream, const char *format, ...) {
     fflush(stream);
 }
 
-void read_msg(char *buffer, size_t bufsize) {
-    if (fgets(buffer, bufsize, stdin) != NULL) {
-        size_t len = strlen(buffer);
-        if ((len > 0) && (buffer[len - 1] == '\n')) {
-            buffer[len - 1] = '\0';
+void read_msg(char *buf, size_t buf_len) {
+    if (fgets(buf, buf_len, stdin) != NULL) {
+        size_t len = strlen(buf);
+        if ((len > 0) && (buf[len - 1] == '\n')) {
+            buf[len - 1] = '\0';
         }
     } else {
-        buffer[0] = '\0';
+        buf[0] = '\0';
     }
 
-    log_msg(stdout, "%s", buffer);
+    log_msg(stdout, "%s", buf);
 }
 
 void *a_calloc(size_t size) {
@@ -899,23 +899,23 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
             exit(EXIT_FAILURE);
         }
         fseek(pf, 0, SEEK_END);
-        long fsize = ftell(pf);
+        long f_len = ftell(pf);
         fseek(pf, 0, SEEK_SET);
         
-        if (fsize < 0) {
+        if (f_len < 0) {
             log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", prompt_file);
             fclose(pf);
             exit(EXIT_FAILURE);
         }
         
-        prompt = (char *)a_calloc(fsize + 1);
+        prompt = (char *)a_calloc(f_len + 1);
         if (!prompt) {
             log_msg(stderr, "ERROR: Memory allocation failed for prompt file\n");
             fclose(pf);
             exit(EXIT_FAILURE);
         }
         
-        size_t read_bytes = fread(prompt, 1, fsize, pf);
+        size_t read_bytes = fread(prompt, 1, f_len, pf);
         prompt[read_bytes] = '\0';
         fclose(pf);
     }

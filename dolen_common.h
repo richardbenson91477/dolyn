@@ -87,12 +87,12 @@ typedef struct {
     unsigned long long rng_state;
 } Sampler;
 
-int sample_argmax(float *probabilities, int n);
+int sample_argmax(float *probs, int n);
 unsigned int random_u32(unsigned long long *state);
 float random_f32(unsigned long long *state);
-int sample_mult(float *probabilities, int n, float coin);
+int sample_mult(float *probs, int n, float coin);
 int compare_prob(const void *a, const void *b);
-int sample_topp(float *probabilities, int n, float topp, ProbIndex *probindex, float coin);
+int sample_topp(float *probs, int n, float topp, ProbIndex *probindex, float coin);
 int sample(Sampler *sampler, float *logits);
 void build_sampler(Sampler *sampler, int vocab_size, float temperature, float topp, unsigned long long rng_seed);
 void free_sampler(Sampler *sampler);
@@ -104,7 +104,7 @@ extern char *log_path;
 
 long time_in_ms(void);
 void log_msg(FILE *stream, const char *format, ...);
-void read_msg(char *buffer, size_t bufsize);
+void read_msg(char *buf, size_t buf_len);
 void *a_calloc(size_t size);
 
 // Common Model Interface
