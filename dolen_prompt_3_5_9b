@@ -1,4 +1,7 @@
 #!/bin/sh
+export OMP_NUM_THREADS := 11
+export OMP_PLACES := cores
+export OMP_PROC_BIND := close
 
 model_path="/home/models/dolen_models"
 model="${model_path}/qwen3_5_9b"
