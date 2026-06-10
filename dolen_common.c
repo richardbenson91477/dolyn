@@ -331,12 +331,8 @@ void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *
     free(segment);
 }
 
-char *decode(Tokenizer *t, int prev_token, int token, bool _debug) {
+char *decode(Tokenizer *t, int token, bool _debug) {
     char *piece = t->vocab[token];
-
-    if ((prev_token == 1) && (piece[0] == ' ')) {
-        piece++;
-    }
 
     unsigned char byte_val;
     if (sscanf(piece, "<0x%02hhX>", &byte_val) == 1) {
@@ -344,9 +340,9 @@ char *decode(Tokenizer *t, int prev_token, int token, bool _debug) {
     }
 
     if (_debug) {
-        printf("\n");
+        printf("\nDEBUG: token: %u piece:", token);
         for (int c = 0; c < strlen(piece); c ++) {
-            printf("<%ld>", piece[c]);
+            printf("<%x>", (unsigned char)(piece[c]));
         }
     }
 
@@ -616,7 +612,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
             break;
         }
 
-        char *piece = decode(tokenizer, token, next, false);
+        char *piece = decode(tokenizer, next, false);
         printf("%s", piece);
         fflush(stdout);
 
@@ -744,7 +740,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
                 }
                 user_turn = 1;
             } else {
-                char *piece = decode(tokenizer, token, next, _debug);
+                char *piece = decode(tokenizer, next, _debug);
                 printf("%s", piece);
                 fflush(stdout);
                 generated_tokens++;
