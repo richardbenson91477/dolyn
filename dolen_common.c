@@ -556,39 +556,67 @@ long time_in_ms(void) {
 }
 
 void log_msg(FILE *stream, const char *format, ...) {
-    va_list args1, args2;
-
+    va_list args1;
     va_start(args1, format);
-    va_copy(args2, args1);
 
-    vfprintf(stream, format, args1);
-    va_end(args1);
-
-    // Append to the log file if a path is provided
     if (log_path) {
+        va_list args2;
+        va_copy(args2, args1);
+
         FILE *log_file = fopen(log_path, "a");
+
         if (log_file != NULL) {
             vfprintf(log_file, format, args2);
             fclose(log_file);
         }
+        else {
+            fprintf(stderr, "ERROR: can't open log file\n");
+            exit(EXIT_FAILURE);
+        }
+
+        va_end(args2);
     }
 
-    va_end(args2);
+    if (stream) {
+        vfprintf(stream, format, args1);
+        fflush(stream);
+    }
 
-    fflush(stream);
+    va_end(args1);
 }
 
 void read_msg(char *buf, size_t buf_len) {
-    if (fgets(buf, buf_len, stdin) != NULL) {
-        size_t len = strlen(buf);
-        if ((len > 0) && (buf[len - 1] == '\n')) {
-            buf[len - 1] = '\0';
-        }
-    } else {
-        buf[0] = '\0';
+    if (buf_len == 0) {
+        return;
     }
+ 
+    char *p = buf;
+    size_t rem = buf_len;
+  
+    while (rem > 1) {
+        if (fgets(p, rem, stdin) == NULL) {
+            break;
+        }
 
-    log_msg(stdout, "%s", buf);
+        size_t len = strlen(p);
+        if (len < 2) {
+            break;
+        }
+ 
+        if ((p[len - 2] == '\\') && (p[len - 1] == '\n')) {
+            p[len - 2] = '\n';
+            p += len - 1;
+            rem -= len - 1;
+        } else {
+            if ((len > 0) && (p[len - 1] == '\n')) {
+                p[len - 1] = '\0';
+            }
+            break;
+        }
+    }
+//    *p = 0;
+
+    log_msg(NULL, "%s", buf);
 }
 
 void *a_calloc(size_t size) {
