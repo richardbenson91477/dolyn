@@ -65,7 +65,7 @@ test3_5_dbg: $(BIN3_5_DBG)
 	./$(BIN3_5_DBG) -m $(MODEL3_5) -tk $(TOKENIZER3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3_5)
 
 debug3_5: $(BIN3_5_DBG)
-	./run_gdb_3_5 $(BIN3_5_DBG) $(MODEL3_5) $(TOKENIZER3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN3_5)
+	./dolen_run_gdb_3_5 $(BIN3_5_DBG) $(MODEL3_5) $(TOKENIZER3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN3_5)
 
 
 $(BIN3): $(SRC3) $(INC3)
@@ -89,7 +89,7 @@ test3_dbg: $(BIN3_DBG)
 	./$(BIN3_DBG) -m $(MODEL3) -tk $(TOKENIZER3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN3)
 
 debug3: $(BIN3_DBG)
-	./run_gdb_3 $(BIN3_DBG) $(MODEL3) $(TOKENIZER3) $(PROMPT) $(SYS_PROMPT) $(SEQN3)
+	./dolen_run_gdb_3 $(BIN3_DBG) $(MODEL3) $(TOKENIZER3) $(PROMPT) $(SYS_PROMPT) $(SEQN3)
 
 
 clean:
