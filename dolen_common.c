@@ -793,7 +793,7 @@ void error_usage(const char *prog_name) {
     log_msg(stderr, " -p  | --prompt <str>:        prompt, default: none\n");
     log_msg(stderr, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
     log_msg(stderr, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
-    log_msg(stderr, " -M  | --mode <str>: mode:    generate|chat, default: chat\n");
+    log_msg(stderr, " -M  | --mode <str>:          generate|chat, default: chat\n");
     log_msg(stderr, " -sp | --system_prompt <str>: system prompt, default: none\n");
     log_msg(stderr, " -d  | --debug <int>:         enable debug output, default: 0\n");
     log_msg(stderr, " -l  | --log <str>:           path to append all I/O to, default: none\n");
