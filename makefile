@@ -79,12 +79,9 @@ test_q3_5_dbg: $(BIN_Q3_5_DBG)
 
 debug_q3_5: $(BIN_Q3_5_DBG)
 	./dolen_run_gdb $(BIN_Q3_5_DBG) $(MODEL_Q3_5) $(TOKENIZER_Q3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3_5)
-<<<<<<< HEAD
-=======
 
 debug_q3_5_q: $(BIN_Q3_5_Q_DBG)
 	./dolen_q_run_gdb $(BIN_Q3_5_Q_DBG)
->>>>>>> a3bbfa4 (beginning gemma4u (e.g. 12b) text-only support)
 
 
 $(BIN_Q3): $(SRC_Q3) $(INC_Q3)
@@ -109,8 +106,6 @@ test_q3_dbg: $(BIN_Q3_DBG)
 
 debug_q3: $(BIN_Q3_DBG)
 	./dolen_run_gdb $(BIN_Q3_DBG) $(MODEL_Q3) $(TOKENIZER_Q3) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3)
-<<<<<<< HEAD
-=======
 
 debug_q3_q: $(BIN_Q3_Q_DBG)
 	./dolen_q_run_gdb $(BIN_Q3_Q_DBG)
@@ -141,7 +136,6 @@ debug_g4u: $(BIN_G4U_DBG)
 
 debug_g4u_q: $(BIN_G4U_Q_DBG)
 	./dolen_q_run_gdb $(BIN_G4U_Q_DBG)
->>>>>>> a3bbfa4 (beginning gemma4u (e.g. 12b) text-only support)
 
 
 clean:
