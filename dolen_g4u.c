@@ -178,34 +178,43 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         float inv_sqrt_head = 1.0f / sqrtf((float)current_head_dim);
         int start_t = (pos >= p->sliding_window) ? (pos - p->sliding_window) : 0;
         
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * current_head_dim;
             float *att = s->att + h * p->seq_len;
             int kv_head = is_full ? h / (p->n_heads / p->n_kv_heads) : h;
             float *k_base = s->key_cache + loff;
             float *v_base = s->value_cache + loff;
-            
+
+            // 🔧 FIX: zero out all positions up to pos (or use large negative for masking)
+            for (int t = 0; t <= pos; t++) {
+                att[t] = -1e9f; // causal + sliding window will overwrite valid range
+            }
+
+            // Compute attention scores only over valid window
             for (int t = start_t; t <= pos; t++) {
                 float *k = k_base + t * kv_dim + kv_head * current_head_dim;
                 float score = 0.0f;
                 #pragma omp simd reduction(+:score)
-                for (int i = 0; i < current_head_dim; i++) score += q[i] * k[i];
-                att[t] = score * inv_sqrt_head; // Writes at index t
+                for (int i = 0; i < current_head_dim; i++) {
+                    score += q[i] * k[i];
+                }
+                att[t] = score * inv_sqrt_head;
             }
-            
-            // FIX: Apply softmax only to the valid slice we just wrote (in-place)
-            softmax(att + start_t, pos - start_t + 1);
-            
-            // FIX: Use head-specific offset for xb to prevent heads from overwriting each other
+
+            // 🔧 FIX: softmax over entire prefix [0, pos], not just [start_t, pos]
+            softmax(att, pos + 1);
+
+            // Weighted sum using normalized attention
             float *xb_h = s->xb + h * current_head_dim;
             memset(xb_h, 0, current_head_dim * sizeof(float));
-            
             for (int t = start_t; t <= pos; t++) {
                 float *v = v_base + t * kv_dim + kv_head * current_head_dim;
-                float a = att[t]; // FIX: Read from the correct index 't' (softmax modified it in-place)
+                float a = att[t]; // now correctly normalized
                 #pragma omp simd
-                for (int i = 0; i < current_head_dim; i++) xb_h[i] += a * v[i];
+                for (int i = 0; i < current_head_dim; i++) {
+                    xb_h[i] += a * v[i];
+                }
             }
         }
         
