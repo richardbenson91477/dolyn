@@ -152,8 +152,13 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         // Fixed pointer semantics (&w->...)
         matmul_qq(s->q, &s->xq, &w->q_proj[l]);
         matmul_qq(s->k, &s->xq, &w->k_proj[l]);
-        matmul_qq(s->v, &s->xq, &w->v_proj[l]);
 
+        // FIX: For full attention layers with attention_k_eq_v, value is just key!
+        if (is_full && p->attention_k_eq_v) {
+            memcpy(s->v, s->k, kv_dim * sizeof(float));
+        } else {
+            matmul_qq(s->v, &s->xq, &w->v_proj[l]);
+        }
 #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             rmsnorm_gemma(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps);
@@ -189,7 +194,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 att[t] = score * inv_sqrt_head; // Writes at index t
             }
             
-            // FIX: Apply softmax only to the valid slice we just wrote
+            // FIX: Apply softmax only to the valid slice we just wrote (in-place)
             softmax(att + start_t, pos - start_t + 1);
             
             // FIX: Use head-specific offset for xb to prevent heads from overwriting each other
@@ -198,7 +203,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             
             for (int t = start_t; t <= pos; t++) {
                 float *v = v_base + t * kv_dim + kv_head * current_head_dim;
-                float a = att[t]; // FIX: Read from the correct index 't'
+                float a = att[t]; // FIX: Read from the correct index 't' (softmax modified it in-place)
                 #pragma omp simd
                 for (int i = 0; i < current_head_dim; i++) xb_h[i] += a * v[i];
             }

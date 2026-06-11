@@ -5,7 +5,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     int rotary_full = (int)((float)p->global_head_dim * p->rope_partial_factor);
     int rotary_sliding = (int)((float)p->head_dim * p->rope_partial_factor);
     
-    // FIX: Calculate max activation dimension to prevent heap overflow during quantization
+    // FIX: Calculate max activation dimension to prevent heap overflow
     int attn_out_dim = p->n_heads * p->global_head_dim;
     int max_act_dim = p->dim;
     if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
