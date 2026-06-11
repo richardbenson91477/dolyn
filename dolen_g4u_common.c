@@ -38,10 +38,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
                 s->sin_cache_full[pos * rotary_full + i] = sinf(val);
             }
         }
-    } else {
-        s->cos_cache_full = NULL;
-        s->sin_cache_full = NULL;
-    }
+    } else { s->cos_cache_full = NULL; s->sin_cache_full = NULL; }
 
     if (rotary_sliding > 0) {
         s->cos_cache_sliding = (float *)a_calloc((size_t)p->seq_len * rotary_sliding * sizeof(float));
@@ -54,22 +51,16 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
                 s->sin_cache_sliding[pos * rotary_sliding + i] = sinf(val);
             }
         }
-    } else {
-        s->cos_cache_sliding = NULL;
-        s->sin_cache_sliding = NULL;
-    }
+    } else { s->cos_cache_sliding = NULL; s->sin_cache_sliding = NULL; }
 
     if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
         !s->att || !s->logits || !s->key_cache || !s->value_cache ||
         !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
-        log_msg(stderr, "ERROR: Alloc failed!\n");
-        exit(EXIT_FAILURE);
+        log_msg(stderr, "ERROR: Alloc failed!\n"); exit(EXIT_FAILURE);
     }
     if (p->seq_len > 1 && (!s->cos_cache_full || !s->sin_cache_full || !s->cos_cache_sliding || !s->sin_cache_sliding)) {
-        log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
-        exit(EXIT_FAILURE);
+        log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n"); exit(EXIT_FAILURE);
     }
-
     s->allocated = 1;
 }
 
@@ -88,16 +79,15 @@ void free_state_gemma4u(state_gemma4u *s) {
 void free_gemma4u(Gemma4Unified *model) {
     weights_gemma4u *w = &model->weights;
     int n_layer = model->config.n_layers;
-    int n_full = 0;
-    for (int i = 0; i < n_layer; i++) {
-        if (model->layer_types[i] == 1) n_full++;
-    }
-
+    
     free_qt(&w->embed_tokens);
     free(w->rms_input_layernorm); free(w->rms_post_attn_layernorm);
     free(w->rms_pre_ffn_layernorm); free(w->rms_post_ffn_layernorm);
     free(w->rms_q_norm); free(w->rms_k_norm); free(w->rms_final_norm);
-    free_qt_array(w->q_proj, n_full);
+    free(w->norm_offsets);
+    
+    // All projections are now allocated for all layers
+    free_qt_array(w->q_proj, n_layer);
     free_qt_array(w->k_proj, n_layer);
     free_qt_array(w->v_proj, n_layer);
     free_qt_array(w->o_proj, n_layer);
@@ -108,4 +98,3 @@ void free_gemma4u(Gemma4Unified *model) {
     if (model->state.allocated) free_state_gemma4u(&model->state);
     free(model->layer_types);
 }
-

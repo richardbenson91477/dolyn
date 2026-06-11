@@ -27,7 +27,7 @@ typedef struct {
     qtensor embed_tokens;
     qtensor *q_proj;
     qtensor *k_proj;
-    qtensor *v_proj; // Added
+    qtensor *v_proj; 
     qtensor *o_proj;
     qtensor *gate_proj;
     qtensor *up_proj;
@@ -39,6 +39,7 @@ typedef struct {
     float *rms_q_norm;
     float *rms_k_norm;
     float *rms_final_norm;
+    int *norm_offsets; // Tracks varying dimensions for q/k norms
 } weights_gemma4u;
 
 typedef struct {
@@ -69,10 +70,9 @@ typedef struct {
     int *layer_types; // 0: sliding, 1: full
 } Gemma4Unified;
 
-int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n_max);
-
 void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p);
 void free_state_gemma4u(state_gemma4u *s);
 void free_gemma4u(Gemma4Unified *model);
+int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n_max);
 
 #endif // DOLEN_G4U_COMMON_H
