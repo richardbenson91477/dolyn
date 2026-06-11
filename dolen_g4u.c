@@ -123,11 +123,12 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
         float *rms_input = w->rms_input_layernorm + l * dim;
         float *rms_post_attn = w->rms_post_attn_layernorm + l * dim;
-        float *rms_pre_ffn = w->rms_pre_ffn_layernorm + l * dim;
+        float *rms_pre_ffn = w->rms_pre_ffn_layernorm + l * dim;  // FIX: actually use this!
         float *rms_post_ffn = w->rms_post_ffn_layernorm + l * dim;
         float *rms_q = w->rms_q_norm + w->norm_offsets[l];
         float *rms_k = w->rms_k_norm + w->norm_offsets[l];
 
+        // --- 1. Input layernorm + Attention ---
         rmsnorm_gemma(s->xb, x, rms_input, dim, eps);
         quantize_vec(&s->xq, s->xb, dim);
 
@@ -149,7 +150,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         for (int h = 0; h < p->n_kv_heads; h++) {
             rmsnorm_gemma(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps);
             if (rotary_len > 0 && cos_cache) apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_len, pos);
-            rmsnorm_no_scale(s->v + h * current_head_dim, current_head_dim, eps);
+            // FIX: Removed rmsnorm_no_scale on V. The reference Python code does not normalize V.
         }
 
         long long loff = (long long)l * p->seq_len * kv_dim;
@@ -157,7 +158,13 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         memcpy(s->value_cache + loff + pos * kv_dim, s->v, kv_dim * sizeof(float));
 
         float inv_sqrt_head = 1.0f / sqrtf((float)current_head_dim);
-        int start_t = (pos >= p->sliding_window) ? (pos - p->sliding_window) : 0;
+        
+        // FIX: Sliding window off-by-one corrected
+        int start_t = 0;
+        if (!is_full) {
+            start_t = pos - p->sliding_window + 1;
+            if (start_t < 0) start_t = 0;
+        }
 
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
@@ -167,12 +174,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             float *k_base = s->key_cache + loff;
             float *v_base = s->value_cache + loff;
 
-            // 🔧 FIX: zero out all positions up to pos with large negative (causal + sliding mask)
-            for (int t = 0; t <= pos; t++) {
-                att[t] = -1e9f;
-            }
+            for (int t = 0; t <= pos; t++) att[t] = -1e9f;
 
-            // Compute attention scores only over valid window [start_t, pos]
             for (int t = start_t; t <= pos; t++) {
                 float *k = k_base + t * kv_dim + kv_head * current_head_dim;
                 float score = 0.0f;
@@ -181,15 +184,13 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 att[t] = score * inv_sqrt_head;
             }
 
-            // 🔧 FIX: softmax over full prefix [0, pos+1)
             softmax(att, pos + 1);
 
-            // Weighted sum using normalized attention
             float *xb_h = s->xb + h * current_head_dim;
             memset(xb_h, 0, current_head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
                 float *v = v_base + t * kv_dim + kv_head * current_head_dim;
-                float a = att[t]; // now correctly normalized
+                float a = att[t];
                 #pragma omp simd
                 for (int i = 0; i < current_head_dim; i++) xb_h[i] += a * v[i];
             }
@@ -197,33 +198,39 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
         quantize_vec(&s->xq, s->xb, p->n_heads * current_head_dim);
         matmul_qq(s->xb, &s->xq, &w->o_proj[l]);
+
+        // --- 2. Post-attention additive layernorm ---
+        // FIX: norm is applied to the attention output, THEN added to residual
+        rmsnorm_gemma(s->xb, s->xb, rms_post_attn, dim, eps);
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
 
-        rmsnorm_gemma(s->xb, x, rms_post_attn, dim, eps);
+        // --- 3. Pre-FFN layernorm + FFN ---
+        // FIX: use rms_pre_ffn, NOT rms_post_attn
+        rmsnorm_gemma(s->xb, x, rms_pre_ffn, dim, eps);
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
         matmul_qq(s->hb2, &s->xq, &w->up_proj[l]);
 
+        // FIX: Correct GeGLU activation: GELU(gate) * up_proj
         #pragma omp parallel for
         for (int i = 0; i < hidden_dim; i++) {
             float val = s->hb[i];
-            float x_sq = val * val;
-            val = val * (1.0f / (1.0f + expf(-val)));
-            val *= (1.0f + 0.044715f * x_sq) * (0.797885f + 0.03567f * x_sq);
-            s->hb[i] = val;
+            float gelu = 0.5f * val * (1.0f + tanhf(0.797885608f * (val + 0.044715f * val * val * val)));
+            s->hb[i] = gelu * s->hb2[i];
         }
 
         quantize_vec(&s->hq, s->hb, hidden_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
-        #pragma omp simd
-        for (int i = 0; i < dim; i++) x[i] += s->xb[i];
 
-        rmsnorm_gemma(s->xb, x, rms_post_ffn, dim, eps);
+        // --- 4. Post-FFN additive layernorm ---
+        // FIX: norm is applied to FFN output, THEN added to residual
+        rmsnorm_gemma(s->xb, s->xb, rms_post_ffn, dim, eps);
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
     }
 
+    // Final norm + logit softcapping
     rmsnorm_gemma(x, x, w->rms_final_norm, dim, eps);
     matmul_qt(s->logits, x, &w->embed_tokens);
     float cap = p->final_logit_softcapping;
