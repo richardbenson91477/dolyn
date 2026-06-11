@@ -65,7 +65,7 @@ test_q3_5_dbg: $(BIN_Q3_5_DBG)
 	./$(BIN_Q3_5_DBG) -m $(MODEL_Q3_5) -tk $(TOKENIZER_Q3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3_5)
 
 debug_q3_5: $(BIN_Q3_5_DBG)
-	./dolen_run_gdb_q3_5 $(BIN_Q3_5_DBG) $(MODEL_Q3_5) $(TOKENIZER_Q3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3_5)
+	./dolen_run_gdb $(BIN_Q3_5_DBG) $(MODEL_Q3_5) $(TOKENIZER_Q3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3_5)
 
 
 $(BIN_Q3): $(SRC_Q3) $(INC_Q3)
@@ -89,7 +89,7 @@ test_q3_dbg: $(BIN_Q3_DBG)
 	./$(BIN_Q3_DBG) -m $(MODEL_Q3) -tk $(TOKENIZER_Q3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3)
 
 debug_q3: $(BIN_Q3_DBG)
-	./dolen_run_gdb_q3 $(BIN_Q3_DBG) $(MODEL_Q3) $(TOKENIZER_Q3) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3)
+	./dolen_run_gdb $(BIN_Q3_DBG) $(MODEL_Q3) $(TOKENIZER_Q3) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3)
 
 
 clean:
