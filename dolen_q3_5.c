@@ -646,8 +646,9 @@ static model_iface *init_qwen3_5(const char *model_path, int seq_n_max) {
         .free_model = free_qwen3_5_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
-        .special_tokens = special_tokens_qwen3_5,
+        .bos_token_id = 1,
         .im_end_id = 248046,
+        .special_tokens = special_tokens_qwen3_5,
     };
     return model_i;
 }

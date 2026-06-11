@@ -120,12 +120,11 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     for (int l = 0; l < p->n_layers; l++) {
         int is_full = model->layer_types[l];
         int current_head_dim = is_full ? p->global_head_dim : p->head_dim;
-        
-        // <--- FIX: Dynamic KV head count based on layer type and K=V sharing
         int current_kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = current_kv_heads * current_head_dim;
 
-        int rotary_dim = is_full ? (int)(p->global_head_dim * p->rope_partial_factor) : (int)(p->head_dim * p->rope_partial_factor);
+        int rotary_dim = is_full ? (int)(p->global_head_dim * p->rope_partial_factor) : p->head_dim;
+
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
 
@@ -298,8 +297,9 @@ static model_iface *init_gemma4u(const char *model_path, int seq_n_max) {
         .free_model = free_gemma4u_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
-        .special_tokens = NULL,
+        .bos_token_id = 2,
         .im_end_id = 1,
+        .special_tokens = NULL,
     };
     return model_i;
 }

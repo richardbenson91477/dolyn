@@ -10,10 +10,13 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     
     int attn_out_dim = p->n_heads * max_head_dim;
 
+    // In alloc_state_gemma4u, update the rotary dimension calculations:
     int rotary_full = (int)((float)p->global_head_dim * p->rope_partial_factor);
-    int rotary_sliding = (int)((float)p->head_dim * p->rope_partial_factor);
+    int rotary_sliding = p->head_dim; // <--- FIX: "default" RoPE uses the full head_dim
+
     int half_rotary_full = rotary_full / 2;
     int half_rotary_sliding = rotary_sliding / 2;
+
 
     int max_act_dim = p->dim;
     if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
@@ -45,12 +48,14 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
+
     if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_full; i++) {
-                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                // <--- FIX: Denominator must be rotary_full, not global_head_dim
+                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_full);
                 float val = pos * freq;
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
                 s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
@@ -63,13 +68,14 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_sliding; i++) {
-                float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2 * i) / p->head_dim);
+                // <--- FIX: Denominator must be rotary_sliding
+                float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2 * i) / rotary_sliding);
                 float val = pos * freq;
                 s->cos_cache_sliding[pos * half_rotary_sliding + i] = cosf(val);
                 s->sin_cache_sliding[pos * half_rotary_sliding + i] = sinf(val);
             }
         }
-    } else { s->cos_cache_sliding = NULL; s->sin_cache_sliding = NULL; }
+    } else { s->cos_cache_sliding = NULL; s->sin_cache_sliding = NULL; }    
 
     if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
         !s->att || !s->logits || !s->key_cache || !s->value_cache ||

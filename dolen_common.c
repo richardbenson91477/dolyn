@@ -267,7 +267,7 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
     free(str_buf);
 }
 
-void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *tokens_n) {
+void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, int *tokens_n) {
     if (text == NULL) {
         log_msg(stderr, "ERROR: Cannot encode NULL text\n");
         exit(EXIT_FAILURE);
@@ -283,8 +283,8 @@ void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *
     }
 
     *tokens_n = 0;
-    if (bos) {
-        tokens[(*tokens_n)++] = 1;
+    if (bos_token > 0) {
+        tokens[(*tokens_n)++] = bos_token;
     }
 
     char *segment = a_calloc(strlen(text) + 1);
@@ -636,7 +636,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 
     int *prompt_tokens = (int *)a_calloc((strlen(prompt) * 4 + 3) * sizeof(int));
 
-    encode(tokenizer, prompt, 1, 0, prompt_tokens, &prompt_tokens_n);
+    encode(tokenizer, prompt, model_i->bos_token_id, 0, prompt_tokens, &prompt_tokens_n);
 
     if (prompt_tokens_n < 1) {
         log_msg(stderr, "ERROR: Expected at least 1 prompt token\n");
@@ -756,7 +756,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 
             prompt_tokens = (int *)a_calloc((rendered_len * 4 + 1) * sizeof(int));
 
-            encode(tokenizer, rendered_prompt, 0, 0, prompt_tokens, &prompt_tokens_n);
+            encode(tokenizer, rendered_prompt, model_i->bos_token_id, 0, prompt_tokens, &prompt_tokens_n);
 
             free(rendered_prompt);
             rendered_prompt = NULL;

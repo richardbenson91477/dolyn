@@ -66,7 +66,7 @@ typedef struct {
 int compare_tokens(const void *a, const void *b);
 int str_lookup(char *str, token_map *sorted_vocab, int vocab_size);
 void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n);
-void encode(Tokenizer *t, char *text, int8_t bos, int8_t eos, int *tokens, int *tokens_n);
+void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, int *tokens_n);
 char *decode(Tokenizer *t, int token, bool debug);
 void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_map *special_tokens);
 void free_tokenizer(Tokenizer *t);
@@ -124,6 +124,7 @@ typedef struct {
     int seq_n_max;
 
     int vocab_size;
+    int bos_token_id;
     int im_end_id;
     token_map *special_tokens;
 
