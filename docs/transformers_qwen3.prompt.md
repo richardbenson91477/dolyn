@@ -1,5 +1,5 @@
-Here is the fully working reference implementation of Qwen3 from huggingface transformers for comparison:
-(file 1 of 2):
+Here's the fully working Python reference implementation of Qwen3 from the huggingface "transformers" library (for comparison):
+(File 1 of 2):
 ```
 # Copyright 2024 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 #
@@ -184,7 +184,7 @@ class Qwen3Config(PreTrainedConfig):
 
 __all__ = ["Qwen3Config"]
 ```
-(file 2 of 2)
+(File 2 of 2)
 ```
 from collections.abc import Callable
 from typing import Optional

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+$lena_root_path/bin/gdb "$1"
+

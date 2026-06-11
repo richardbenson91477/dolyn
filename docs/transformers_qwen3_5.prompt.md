@@ -1,5 +1,5 @@
-Here is the fully working reference implementation of Qwen3.5 from huggingface transformers for comparison:
-(file 1 of 2):
+Here's the fully working Python reference implementation of Qwen3.5 from the huggingface "transformers" library (for comparison):
+(File 1 of 2):
 ```
 from ...configuration_utils import PreTrainedConfig, layer_type_validation
 from ...modeling_rope_utils import RopeParameters
@@ -265,7 +265,7 @@ class Qwen3_5Config(PreTrainedConfig):
 
 __all__ = ["Qwen3_5Config", "Qwen3_5TextConfig"]
 ```
-(file 2 of 2)
+(File 2 of 2)
 ```
 from collections.abc import Callable
 from dataclasses import dataclass
