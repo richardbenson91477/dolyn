@@ -1,5 +1,5 @@
-#ifndef DOLEN3_COMMON_H
-#define DOLEN3_COMMON_H
+#ifndef DOLEN_Q3_COMMON_H
+#define DOLEN_Q3_COMMON_H
 
 #include "dolen_common.h"
 
@@ -84,5 +84,5 @@ void free_state_qwen3(state_qwen3 *s);
 void free_qwen3(Qwen3 *t);
 
 
-#endif //DOLEN3_COMMON_H
+#endif //DOLEN_Q3_COMMON_H
 

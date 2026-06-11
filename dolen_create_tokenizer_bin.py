@@ -67,7 +67,7 @@ def create_tokenizer(model_dir: str, output: str = None) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-            description="Prepare Qwen-3.5 model for C inference"
+            description="Create tokenizer.bin for Dolen"
             )
     parser.add_argument(
         "model_path",

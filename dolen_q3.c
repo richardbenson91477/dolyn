@@ -1,7 +1,6 @@
-#include "dolen3_common.h"
+#include "dolen_q3_common.h"
 
 
-// Old config format (v1 binary files) \u2014 without rms_norm_eps
 typedef struct {
     int dim;
     int hidden_dim;

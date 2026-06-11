@@ -1,4 +1,4 @@
-#include "dolen3_5_common.h"
+#include "dolen_q3_5_common.h"
 
 
 int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq_n_max) {

@@ -1,4 +1,4 @@
-#include "dolen3_common.h"
+#include "dolen_q3_common.h"
 
 
 void alloc_state_qwen3(state_qwen3 *s, config_qwen3 *p) {
