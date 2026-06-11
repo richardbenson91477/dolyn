@@ -2,21 +2,18 @@
 
 void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
-    
-    // <--- FIX: Calculate true max KV dim across both layer types to size the cache correctly
+
     int kv_dim_sliding = p->n_kv_heads * p->head_dim;
     int kv_dim_full = p->n_global_kv_heads * p->global_head_dim;
     int max_kv_dim = kv_dim_sliding > kv_dim_full ? kv_dim_sliding : kv_dim_full;
-    
+
     int attn_out_dim = p->n_heads * max_head_dim;
 
-    // In alloc_state_gemma4u, update the rotary dimension calculations:
     int rotary_full = (int)((float)p->global_head_dim * p->rope_partial_factor);
-    int rotary_sliding = p->head_dim; // <--- FIX: "default" RoPE uses the full head_dim
+    int rotary_sliding = p->head_dim;
 
     int half_rotary_full = rotary_full / 2;
     int half_rotary_sliding = rotary_sliding / 2;
-
 
     int max_act_dim = p->dim;
     if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
@@ -31,8 +28,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->v = a_calloc((size_t)max_kv_dim * sizeof(float));
     s->att = a_calloc((size_t)p->n_heads * p->seq_len * sizeof(float));
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
-    
-    // <--- FIX: Allocate KV cache using max_kv_dim for the layer stride
+
     s->key_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
     s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
 
@@ -48,13 +44,11 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
-
     if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_full; i++) {
-                // <--- FIX: Denominator must be rotary_full, not global_head_dim
                 float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_full);
                 float val = pos * freq;
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
@@ -68,14 +62,13 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_sliding; i++) {
-                // <--- FIX: Denominator must be rotary_sliding
                 float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2 * i) / rotary_sliding);
                 float val = pos * freq;
                 s->cos_cache_sliding[pos * half_rotary_sliding + i] = cosf(val);
                 s->sin_cache_sliding[pos * half_rotary_sliding + i] = sinf(val);
             }
         }
-    } else { s->cos_cache_sliding = NULL; s->sin_cache_sliding = NULL; }    
+    } else { s->cos_cache_sliding = NULL; s->sin_cache_sliding = NULL; }
 
     if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
         !s->att || !s->logits || !s->key_cache || !s->value_cache ||
