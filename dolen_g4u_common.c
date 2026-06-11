@@ -4,28 +4,37 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     int max_kv_dim = p->n_kv_heads * p->global_head_dim;
     int rotary_full = (int)((float)p->global_head_dim * p->rope_partial_factor);
     int rotary_sliding = (int)((float)p->head_dim * p->rope_partial_factor);
+    
+    // FIX: Calculate max activation dimension to prevent heap overflow during quantization
+    int attn_out_dim = p->n_heads * p->global_head_dim;
+    int max_act_dim = p->dim;
+    if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
+    if (p->hidden_dim > max_act_dim) max_act_dim = p->hidden_dim;
 
     s->x = a_calloc((size_t)p->dim * sizeof(float));
-    s->xb = a_calloc((size_t)p->dim * sizeof(float));
+    s->xb = a_calloc((size_t)max_act_dim * sizeof(float)); // FIX: was p->dim
     s->hb = a_calloc((size_t)p->hidden_dim * sizeof(float));
     s->hb2 = a_calloc((size_t)p->hidden_dim * sizeof(float));
-    s->q = a_calloc((size_t)p->n_heads * p->global_head_dim * sizeof(float));
+    s->q = a_calloc((size_t)attn_out_dim * sizeof(float)); 
     s->k = a_calloc((size_t)max_kv_dim * sizeof(float));
     s->v = a_calloc((size_t)max_kv_dim * sizeof(float));
     s->att = a_calloc((size_t)p->n_heads * p->seq_len * sizeof(float));
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
     s->key_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
     s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
-
-    int num_groups = (p->dim + GS - 1) / GS;
-    s->xq.q = (int8_t *)a_calloc((size_t)p->dim * sizeof(int8_t));
-    s->xq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
-    s->xq.rows = 1; s->xq.cols = p->dim;
-
-    num_groups = (p->hidden_dim + GS - 1) / GS;
+    
+    // FIX: Allocate xq based on max_act_dim, not just p->dim
+    int num_groups_xq = (max_act_dim + GS - 1) / GS;
+    s->xq.q = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
+    s->xq.s = (float *)a_calloc((size_t)num_groups_xq * sizeof(float));
+    s->xq.rows = 1; 
+    s->xq.cols = max_act_dim;
+    
+    int num_groups_hq = (p->hidden_dim + GS - 1) / GS;
     s->hq.q = (int8_t *)a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
-    s->hq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
-    s->hq.rows = 1; s->hq.cols = p->hidden_dim;
+    s->hq.s = (float *)a_calloc((size_t)num_groups_hq * sizeof(float));
+    s->hq.rows = 1; 
+    s->hq.cols = p->hidden_dim;
 
     if (rotary_full > 0) {
         s->cos_cache_full = (float *)a_calloc((size_t)p->seq_len * rotary_full * sizeof(float));
