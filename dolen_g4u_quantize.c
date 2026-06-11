@@ -7,7 +7,6 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
     FILE *f = fopen(config_path, "rb");
     if (!f) { log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path); return -1; }
-    
     fseek(f, 0, SEEK_END); long size = ftell(f); fseek(f, 0, SEEK_SET);
     char *json_str = (char *)a_calloc(size + 1);
     if (!json_str || fread(json_str, 1, size, f) != (size_t)size) { free(json_str); fclose(f); return -1; }
@@ -27,6 +26,9 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 0);
     p->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 0);
     p->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), 0);
+    // <--- FIX: Parse global KV heads for full attention layers
+    p->n_global_kv_heads = json_get_int(json_object_get(cfg, "num_global_key_value_heads"), p->n_kv_heads);
+    
     p->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 0);
     p->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
     p->head_dim = json_get_int(json_object_get(cfg, "head_dim"), 0);
@@ -58,6 +60,7 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
             model->layer_types[i] = ((i + 1) % 6 == 0) ? 1 : 0;
         }
     }
+
     json_free(root);
     log_msg(stderr, "INFO: Gemma4Unified config loaded\n");
     return 0;
@@ -68,7 +71,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
     weights_gemma4u *w = &model->weights;
     char filepath[4096];
     snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
-    
     csafetensors_t st;
     if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
         log_msg(stderr, "ERROR: Failed to load %s\n", filepath); exit(EXIT_FAILURE);
@@ -78,7 +80,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
         if (strcmp(idx->entries[i].filename, filename) != 0) continue;
         const char *tname = idx->entries[i].tensor_name;
 
-        // Fixed prefixes to match model.language_model.*
         if (strcmp(tname, "model.language_model.embed_tokens.weight") == 0) {
             float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
             if (f) { quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim); free(f); }
@@ -117,13 +118,20 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
                 load_and_quantize_from_handle(&st, tname, &w->q_proj[l], p->n_heads * hd, p->dim);
             }
+            // <--- FIX: Correctly calculate KV heads based on layer type and K=V sharing
             else if (strcmp(suffix, "self_attn.k_proj.weight") == 0) {
-                int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
-                load_and_quantize_from_handle(&st, tname, &w->k_proj[l], p->n_kv_heads * hd, p->dim);
+                int is_full = model->layer_types[l];
+                int hd = is_full ? p->global_head_dim : p->head_dim;
+                int kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
+                load_and_quantize_from_handle(&st, tname, &w->k_proj[l], kv_heads * hd, p->dim);
             }
             else if (strcmp(suffix, "self_attn.v_proj.weight") == 0) {
-                int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
-                load_and_quantize_from_handle(&st, tname, &w->v_proj[l], p->n_kv_heads * hd, p->dim);
+                int is_full = model->layer_types[l];
+                // <--- FIX: Skip v_proj for full layers when K=V is active (it doesn't exist in the checkpoint)
+                if (!(is_full && p->attention_k_eq_v)) {
+                    int hd = is_full ? p->global_head_dim : p->head_dim;
+                    load_and_quantize_from_handle(&st, tname, &w->v_proj[l], p->n_kv_heads * hd, p->dim);
+                }
             }
             else if (strcmp(suffix, "self_attn.o_proj.weight") == 0) {
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
@@ -147,7 +155,6 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir); return -1;
     }
 
-    // Calculate norm offsets for varying head dimensions
     int total_norm_dim = 0;
     model->weights.norm_offsets = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
     for (int i = 0; i < p->n_layers; i++) {
@@ -155,11 +162,21 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         int hd = model->layer_types[i] ? p->global_head_dim : p->head_dim;
         total_norm_dim += hd;
     }
-    
+
+    model->weights.rms_input_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
+    model->weights.rms_post_attn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
+    model->weights.rms_pre_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
+    model->weights.rms_post_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
     model->weights.rms_q_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
     model->weights.rms_k_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
+    model->weights.rms_final_norm = (float *)a_calloc((size_t)p->dim * sizeof(float));
 
-    // All projections allocated for ALL layers
+    if (!model->weights.rms_input_layernorm || !model->weights.rms_post_attn_layernorm ||
+        !model->weights.rms_pre_ffn_layernorm || !model->weights.rms_post_ffn_layernorm ||
+        !model->weights.rms_q_norm || !model->weights.rms_k_norm || !model->weights.rms_final_norm) {
+        log_msg(stderr, "ERROR: Alloc failed for RMS norms\n"); free_safetensors_index(&idx); return -1;
+    }
+
     model->weights.q_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     model->weights.k_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     model->weights.v_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -168,8 +185,8 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     model->weights.up_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     model->weights.down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (!model->weights.q_proj || !model->weights.k_proj) { 
-        log_msg(stderr, "ERROR: Alloc failed\n"); free_safetensors_index(&idx); return -1; 
+    if (!model->weights.q_proj || !model->weights.k_proj) {
+        log_msg(stderr, "ERROR: Alloc failed\n"); free_safetensors_index(&idx); return -1;
     }
 
     for (int i = 0; i < idx.n_unique_files; i++) {
@@ -180,6 +197,7 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         log_msg(stderr, "ERROR: embed_tokens.weight was not found\n");
         free_safetensors_index(&idx); return -1;
     }
+
     log_msg(stderr, "INFO: Gemma4Unified weights loaded successfully\n");
     free_safetensors_index(&idx);
     return 0;
@@ -194,7 +212,6 @@ void build_gemma4u(Gemma4Unified *model, char *model_path) {
 void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     FILE *f = fopen(filepath, "wb");
     if (!f) { log_msg(stderr, "ERROR: Failed to open %s\n", filepath); exit(EXIT_FAILURE); }
-    
     uint32_t magic = 0x55344D47; // 'G4MU'
     uint32_t version = 1;
     fwrite(&magic, sizeof(uint32_t), 1, f);
@@ -211,7 +228,6 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     fwrite(w->rms_pre_ffn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
     fwrite(w->rms_post_ffn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
     
-    // Calculate total norm dim to write contiguous blocks
     int total_norm_dim = 0;
     for (int i = 0; i < p->n_layers; i++) {
         int hd = model->layer_types[i] ? p->global_head_dim : p->head_dim;
@@ -221,17 +237,15 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     fwrite(w->rms_k_norm, sizeof(float), total_norm_dim, f);
     fwrite(w->rms_final_norm, sizeof(float), (size_t)p->dim, f);
 
-    // Save all projections layer by layer
     for (int i = 0; i < p->n_layers; i++) {
         write_qt(f, &w->q_proj[i]);
         write_qt(f, &w->k_proj[i]);
-        write_qt(f, &w->v_proj[i]);
+        write_qt(f, &w->v_proj[i]); // Will safely write 0 rows/cols for skipped full-layer v_projs
         write_qt(f, &w->o_proj[i]);
         write_qt(f, &w->gate_proj[i]);
         write_qt(f, &w->up_proj[i]);
         write_qt(f, &w->down_proj[i]);
     }
-
     fclose(f);
     log_msg(stderr, "INFO: Quantized Gemma4Unified saved to %s\n", filepath);
 }
