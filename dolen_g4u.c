@@ -152,7 +152,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                            rotary_dim, pos);
         }
 
-        // Normalise and rotate K *before* any copy to V
         #pragma omp parallel for
         for (int h = 0; h < current_kv_heads; h++) {
             rmsnorm_gemma(s->k + h * current_head_dim,
@@ -183,7 +182,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         memcpy(s->value_cache + loff + (long long)pos * kv_dim,
                s->v, kv_dim * sizeof(float));
 
-        // --- 3. Attention ---
+        // --- 3. Attention (NO softcapping, matching reference) ---
         float inv_sqrt_head = 1.0f / sqrtf((float)current_head_dim);
         int start_t = 0;
         if (!is_full) {
@@ -202,21 +201,17 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             float *k_base = s->key_cache + loff;
             float *v_base = s->value_cache + loff;
 
-            // Mask all positions first (no special treatment of pos 0)
+            // Mask all positions first (no special treatment of any position)
             for (int t = 0; t <= pos; t++) att[t] = -1e9f;
 
-            // Compute scores only for valid window
+            // Compute scores for valid window
             for (int t = start_t; t <= pos; t++) {
                 float *k = k_base + (long long)t * kv_dim + kv_head * current_head_dim;
                 float score = 0.0f;
                 #pragma omp simd reduction(+:score)
                 for (int i = 0; i < current_head_dim; i++)
                     score += q[i] * k[i];
-                float logit = score * inv_sqrt_head;
-                // Softcapping
-                float attn_cap = 50.0f;
-                logit = tanhf(logit / attn_cap) * attn_cap;
-                att[t] = logit;
+                att[t] = score * inv_sqrt_head;
             }
 
             softmax(att, pos + 1);
