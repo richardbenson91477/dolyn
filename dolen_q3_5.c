@@ -656,3 +656,4 @@ static model_iface *init_qwen3_5(const char *model_path, int seq_n_max) {
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_qwen3_5, "dolen3_5");
 }
+
