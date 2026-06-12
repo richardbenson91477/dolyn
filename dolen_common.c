@@ -470,7 +470,7 @@ int compare_prob(const void *a, const void *b) {
     return 0;
 }
 
-int sample_topp(float *probs, int n, float topp, ProbIndex *probindex, float coin) {
+int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, float coin) {
     int n0 = 0;
     const float cutoff = (1.0f - topp) / (n - 1);
 
@@ -488,6 +488,11 @@ int sample_topp(float *probs, int n, float topp, ProbIndex *probindex, float coi
     }
 
     qsort(probindex, n0, sizeof(ProbIndex), compare_prob);
+
+    // Apply top-k filtering just before top-p
+    if (topk > 0 && n0 > topk) {
+        n0 = topk;
+    }
 
     float cumulative_prob = 0.0f;
     int last_idx = n0 - 1;
@@ -529,15 +534,16 @@ int sample(Sampler *sampler, float *logits) {
             next = sample_mult(logits, sampler->vocab_size, coin);
         }
         else {
-            next = sample_topp(logits, sampler->vocab_size, sampler->topp, sampler->probindex, coin);
+            next = sample_top(logits, sampler->vocab_size, sampler->topk, sampler->topp, sampler->probindex, coin);
         }
     }
     return next;
 }
 
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, float topp, unsigned long long rng_seed) {
+void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed) {
     sampler->vocab_size = vocab_size;
     sampler->temperature = temperature;
+    sampler->topk = topk;
     sampler->topp = topp;
     sampler->rng_state = rng_seed;
     sampler->probindex = a_calloc(sampler->vocab_size * sizeof(ProbIndex));
@@ -835,6 +841,7 @@ void error_usage(const char *prog_name) {
     log_msg(stderr, " -m  | --model <str>:         model path, default: none\n");
     log_msg(stderr, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
     log_msg(stderr, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
+    log_msg(stderr, " -k  | --top_k <int>:         top-k value, default: %d\n", TOP_K_DEFAULT);
     log_msg(stderr, " -s  | --seed <int>:          random seed, default: current time\n");
     log_msg(stderr, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
     log_msg(stderr, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
@@ -853,6 +860,7 @@ void error_usage(const char *prog_name) {
 int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, int), const char *prog_name) {
     char *model_path = NULL;
     float temperature = TEMP_DEFAULT;
+    int topk = TOP_K_DEFAULT;
     float topp = TOP_P_DEFAULT;
     unsigned long long rng_seed = 0;
     int seq_n_max = 0;
@@ -884,6 +892,9 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         }
         else if ((! strcmp(argv[i], "-t")) || (! strcmp(argv[i], "--temp"))) {
             temperature = atof(argv[i + 1]);
+        }
+        else if ((! strcmp(argv[i], "-k")) || (! strcmp(argv[i], "--top_k"))) {
+            topk = atoi(argv[i + 1]);
         }
         else if ((! strcmp(argv[i], "-tp")) || (! strcmp(argv[i], "--top_p"))) {
             topp = atof(argv[i + 1]);
@@ -977,7 +988,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     build_tokenizer(&tokenizer, tokenizer_path, model_i->vocab_size, model_i->special_tokens);
 
     Sampler sampler;
-    build_sampler(&sampler, model_i->vocab_size, temperature, topp, rng_seed);
+    build_sampler(&sampler, model_i->vocab_size, temperature, topk, topp, rng_seed);
 
     if (! memcmp(mode, "generate", strlen("generate") + 1)) {
         generate_common(model_i, &tokenizer, &sampler, prompt, model_i->seq_n_max);

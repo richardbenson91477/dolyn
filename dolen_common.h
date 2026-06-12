@@ -83,6 +83,7 @@ typedef struct {
     int vocab_size;
     ProbIndex *probindex;
     float temperature;
+    int topk;
     float topp;
     unsigned long long rng_state;
 } Sampler;
@@ -92,10 +93,9 @@ unsigned int random_u32(unsigned long long *state);
 float random_f32(unsigned long long *state);
 int sample_mult(float *probs, int n, float coin);
 int compare_prob(const void *a, const void *b);
-int sample_topp(float *probs, int n, float topp, ProbIndex *probindex, float coin);
+int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, float coin);
 int sample(Sampler *sampler, float *logits);
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, float topp, unsigned long long rng_seed);
-void free_sampler(Sampler *sampler);
+void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed); // <-- UPDATED
 
 
 // I/O Utilities
@@ -107,12 +107,13 @@ void log_msg(FILE *stream, const char *format, ...);
 void read_msg(char *buf, size_t buf_len);
 void *a_calloc(size_t size);
 
+
 // Common Model Interface
 
 #define PROMPT_N_MAX_DEFAULT 32768
 #define TEMP_DEFAULT 0.2
 #define TOP_P_DEFAULT 0.95
-
+#define TOP_K_DEFAULT 40
 
 typedef struct {
     void *model;
@@ -142,4 +143,3 @@ int common_main(int argc, char *argv[],
 
 
 #endif // DOLEN_COMMON_H
-
