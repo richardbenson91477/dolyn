@@ -139,13 +139,26 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         float *rms_q = w->rms_q_norm + w->norm_offsets[l];
         float *rms_k = w->rms_k_norm + w->norm_offsets[l];
         
-        // 1. Input norm + QKV
+        // Input norm + QKV
         rmsnorm_gemma(s->xb, x, rms_input, dim, eps, 1);
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->q, &s->xq, &w->q_proj[l]);
         matmul_qq(s->k, &s->xq, &w->k_proj[l]);
         
-        // 2. Q/K Norm + RoPE
+        // V projection (K=V sharing handled here)
+        // MUST happen before K is modified in-place by k_norm and RoPE
+        if (is_full && p->attention_k_eq_v) {
+            memcpy(s->v, s->k, kv_dim * sizeof(float)); // Copy raw k_proj output
+        } else {
+            matmul_qq(s->v, &s->xq, &w->v_proj[l]);
+        }
+        
+        // V Norm (with_scale=False)
+        for (int h = 0; h < current_kv_heads; h++) {
+            rmsnorm_gemma(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
+        }
+
+        // Q/K Norm + RoPE
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             rmsnorm_gemma(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps, 1);
@@ -157,13 +170,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             rmsnorm_gemma(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache)
                 apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, vec_dim, pos);
-        }
-        
-        // 2b. V projection (K=V sharing handled here)
-        if (is_full && p->attention_k_eq_v) {
-            memcpy(s->v, s->k, kv_dim * sizeof(float));
-        } else {
-            matmul_qq(s->v, &s->xq, &w->v_proj[l]);
         }
         
         // V Norm (with_scale=False)
