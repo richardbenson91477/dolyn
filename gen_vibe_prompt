@@ -1,0 +1,14 @@
+#!/bin/sh
+
+cat "../docs/transformers_gemma4u.prompt.md"
+
+echo "What follows is inference engine for Gemma4-Unified in C. Please help me fix the C code. Let me know if you need more information, such as a test model's config.json, model.safetensors.index.json, etc."
+echo
+
+for f in "dolen_common.c" "dolen_common.h" "dolen_g4u.c" "dolen_g4u_common.c" "dolen_g4u_common.h" "dolen_g4u_quantize.c" "dolen_q_common.c" "dolen_q_common.h"; do
+    echo \[\"$f\"\]
+    echo '```'
+    cat "../${f}"
+    echo '```'
+    done
+
