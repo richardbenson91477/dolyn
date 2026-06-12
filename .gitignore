@@ -10,3 +10,7 @@ dolen_g4u
 dolen_g4u_dbg
 dolen_g4u_quantize
 dolen_g4u_quantize_dbg
+docs/llama_dot_cpp_gemma4.prompt.md
+docs/transformers_gemma4u.prompt.md
+docs/transformers_qwen3.prompt.md
+docs/transformers_qwen3_5.prompt.md
