@@ -9,7 +9,7 @@ typedef struct {
     int n_layers;
     int n_heads;
     int n_kv_heads;
-    int n_global_kv_heads; // <--- ADDED: For full attention layers
+    int n_global_kv_heads;
     int vocab_size;
     int seq_len;
     int head_dim;
