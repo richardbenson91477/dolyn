@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cat "../docs/transformers_gemma4u.prompt.md"
+cat "docs/transformers_gemma4u.prompt.md"
 
 echo "What follows is inference engine for Gemma4-Unified in C. Please help me fix the C code. Let me know if you need more information, such as a test model's config.json, model.safetensors.index.json, etc."
 echo
