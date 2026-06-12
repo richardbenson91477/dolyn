@@ -130,39 +130,35 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     config_gemma4u *p = &model->config;
     weights_gemma4u *w = &model->weights;
     state_gemma4u *s = &model->state;
-    
     float *x = s->x;
     int dim = p->dim;
     int hidden_dim = p->hidden_dim;
     float eps = p->rms_norm_eps;
     float embed_scale = sqrtf((float)dim);
-    
-    int max_kv_dim = (p->n_kv_heads * p->head_dim > p->n_global_kv_heads * p->global_head_dim) 
+    int max_kv_dim = (p->n_kv_heads * p->head_dim > p->n_global_kv_heads * p->global_head_dim)
                      ? p->n_kv_heads * p->head_dim : p->n_global_kv_heads * p->global_head_dim;
-    
+
     dequantize_row(x, &w->embed_tokens, token);
     #pragma omp simd
     for (int i = 0; i < dim; i++) x[i] *= embed_scale;
-    
+
     for (int l = 0; l < p->n_layers; l++) {
         int is_full = model->layer_types[l];
         int current_head_dim = is_full ? p->global_head_dim : p->head_dim;
         int current_kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = current_kv_heads * current_head_dim;
-        //int rotary_dim = is_full ? p->global_head_dim : p->head_dim;
         int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
-        int vec_dim = current_head_dim;   // total size of q/k vector
+        int vec_dim = current_head_dim;
         
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
-        
         float *rms_input = w->rms_input_layernorm + l * dim;
         float *rms_post_attn = w->rms_post_attn_layernorm + l * dim;
         float *rms_pre_ffn = w->rms_pre_ffn_layernorm + l * dim;
         float *rms_post_ffn = w->rms_post_ffn_layernorm + l * dim;
         float *rms_q = w->rms_q_norm + w->norm_offsets[l];
         float *rms_k = w->rms_k_norm + w->norm_offsets[l];
-        
+
         // Input norm + QKV
         rmsnorm_gemma4u(s->xb, x, rms_input, dim, eps, 1);
         quantize_vec(&s->xq, s->xb, dim);
@@ -171,16 +167,16 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         
         // V projection (K=V sharing handled here)
         if (is_full && p->attention_k_eq_v) {
-            memcpy(s->v, s->k, kv_dim * sizeof(float)); // Copy raw k_proj output
+            memcpy(s->v, s->k, kv_dim * sizeof(float)); 
         } else {
             matmul_qq(s->v, &s->xq, &w->v_proj[l]);
         }
         
-        // V Norm (with_scale=False)
+        // V Norm (with_scale=False) - APPLIED ONCE
         for (int h = 0; h < current_kv_heads; h++) {
             rmsnorm_gemma4u(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
         }
-
+        
         // Q/K Norm + RoPE
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
@@ -194,16 +190,11 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             if (rotary_dim > 0 && cos_cache)
                 apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, vec_dim, pos);
         }
-        
-        // V Norm (with_scale=False)
-        for (int h = 0; h < current_kv_heads; h++) {
-            rmsnorm_gemma4u(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
-        }
-        
-        // Store K/V into cache
+
+        // [FIX] Store K/V into cache using max_kv_dim as stride to prevent overlap
         long long loff = (long long)l * p->seq_len * max_kv_dim;
-        memcpy(s->key_cache + loff + (long long)pos * kv_dim, s->k, kv_dim * sizeof(float));
-        memcpy(s->value_cache + loff + (long long)pos * kv_dim, s->v, kv_dim * sizeof(float));
+        memcpy(s->key_cache + loff + (long long)pos * max_kv_dim, s->k, kv_dim * sizeof(float));
+        memcpy(s->value_cache + loff + (long long)pos * max_kv_dim, s->v, kv_dim * sizeof(float));
         
         // Attention
         int start_t = 0;
@@ -211,6 +202,9 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             start_t = pos - p->sliding_window + 1;
             if (start_t < 0) start_t = 0;
         }
+        
+        // [FIX] Gemma4 explicitly uses scaling = 1.0 in the Python reference!
+        // Do NOT scale by 1/sqrt(head_dim) here.
         
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
@@ -221,21 +215,21 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             float *v_base = s->value_cache + loff;
             
             for (int t = 0; t <= pos; t++) att[t] = -1e9f;
-            
             for (int t = start_t; t <= pos; t++) {
-                float *k = k_base + (long long)t * kv_dim + kv_head * current_head_dim;
+                // [FIX] Read from cache using max_kv_dim stride
+                float *k = k_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
                 float score = 0.0f;
                 #pragma omp simd reduction(+:score)
                 for (int i = 0; i < current_head_dim; i++) score += q[i] * k[i];
-                att[t] = score;
+                att[t] = score; // No scaling factor!
             }
-            
             softmax(att, pos + 1);
             
             float *xb_h = s->xb + h * current_head_dim;
             memset(xb_h, 0, current_head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
-                float *v = v_base + (long long)t * kv_dim + kv_head * current_head_dim;
+                // [FIX] Read from cache using max_kv_dim stride
+                float *v = v_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
                 float a = att[t];
                 #pragma omp simd
                 for (int i = 0; i < current_head_dim; i++) xb_h[i] += a * v[i];
@@ -248,20 +242,18 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         rmsnorm_gemma4u(s->xb, s->xb, rms_post_attn, dim, eps, 1);
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
-        
+
         // Pre-FFN norm + FFN
         rmsnorm_gemma4u(s->xb, x, rms_pre_ffn, dim, eps, 1);
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
         matmul_qq(s->hb2, &s->xq, &w->up_proj[l]);
-        
         #pragma omp parallel for
         for (int i = 0; i < hidden_dim; i++) {
             float val = s->hb[i];
             float gelu = 0.5f * val * (1.0f + tanhf(0.797885608f * (val + 0.044715f * val * val * val)));
             s->hb[i] = gelu * s->hb2[i];
         }
-        
         quantize_vec(&s->hq, s->hb, hidden_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
         
@@ -270,7 +262,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
         
-        // Layer scalar (defaults to 1.0 in reference)
+        // Layer scalar
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] *= 1.0f;
     }
@@ -287,7 +279,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             s->logits[i] = tanhf(s->logits[i] * inv_cap) * cap;
         }
     }
-    
     return s->logits;
 }
 
