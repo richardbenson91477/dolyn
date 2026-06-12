@@ -89,17 +89,6 @@ static void rmsnorm_gemma(float *o, float *x, float *weight, int size, float eps
     }
 }
 
-//static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int pos) {
-//    int half = rotary_dim / 2;
-//    float *cos_row = cos + pos * half;
-//    float *sin_row = sin + pos * half;
-//    for (int i = 0; i < half; i++) {
-//        float c = cos_row[i], sn = sin_row[i];
-//        float v0 = vec[i], v1 = vec[i + half];
-//        vec[i] = v0 * c - v1 * sn;
-//        vec[i + half] = v0 * sn + v1 * c;
-//    }
-//}
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
     if (rotary_dim <= 0) return;
     int half = rotary_dim / 2;
