@@ -2,7 +2,7 @@
 
 cat "docs/transformers_gemma4u.prompt.md"
 
-echo "What follows is an inference engine for Gemma4-Unified in C (text only, no video/image/audio support). Please help me fix the C code; it's currently generating _only_ nonsense output (wrong tokens.) Compare the C functions and algorithms to the working python reference one by one. I suspect that the core problem is not in the RoPE implementation (a common rabbit-hole), but something more primary to the computation. If you need further information that what you have available, simply request it."
+echo "What follows is an inference engine for Gemma4-Unified in C (text only, no video/image/audio support). Please help me fix the C code; it's currently generating _only_ nonsense output (wrong tokens.) Please compare the C functions and algorithms to the working python reference one by one. If you need further information that what you have available, simply request it."
 
 echo
 

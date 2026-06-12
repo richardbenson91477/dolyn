@@ -77,28 +77,52 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     return 0;
 }
 
-static void rmsnorm_gemma(float *o, float *x, float *weight, int size, float eps, int with_scale) {
+static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
     float ss = 0.0f;
+
     #pragma omp simd reduction(+:ss)
-    for (int j = 0; j < size; j++) ss += x[j] * x[j];
+    for (int j = 0; j < size; j++) {
+        ss += x[j] * x[j];
+    }
+
     ss = 1.0f / sqrtf(ss / size + eps);
+
     #pragma omp simd
     for (int j = 0; j < size; j++) {
         o[j] = x[j] * ss;
-        if (with_scale && weight) o[j] *= weight[j];
+        if (with_scale && weight) {
+            o[j] *= (1.0f + weight[j]);
+        }
     }
 }
 
+//static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
+//    if (rotary_dim <= 0) return;
+//    int half = rotary_dim / 2;
+//    float *cos_row = cos + pos * half;
+//    float *sin_row = sin + pos * half;
+//    for (int i = 0; i < half; i++) {
+//        float c = cos_row[i], sn = sin_row[i];
+//        float v0 = vec[i], v1 = vec[i + half];
+//        vec[i] = v0 * c - v1 * sn;
+//        vec[i + half] = v0 * sn + v1 * c;
+//    }
+//}
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
     if (rotary_dim <= 0) return;
-    int half = rotary_dim / 2;
-    float *cos_row = cos + pos * half;
-    float *sin_row = sin + pos * half;
-    for (int i = 0; i < half; i++) {
+    
+    int rope_angles = rotary_dim / 2;
+    int half_vec = vec_dim / 2; // FIX: Pairing distance is ALWAYS half the head dimension
+    
+    float *cos_row = cos + pos * rope_angles;
+    float *sin_row = sin + pos * rope_angles;
+    
+    for (int i = 0; i < rope_angles; i++) {
         float c = cos_row[i], sn = sin_row[i];
-        float v0 = vec[i], v1 = vec[i + half];
+        float v0 = vec[i], v1 = vec[i + half_vec]; // FIX: Pair vec[i] with vec[i + half_vec]
+        
         vec[i] = v0 * c - v1 * sn;
-        vec[i + half] = v0 * sn + v1 * c;
+        vec[i + half_vec] = v0 * sn + v1 * c;
     }
 }
 
@@ -140,13 +164,12 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         float *rms_k = w->rms_k_norm + w->norm_offsets[l];
         
         // Input norm + QKV
-        rmsnorm_gemma(s->xb, x, rms_input, dim, eps, 1);
+        rmsnorm_gemma4u(s->xb, x, rms_input, dim, eps, 1);
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->q, &s->xq, &w->q_proj[l]);
         matmul_qq(s->k, &s->xq, &w->k_proj[l]);
         
         // V projection (K=V sharing handled here)
-        // MUST happen before K is modified in-place by k_norm and RoPE
         if (is_full && p->attention_k_eq_v) {
             memcpy(s->v, s->k, kv_dim * sizeof(float)); // Copy raw k_proj output
         } else {
@@ -155,26 +178,26 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         
         // V Norm (with_scale=False)
         for (int h = 0; h < current_kv_heads; h++) {
-            rmsnorm_gemma(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
+            rmsnorm_gemma4u(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
         }
 
         // Q/K Norm + RoPE
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
-            rmsnorm_gemma(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps, 1);
+            rmsnorm_gemma4u(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache)
                 apply_rope(s->q + h * current_head_dim, cos_cache, sin_cache, rotary_dim, vec_dim, pos);
         }
         #pragma omp parallel for
         for (int h = 0; h < current_kv_heads; h++) {
-            rmsnorm_gemma(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps, 1);
+            rmsnorm_gemma4u(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache)
                 apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, vec_dim, pos);
         }
         
         // V Norm (with_scale=False)
         for (int h = 0; h < current_kv_heads; h++) {
-            rmsnorm_gemma(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
+            rmsnorm_gemma4u(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
         }
         
         // Store K/V into cache
@@ -182,7 +205,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         memcpy(s->key_cache + loff + (long long)pos * kv_dim, s->k, kv_dim * sizeof(float));
         memcpy(s->value_cache + loff + (long long)pos * kv_dim, s->v, kv_dim * sizeof(float));
         
-        // 3. Attention
+        // Attention
         int start_t = 0;
         if (!is_full) {
             start_t = pos - p->sliding_window + 1;
@@ -219,15 +242,15 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             }
         }
         
-        // 4. O proj + Post-Attention Residual
+        // O proj + Post-Attention Residual
         quantize_vec(&s->xq, s->xb, p->n_heads * current_head_dim);
         matmul_qq(s->xb, &s->xq, &w->o_proj[l]);
-        rmsnorm_gemma(s->xb, s->xb, rms_post_attn, dim, eps, 1);
+        rmsnorm_gemma4u(s->xb, s->xb, rms_post_attn, dim, eps, 1);
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
         
-        // 5. Pre-FFN norm + FFN
-        rmsnorm_gemma(s->xb, x, rms_pre_ffn, dim, eps, 1);
+        // Pre-FFN norm + FFN
+        rmsnorm_gemma4u(s->xb, x, rms_pre_ffn, dim, eps, 1);
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
         matmul_qq(s->hb2, &s->xq, &w->up_proj[l]);
@@ -242,8 +265,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         quantize_vec(&s->hq, s->hb, hidden_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
         
-        // 6. Post-FFN Residual
-        rmsnorm_gemma(s->xb, s->xb, rms_post_ffn, dim, eps, 1);
+        // Post-FFN Residual
+        rmsnorm_gemma4u(s->xb, s->xb, rms_post_ffn, dim, eps, 1);
         #pragma omp simd
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
         
@@ -253,7 +276,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     }
     
     // 7. Final norm + logits
-    rmsnorm_gemma(x, x, w->rms_final_norm, dim, eps, 1);
+    rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
     matmul_qt(s->logits, x, &w->embed_tokens);
     
     if (p->final_logit_softcapping > 0.0f) {

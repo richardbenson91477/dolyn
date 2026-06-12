@@ -260,9 +260,7 @@ void rmsnorm_gemma(float *o, float *x, float *weight, int size, float eps) {
         ss += x[j] * x[j];
     }
 
-    ss /= size;
-    ss += eps;
-    ss = 1.0f / sqrtf(ss);
+    ss = 1.0f / sqrtf(ss / size + eps);
 
     #pragma omp simd
     for (int j = 0; j < size; j++) {
