@@ -718,35 +718,59 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
             if (first_turn) {
                 if (system_prompt && (system_prompt[0] != '\0')) {
                     rendered_len = snprintf(NULL, 0,
-                            "<|im_start|>system\n%s<|im_end|>\n<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
+                            "<|im_start|\x3e" "system\n" "%s"
+                            "<|im_end|\x3e" "\n"
+                            "<|im_start|\x3e" "user\n" "%s"
+                            "<|im_end|\x3e" "\n"
+                            "<|im_start|\x3e" "assistant\n",
                             system_prompt, prompt);
 
                     rendered_prompt = a_calloc((rendered_len + 1 ) * sizeof(char));
 
                     snprintf(rendered_prompt, rendered_len + 1,
-                            "<|im_start|>system\n%s<|im_end|>\n<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
+                            "<|im_start|\x3e" "system\n"
+                            "%s"
+                            "<|im_end|\x3e" "\n"
+                            "<|im_start|\x3e" "user\n"
+                            "%s"
+                            "<|im_end|\x3e" "\n"
+                            "<|im_start|\x3e" "assistant\n",
                             system_prompt, prompt);
                 }
                 else {
                     rendered_len = snprintf(NULL, 0,
-                            "<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
+                            "<|im_start|\x3e" "user\n"
+                            "%s"
+                            "<|im_end|\x3e" "\n"
+                            "<|im_start|\x3e" "assistant\n",
                             prompt);
 
                     rendered_prompt = a_calloc((rendered_len + 1 ) * sizeof(char));
 
                     snprintf(rendered_prompt, rendered_len + 1,
-                            "<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
+                            "<|im_start|\x3e" "user\n"
+                            "%s"
+                            "<|im_end|\x3e" "\n"
+                            "<|im_start|\x3e" "assistant\n",
                             prompt);
                 }
             } else {
                 rendered_len = snprintf(NULL, 0,
-                        "<|im_end|>\n<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
+                        "<|im_end|\x3e" "\n"
+                        "<|im_start|\x3e" "user\n"
+                        "%s"
+                        "<|im_end|\x3e" "\n"
+                        "<|im_start|\x3e" "assistant\n",
                         prompt);
 
                 rendered_prompt = a_calloc((rendered_len + 1 ) * sizeof(char));
 
                 snprintf(rendered_prompt, rendered_len + 1,
-                        "<|im_end|>\n<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
+                        "<|im_end|\x3e" "\n"
+                        "<|im_start|\x3e" "user\n"
+                        "%s"
+                        "<|im_end|\x3e" "\n"
+                        "<|im_start|\x3e" "assistant\n",
                         prompt);
             }
         
