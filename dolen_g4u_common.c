@@ -6,9 +6,10 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     int max_kv_dim = max_kv_heads * max_head_dim;
     int attn_out_dim = p->n_heads * max_head_dim;
 
-    // Proportional RoPE rotates the FULL head dimension. partial_factor only scales frequencies.
-    int half_rotary_full = p->global_head_dim / 2;
-    int half_rotary_sliding = p->head_dim / 2;
+    // Proportional RoPE rotates only a fraction of the head dimensions
+    int rotary_dim_full = (int)(p->rope_partial_factor * p->global_head_dim);
+    int half_rotary_full = rotary_dim_full / 2;
+    int half_rotary_sliding = p->head_dim / 2;  // sliding uses full head_dim
 
     int max_act_dim = p->dim;
     if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
@@ -39,13 +40,13 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
-    // RoPE caches use full head dimension for proportional rope
+    // Allocate and compute full-attention RoPE cache
     if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_full; i++) {
-                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_dim_full);
                 float val = pos * freq;
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
                 s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
@@ -53,6 +54,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         }
     } else { s->cos_cache_full = NULL; s->sin_cache_full = NULL; }
 
+    // Sliding-attention cache stays full head_dim (unchanged)
     if (half_rotary_sliding > 0) {
         s->cos_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
