@@ -229,7 +229,35 @@ class Gemma4UnifiedConfig(PreTrainedConfig):
     eoa_token_index (`int`, *optional*, defaults to 258883):
         The end-of-audio token index to wrap the audio prompt.
 
-    """
+    Example:
+
+    ```python
+    >>> from transformers import (
+    >>>     Gemma4UnifiedAudioConfig,
+    >>>     Gemma4UnifiedConfig,
+    >>>     Gemma4UnifiedForConditionalGeneration,
+    >>>     Gemma4UnifiedTextConfig,
+    >>>     Gemma4UnifiedVisionConfig,
+    >>> )
+
+    >>> # Initializing a Gemma 4 Audio config.
+    >>> audio_config = Gemma4UnifiedAudioConfig()
+
+    >>> # Initializing a Gemma 4 Text config.
+    >>> text_config = Gemma4UnifiedTextConfig()
+
+    >>> # Initializing a Gemma 4 vision config.
+    >>> vision_config = Gemma4UnifiedVisionConfig()
+
+    >>> # Initializing a Gemma 4 config similar to google/gemma-4-e2b-it
+    >>> configuration = Gemma4UnifiedConfig(text_config, vision_config, audio_config)
+
+    >>> # Initializing a model from the google/gemma-4-e2b-it configuration
+    >>> model = Gemma4UnifiedForConditionalGeneration(configuration)
+
+    >>> # Accessing the model configuration
+    >>> configuration = model.config
+    ```"""
 
     model_type = "gemma4_unified"
     sub_configs = {
@@ -978,7 +1006,23 @@ class Gemma4UnifiedForCausalLM(Gemma4UnifiedPreTrainedModel, GenerationMixin):
         logits_to_keep: int | torch.Tensor = 0,
         **kwargs: Unpack[TransformersKwargs],
     ) -> Gemma4UnifiedCausalLMOutputWithPast:
+        r"""
+        Example:
 
+        ```python
+        >>> from transformers import AutoTokenizer, Gemma4UnifiedForCausalLM
+
+        >>> model = Gemma4UnifiedForCausalLM.from_pretrained("google/gemma-4-12B-it")
+        >>> tokenizer = AutoTokenizer.from_pretrained("google/gemma-4-12B-it")
+
+        >>> prompt = "What is your favorite condiment?"
+        >>> inputs = tokenizer(prompt, return_tensors="pt")
+
+        >>> # Generate
+        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        "What is your favorite condiment?"
+        ```"""
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs: Gemma4UnifiedTextModelOutputWithPast = self.model(
             input_ids=input_ids,
