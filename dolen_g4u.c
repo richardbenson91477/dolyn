@@ -246,8 +246,12 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
         
         // Layer scalar
-        #pragma omp simd
-        for (int i = 0; i < dim; i++) x[i] *= 1.0f;
+        if (w->layer_scalars && w->layer_scalars[l] != 1.0f) {
+            #pragma omp simd
+            for (int i = 0; i < dim; i++) {
+                x[i] *= w->layer_scalars[l];
+            }
+        }
     }
     
     // Final norm + logits
