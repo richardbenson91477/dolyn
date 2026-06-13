@@ -54,7 +54,6 @@ typedef struct {
 
 typedef struct {
     char **vocab;
-    float *vocab_scores;
     token_map *sorted_vocab;
     int vocab_size;
     unsigned int max_token_length;

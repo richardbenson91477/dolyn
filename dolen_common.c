@@ -356,7 +356,6 @@ char *decode(Tokenizer *t, int token, bool _debug) {
 void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_map *special_tokens) {
     t->vocab_size = vocab_size;
     t->vocab = (char **)a_calloc(vocab_size * sizeof(char *));
-    t->vocab_scores = (float *)a_calloc(vocab_size * sizeof(float));
     t->sorted_vocab = NULL;
     t->special_tokens = special_tokens;
 
@@ -374,7 +373,7 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_m
 
     FILE *file = fopen(tokenizer_path, "rb");
     if (! file) {
-        log_msg(stderr, "ERROR: Couldn't load %s\n", tokenizer_path);
+        log_msg(stderr, "ERROR: Couldn't open %s\n", tokenizer_path);
         exit(EXIT_FAILURE);
     }
 
@@ -385,20 +384,15 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_m
 
     int len;
     for (int i = 0; i < vocab_size; i++) {
-        if (fread(t->vocab_scores + i, sizeof(float), 1, file) != 1) {
-            log_msg(stderr, "ERROR: Failed read: vocab_scores\n");
-            exit(EXIT_FAILURE);
-        }
-
         if (fread(&len, sizeof(int), 1, file) != 1) {
-            log_msg(stderr, "ERROR: Failed read: len\n");
+            log_msg(stderr, "ERROR: Failed read: len (%u)\n", i);
             exit(EXIT_FAILURE);
         }
 
         t->vocab[i] = (char *)a_calloc(len + 1);
         if (len > 0) {
             if (fread(t->vocab[i], len, 1, file) != 1) {
-                log_msg(stderr, "ERROR: Failed read: vocab\n");
+                log_msg(stderr, "ERROR: Failed read: vocab (%u)\n", i);
                 exit(EXIT_FAILURE);
             }
         }
@@ -414,7 +408,6 @@ void free_tokenizer(Tokenizer *t) {
     }
 
     free(t->vocab);
-    free(t->vocab_scores);
     free(t->sorted_vocab);
 }
 
@@ -954,7 +947,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         }
         FILE *pf = fopen(prompt_file, "r");
         if (!pf) {
-            log_msg(stderr, "ERROR: Couldn't load prompt file %s\n", prompt_file);
+            log_msg(stderr, "ERROR: Couldn't open prompt file %s\n", prompt_file);
             exit(EXIT_FAILURE);
         }
         fseek(pf, 0, SEEK_END);
