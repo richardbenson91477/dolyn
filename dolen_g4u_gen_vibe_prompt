@@ -7,9 +7,6 @@ echo "What follows is an inference engine for Gemma4-Unified in C (text only, no
 echo
 
 for f in "dolen_common.c" "dolen_common.h" "dolen_g4u.c" "dolen_g4u_common.c" "dolen_g4u_common.h" "dolen_g4u_quantize.c" "dolen_quantize_common.c" "dolen_quantize_common.h"; do
-    echo \[\"$f\"\]
-    echo '```'
-    cat "${f}"
-    echo '```'
+    regarding.py -p "" "$f" 
     done
 
