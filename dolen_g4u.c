@@ -97,7 +97,8 @@ static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float e
     for (int j = 0; j < size; j++) {
         o[j] = x[j] * ss;
         if (with_scale && weight) {
-            o[j] *= weight[j];
+//            o[j] *= weight[j];
+            o[j] *= 1.0 + weight[j];
         }
     }
 }
@@ -195,7 +196,9 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             start_t = pos - p->sliding_window + 1;
             if (start_t < 0) start_t = 0;
         }
-        float scale = 1.0f / sqrtf((float)current_head_dim);  // <--- ADDED SCALING
+
+//        float scale = 1.0f / sqrtf((float)current_head_dim);
+        float scale = 1.0f;
         
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
