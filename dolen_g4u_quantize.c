@@ -1,5 +1,5 @@
 #include "dolen_g4u_common.h"
-#include "dolen_q_common.h"
+#include "dolen_quantize_common.h"
 
 int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     config_gemma4u *p = &model->config;

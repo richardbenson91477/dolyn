@@ -1,5 +1,5 @@
 #include "dolen_q3_common.h"
-#include "dolen_q_common.h"
+#include "dolen_quantize_common.h"
 
 
 static float get_json_float_val(JsonValue *v, float def) {

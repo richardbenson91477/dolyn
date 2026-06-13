@@ -1,5 +1,4 @@
 #include "dolen_q3_5_common.h"
-#include <stdlib.h>
 
 void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
     int dim = p->dim;

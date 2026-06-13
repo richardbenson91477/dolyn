@@ -1,5 +1,5 @@
 #include "dolen_q3_5_common.h"
-#include "dolen_q_common.h"
+#include "dolen_quantize_common.h"
 
 
 static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
