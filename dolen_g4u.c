@@ -97,8 +97,7 @@ static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float e
     for (int j = 0; j < size; j++) {
         o[j] = x[j] * ss;
         if (with_scale && weight) {
-//            o[j] *= weight[j];
-            o[j] *= 1.0 + weight[j];
+            o[j] *= weight[j];
         }
     }
 }

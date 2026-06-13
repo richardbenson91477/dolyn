@@ -46,13 +46,6 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
 
         for (int pos = 0; pos < p->seq_len; pos++) {
-//            for (int i = 0; i < half_rotary_full; i++) {
-//                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_dim_full);
-//                float val = pos * freq;
-//                s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
-//                s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
-//            }
-            // C Code (FIXED)
             for (int i = 0; i < half_rotary_full; i++) {
                 // FIX: Use p->global_head_dim here, not rotary_dim_full!
                 float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
