@@ -41,6 +41,7 @@ typedef struct {
     qtensor *gate_proj;
     qtensor *up_proj;
     qtensor *down_proj;
+    float *layer_scalars;
 } weights_gemma4u;
 
 typedef struct {

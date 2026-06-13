@@ -59,6 +59,11 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     w->up_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
+    w->layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
+    for (int i = 0; i < p->n_layers; i++) {
+        w->layer_scalars[i] = 1.0f;
+    }
+
     if (!w->q_proj || !w->k_proj || !w->o_proj) {
         log_msg(stderr, "ERROR: Alloc attn failed\n"); fclose(f); return -1;
     }
@@ -72,6 +77,8 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         read_qt(f, &w->up_proj[i]);
         read_qt(f, &w->down_proj[i]);
     }
+
+    fread(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     fclose(f);
     log_msg(stderr, "INFO: Quantized Gemma4Unified loaded from %s\n", filepath);

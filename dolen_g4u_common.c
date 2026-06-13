@@ -115,7 +115,11 @@ void free_gemma4u(Gemma4Unified *model) {
     free_qt_array(w->gate_proj, n_layer);
     free_qt_array(w->up_proj, n_layer);
     free_qt_array(w->down_proj, n_layer);
-    if (model->state.allocated) free_state_gemma4u(&model->state);
+    free(w->layer_scalars);
+
+    if (model->state.allocated) {
+        free_state_gemma4u(&model->state);
+    }
     free(model->layer_types);
 }
 

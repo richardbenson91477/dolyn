@@ -137,6 +137,13 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
                 load_and_quantize_from_handle(&st, tname, &w->o_proj[l], p->dim, p->n_heads * hd);
             }
+            else if (strcmp(suffix, "layer_scalar.weight") == 0) {
+                float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
+                if (f) {
+                    w->layer_scalars[l] = f[0];
+                    free(f);
+                }
+            }
             else if (strcmp(suffix, "mlp.gate_proj.weight") == 0)
                 load_and_quantize_from_handle(&st, tname, &w->gate_proj[l], p->hidden_dim, p->dim);
             else if (strcmp(suffix, "mlp.up_proj.weight") == 0)
@@ -170,6 +177,10 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     model->weights.rms_q_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
     model->weights.rms_k_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
     model->weights.rms_final_norm = (float *)a_calloc((size_t)p->dim * sizeof(float));
+    model->weights.layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
+    for (int i = 0; i < p->n_layers; i++) {
+        model->weights.layer_scalars[i] = 1.0f;
+    }
 
     if (!model->weights.rms_input_layernorm || !model->weights.rms_post_attn_layernorm ||
         !model->weights.rms_pre_ffn_layernorm || !model->weights.rms_post_ffn_layernorm ||
@@ -246,6 +257,9 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         write_qt(f, &w->up_proj[i]);
         write_qt(f, &w->down_proj[i]);
     }
+
+    fwrite(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
+
     fclose(f);
     log_msg(stderr, "INFO: Quantized Gemma4Unified saved to %s\n", filepath);
 }

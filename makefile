@@ -142,5 +142,5 @@ clean:
 
 
 wip: $(BIN_G4U)
-	./$(BIN_G4U) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p "1 to 10: 1, 2, 3, 4, " -n 1024 -t 0.1 -M generate
+	./$(BIN_G4U) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p "1, 2, " -n 1024 -t 0.1 -M generate
 
