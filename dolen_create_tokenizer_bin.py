@@ -1,38 +1,25 @@
 #!/usr/bin/env python3
-import argparse
-import json
 import os
 import struct
-
 from transformers import AutoTokenizer
 
 
-def create_tokenizer(model_dir: str, output: str = None) -> str:
-    if output is None:
-        output = os.path.join(model_dir, "tokenizer.bin")
+def create_tokenizer(model_dir: str, out_path: str = None) -> str:
+    if out_path is None:
+        out_path = os.path.join(model_dir, "tokenizer.bin")
 
-    if os.path.exists(output):
-        print(f"Tokenizer already exists: {output}")
-        return output
+    print(f"Info: out_path = \"{out_path}\"")
 
-    config_path = os.path.join(model_dir, "config.json")
-    if not os.path.isfile(config_path):
-        raise FileNotFoundError(f"config.json not found under {model_dir}")
+    if os.path.exists(out_path):
+        print(f"Error: tokenizer already exists")
+        return out_path
 
-    with open(config_path, encoding="utf-8") as f:
-        config = json.load(f)
-
-    llm = config.get("text_config", config)
-    vocab_size = int(llm["vocab_size"])
-    print(f"Config vocab_size: {vocab_size}")
 
     tok = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=False)
 
-    tv = getattr(tok, "vocab_size", None)
-    if tv is not None and \
-            tv != vocab_size:
-        print(f"Note: tokenizer.vocab_size={tv} != config vocab_size; "
-              f"exporting {vocab_size} rows to match checkpoint")
+    vocab_size = getattr(tok, "vocab_size", None)
+
+    print(f"Info: vocab_size = {vocab_size}")
 
 
     def id_to_utf8_bytes(idx: int) -> bytes:
@@ -55,19 +42,20 @@ def create_tokenizer(model_dir: str, output: str = None) -> str:
     max_token_length = max((len(t) for t in tokens), default=0)
     print(f"Max token length: {max_token_length}")
 
-    with open(output, "wb") as f:
+    with open(out_path, "wb") as f:
         f.write(struct.pack("I", max_token_length))
         for bs in tokens:
             f.write(struct.pack("fI", 0.0, len(bs)))
             f.write(bs)
 
-    print(f"Created tokenizer: {output} ({vocab_size} tokens)")
-    return output
+    return out_path
 
 
 def main():
+    import argparse
+
     parser = argparse.ArgumentParser(
-            description="Create tokenizer.bin for Dolen"
+            description="create binary-format tokenizer"
             )
     parser.add_argument(
         "model_path",
@@ -77,7 +65,7 @@ def main():
 
     args = parser.parse_args()
 
-    create_tokenizer(args.model_path)
+    create_tokenizer(args.model_path, "./tokenizer.bin")
 
 
 if __name__ == "__main__":
