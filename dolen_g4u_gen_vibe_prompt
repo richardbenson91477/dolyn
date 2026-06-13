@@ -2,11 +2,12 @@
 
 cat "docs/llama_dot_cpp_gemma4.prompt.md"
 
-echo "What follows is an inference engine for Gemma4-Unified in C (text only, no video/image/audio support). Please help me fix the C code; it's currently generating _only_ nonsense output (wrong tokens.) Please compare the functions and algorithms to the working llama.cpp reference one by one. If you need further information that what you have available, simply request it."
-
-echo
+echo "What follows is an inference engine for Gemma4-Unified in C (text only, no video/image/audio support, no MoE support). Please help me fix the C code; it's currently generating _only_ nonsense output (wrong tokens.) Please compare the functions and algorithms to the working llama.cpp reference one by one."
 
 for f in "dolen_common.c" "dolen_common.h" "dolen_g4u.c" "dolen_g4u_common.c" "dolen_g4u_common.h" "dolen_g4u_quantize.c" "dolen_quantize_common.c" "dolen_quantize_common.h"; do
     regarding.py -p "" "$f" 
     done
+
+echo "Here is some useful information regarding my test model:"
+cat "docs/gemma-4-12b-it-heretic.config.md"
 

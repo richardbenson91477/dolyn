@@ -189,8 +189,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             if (start_t < 0) start_t = 0;
         }
 
-        // FIX: attention scaling factor
-        float scale = 1.0f / sqrtf((float)current_head_dim);
+        // FIX: Gemma4 uses no pre-attention scaling (self.scaling = 1.0)
+        float scale = 1.0f;
         
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
@@ -236,7 +236,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         #pragma omp parallel for
         for (int i = 0; i < layer_hidden_dim; i++) {
             float val = s->hb[i];
-            float gelu = 0.5f * val * (1.0f + tanhf(0.797885608f * (val + 0.044715f * val * val * val)));
+            // Fixed GELU approximation constant to be more precise (sqrt(2/pi) ≈ 0.79788456)
+            float gelu = 0.5f * val * (1.0f + tanhf(0.79788456f * (val + 0.044715f * val * val * val)));
             s->hb[i] = gelu * s->hb2[i];
         }
 

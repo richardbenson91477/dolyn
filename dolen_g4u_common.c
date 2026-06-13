@@ -48,7 +48,8 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         for (int pos = 0; pos < p->seq_len; pos++) {
             float effective_pos = pos * ratio;
             for (int i = 0; i < half_rotary_full; i++) {
-                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                // FIX: Use rotary_dim_full instead of global_head_dim for correct frequency calculation
+                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_dim_full);
                 float val = effective_pos * freq;
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
                 s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
@@ -65,6 +66,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_sliding; i++) {
+                // Note: rotary_dim for sliding is p->head_dim, so this denominator is correct
                 float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2 * i) / p->head_dim);
                 float val = pos * freq;
                 s->cos_cache_sliding[pos * half_rotary_sliding + i] = cosf(val);
