@@ -22,6 +22,7 @@ typedef struct {
     float rms_norm_eps;
     float final_logit_softcapping;
     int attention_k_eq_v;
+    int original_max_seq_len;      // NEW: training max length (for proportional RoPE)
 } config_gemma4u;
 
 typedef struct {

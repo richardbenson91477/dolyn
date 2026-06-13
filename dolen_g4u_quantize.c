@@ -26,7 +26,6 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 0);
     p->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 0);
     p->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), 0);
-    // <--- FIX: Parse global KV heads for full attention layers
     p->n_global_kv_heads = json_get_int(json_object_get(cfg, "num_global_key_value_heads"), p->n_kv_heads);
     
     p->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 0);
@@ -38,6 +37,9 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
     p->final_logit_softcapping = json_get_double(json_object_get(cfg, "final_logit_softcapping"), 30.0);
     p->attention_k_eq_v = json_get_bool(json_object_get(cfg, "attention_k_eq_v"), 0);
+
+    // NEW: load original max seq len for proportional RoPE
+    p->original_max_seq_len = json_get_int(json_object_get(cfg, "original_max_position_embeddings"), 8192);
 
     JsonValue *rope_params = json_object_get(cfg, "rope_parameters");
     JsonValue *full_rope = json_object_get(rope_params, "full_attention");
@@ -118,7 +120,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
                 load_and_quantize_from_handle(&st, tname, &w->q_proj[l], p->n_heads * hd, p->dim);
             }
-            // <--- FIX: Correctly calculate KV heads based on layer type and K=V sharing
             else if (strcmp(suffix, "self_attn.k_proj.weight") == 0) {
                 int is_full = model->layer_types[l];
                 int hd = is_full ? p->global_head_dim : p->head_dim;
@@ -127,7 +128,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
             }
             else if (strcmp(suffix, "self_attn.v_proj.weight") == 0) {
                 int is_full = model->layer_types[l];
-                // <--- FIX: Skip v_proj for full layers when K=V is active (it doesn't exist in the checkpoint)
                 if (!(is_full && p->attention_k_eq_v)) {
                     int hd = is_full ? p->global_head_dim : p->head_dim;
                     load_and_quantize_from_handle(&st, tname, &w->v_proj[l], p->n_kv_heads * hd, p->dim);
@@ -223,7 +223,7 @@ void build_gemma4u(Gemma4Unified *model, char *model_path) {
 void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     FILE *f = fopen(filepath, "wb");
     if (!f) { log_msg(stderr, "ERROR: Failed to open %s\n", filepath); exit(EXIT_FAILURE); }
-    uint32_t magic = 0x55344D47; // 'G4MU'
+    uint32_t magic = 0x55344D47;
     uint32_t version = 1;
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);
@@ -251,7 +251,7 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     for (int i = 0; i < p->n_layers; i++) {
         write_qt(f, &w->q_proj[i]);
         write_qt(f, &w->k_proj[i]);
-        write_qt(f, &w->v_proj[i]); // Will safely write 0 rows/cols for skipped full-layer v_projs
+        write_qt(f, &w->v_proj[i]);
         write_qt(f, &w->o_proj[i]);
         write_qt(f, &w->gate_proj[i]);
         write_qt(f, &w->up_proj[i]);
@@ -276,4 +276,3 @@ int main(int argc, char *argv[]) {
     free_gemma4u(&model);
     return 0;
 }
-
