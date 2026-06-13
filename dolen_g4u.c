@@ -237,13 +237,19 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
         matmul_qq(s->hb2, &s->xq, &w->up_proj[l]);
+        
+        // FIX: Use the actual per-layer hidden dimension from the weight tensor
+        int layer_hidden_dim = w->gate_proj[l].cols; 
+        
         #pragma omp parallel for
-        for (int i = 0; i < hidden_dim; i++) {
+        for (int i = 0; i < layer_hidden_dim; i++) {
             float val = s->hb[i];
             float gelu = 0.5f * val * (1.0f + tanhf(0.797885608f * (val + 0.044715f * val * val * val)));
             s->hb[i] = gelu * s->hb2[i];
         }
-        quantize_vec(&s->hq, s->hb, hidden_dim);
+
+        // FIX: Quantize using the correct per-layer dimension
+        quantize_vec(&s->hq, s->hb, layer_hidden_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
         
         // Post-FFN Residual
