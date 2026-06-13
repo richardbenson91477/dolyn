@@ -15,3 +15,4 @@ docs/transformers_gemma4u.prompt.md
 docs/transformers_qwen3.prompt.md
 docs/transformers_qwen3_5.prompt.md
 docs/gemma-4-12b-it-heretic.config.md
+docs/model.safetensors.index.json.md
