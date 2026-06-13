@@ -135,7 +135,9 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
     dequantize_row(x, &w->embed_tokens, token);
     #pragma omp simd
-    for (int i = 0; i < dim; i++) x[i] *= embed_scale;
+    for (int i = 0; i < dim; i++) {
+        x[i] *= embed_scale;
+    }
 
     for (int l = 0; l < p->n_layers; l++) {
         int is_full = model->layer_types[l];
@@ -241,8 +243,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
         matmul_qq(s->hb2, &s->xq, &w->up_proj[l]);
         
-        // FIX: Use the actual per-layer hidden dimension from the weight tensor
-        int layer_hidden_dim = w->gate_proj[l].cols; 
+//        int layer_hidden_dim = w->gate_proj[l].cols; 
+        int layer_hidden_dim = w->gate_proj[l].rows; 
         
         #pragma omp parallel for
         for (int i = 0; i < layer_hidden_dim; i++) {
