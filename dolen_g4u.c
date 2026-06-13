@@ -195,8 +195,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             start_t = pos - p->sliding_window + 1;
             if (start_t < 0) start_t = 0;
         }
+        float scale = 1.0f / sqrtf((float)current_head_dim);  // <--- ADDED SCALING
         
-        // Gemma4 uses scaling = 1.0 (no pre-attn scaling)
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * current_head_dim;
@@ -211,7 +211,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 float score = 0.0f;
                 #pragma omp simd reduction(+:score)
                 for (int i = 0; i < current_head_dim; i++) score += q[i] * k[i];
-                att[t] = score; 
+                att[t] = score * scale; 
             }
             softmax(att, pos + 1);
             
