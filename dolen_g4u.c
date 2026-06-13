@@ -102,18 +102,20 @@ static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float e
     }
 }
 
+// CORRECTED apply_rope – only rotates the first rotary_dim elements
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
+    (void)vec_dim; // not needed, kept for API compatibility
     if (rotary_dim <= 0) return;
-    int rope_angles = rotary_dim / 2;
-    int half_vec = vec_dim / 2; 
-    float *cos_row = cos + pos * rope_angles;
-    float *sin_row = sin + pos * rope_angles;
-    for (int i = 0; i < rope_angles; i++) {
+    int half_rot = rotary_dim / 2;
+    float *cos_row = cos + pos * half_rot;
+    float *sin_row = sin + pos * half_rot;
+    for (int i = 0; i < half_rot; i++) {
         float c = cos_row[i], sn = sin_row[i];
-        float v0 = vec[i], v1 = vec[i + half_vec]; 
+        float v0 = vec[i], v1 = vec[i + half_rot];
         vec[i] = v0 * c - v1 * sn;
-        vec[i + half_vec] = v0 * sn + v1 * c;
+        vec[i + half_rot] = v0 * sn + v1 * c;
     }
+    // Elements beyond rotary_dim stay unchanged (already correct)
 }
 
 float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
@@ -140,7 +142,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         int current_kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = current_kv_heads * current_head_dim;
         int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
-        int vec_dim = current_head_dim;   
         
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
@@ -174,13 +175,13 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         for (int h = 0; h < p->n_heads; h++) {
             rmsnorm_gemma4u(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache)
-                apply_rope(s->q + h * current_head_dim, cos_cache, sin_cache, rotary_dim, vec_dim, pos);
+                apply_rope(s->q + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
         }
         #pragma omp parallel for
         for (int h = 0; h < current_kv_heads; h++) {
             rmsnorm_gemma4u(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache)
-                apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, vec_dim, pos);
+                apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
         }
 
         // Store K/V into cache using max_kv_dim as stride
@@ -206,7 +207,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             
             for (int t = 0; t <= pos; t++) att[t] = -1e9f;
             for (int t = start_t; t <= pos; t++) {
-                // Read from cache using max_kv_dim stride
                 float *k = k_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
                 float score = 0.0f;
                 #pragma omp simd reduction(+:score)
@@ -218,7 +218,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             float *xb_h = s->xb + h * current_head_dim;
             memset(xb_h, 0, current_head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
-                // Read from cache using max_kv_dim stride
                 float *v = v_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
                 float a = att[t];
                 #pragma omp simd
