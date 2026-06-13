@@ -379,26 +379,26 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_m
     }
 
     if (fread(&t->max_token_length, sizeof(int), 1, file) != 1) {
-        log_msg(stderr, "ERROR: Failed read\n");
+        log_msg(stderr, "ERROR: Failed read: max_token_length\n");
         exit(EXIT_FAILURE);
     }
 
     int len;
     for (int i = 0; i < vocab_size; i++) {
         if (fread(t->vocab_scores + i, sizeof(float), 1, file) != 1) {
-            log_msg(stderr, "ERROR: Failed read\n");
+            log_msg(stderr, "ERROR: Failed read: vocab_scores\n");
             exit(EXIT_FAILURE);
         }
 
         if (fread(&len, sizeof(int), 1, file) != 1) {
-            log_msg(stderr, "ERROR: Failed read\n");
+            log_msg(stderr, "ERROR: Failed read: len\n");
             exit(EXIT_FAILURE);
         }
 
         t->vocab[i] = (char *)a_calloc(len + 1);
         if (len > 0) {
             if (fread(t->vocab[i], len, 1, file) != 1) {
-                log_msg(stderr, "ERROR: Failed read\n");
+                log_msg(stderr, "ERROR: Failed read: vocab\n");
                 exit(EXIT_FAILURE);
             }
         }
