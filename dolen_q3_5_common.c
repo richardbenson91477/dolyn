@@ -1,5 +1,6 @@
 #include "dolen_q3_5_common.h"
 
+
 void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;

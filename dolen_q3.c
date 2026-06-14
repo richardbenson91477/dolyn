@@ -1,20 +1,6 @@
 #include "dolen_q3_common.h"
 
 
-typedef struct {
-    int dim;
-    int hidden_dim;
-    int n_layers;
-    int n_heads;
-    int n_kv_heads;
-    int vocab_size;
-    int seq_len;
-    int head_dim;
-    int shared_classifier;
-    float rope_theta;
-    float rope_scaling_factor;
-} config_qwen3_v1;
-
 int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
