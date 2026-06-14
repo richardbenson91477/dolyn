@@ -178,13 +178,24 @@ void softmax(float *x, int size) {
     for (int i = 1; i < size; i++) {
         max_val = fmaxf(max_val, x[i]);
     }
+
     float sum = 0.0f;
     #pragma omp simd reduction(+:sum)
     for (int i = 0; i < size; i++) {
         x[i] = expf(x[i] - max_val);
         sum += x[i];
     }
+
+    if (sum < 1e-10f) {
+        float uniform = 1.0f / size;
+        for (int i = 0; i < size; i++) {
+            x[i] = uniform;
+        }
+        return;
+    }
+
     float inv_sum = 1.0f / sum;
+
     #pragma omp simd
     for (int i = 0; i < size; i++) {
         x[i] *= inv_sum;

@@ -116,7 +116,9 @@ static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float e
     for (int j = 0; j < size; j++) {
         ss += x[j] * x[j];
     }
+
     ss = 1.0f / sqrtf(ss / size + eps);
+
     #pragma omp simd
     for (int j = 0; j < size; j++) {
         o[j] = x[j] * ss;
@@ -132,8 +134,6 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
     }
     int half_rot = rotary_dim / 2;
     
-    // FIX: NeoX style RoPE pairs the first half of the FULL head dimension 
-    // with the second half. The cache stride and offset must be vec_dim / 2.
     int cache_stride = vec_dim / 2; 
     
     float *cos_row = cos + pos * cache_stride;
@@ -232,7 +232,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 att[t] = -1e9f;
             }
 
-            float attn_scale = 1.0f / sqrtf((float)head_dim);
+            //float attn_scale = 1.0f / sqrtf((float)head_dim);
+            float attn_scale = 1.0f;
 
             for (int t = start_t; t <= pos; t++) {
                 float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
