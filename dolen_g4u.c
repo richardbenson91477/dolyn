@@ -170,10 +170,10 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         int current_head_dim = is_full ? p->global_head_dim : p->head_dim;
         int current_kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = current_kv_heads * current_head_dim;
-        int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
+        // int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim; // DEBUG: Disabled
         
-        float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
-        float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
+        // float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding; // DEBUG: Disabled
+        // float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding; // DEBUG: Disabled
         float *rms_input = w->rms_input_layernorm + l * dim;
         float *rms_post_attn = w->rms_post_attn_layernorm + l * dim;
         float *rms_pre_ffn = w->rms_pre_ffn_layernorm + l * dim;
@@ -198,15 +198,17 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             rmsnorm_gemma4u(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps, 1);
-            if (rotary_dim > 0 && cos_cache) {
-                apply_rope(s->q + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
-            }
+            // DEBUG: RoPE Disabled
+            // if (rotary_dim > 0 && cos_cache) {
+            //     apply_rope(s->q + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
+            // }
         }
         #pragma omp parallel for
         for (int h = 0; h < current_kv_heads; h++) {
             rmsnorm_gemma4u(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps, 1);
-            if (rotary_dim > 0 && cos_cache)
-                apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
+            // DEBUG: RoPE Disabled
+            // if (rotary_dim > 0 && cos_cache)
+            //     apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
         }
 
         long long loff = (long long)l * p->seq_len * max_kv_dim;
@@ -243,7 +245,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             }
             softmax(att, pos + 1);
             
-            float *xb_h = s->xb + h * current_head_dim;
+            float *xb_h = s->hb + h * current_head_dim;
             memset(xb_h, 0, current_head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
                 float *v = v_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
@@ -256,7 +258,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
         
         matmul_qt(s->xb, s->hb, &w->o_proj[l]);
-        rmsnorm_gemma4u(s->xb, s->xb, rms_post_attn, dim, eps, 1);        
+        rmsnorm_gemma4u(s->xb, s->xb, rms_post_attn, dim, eps, 1);
         #pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
@@ -283,25 +285,27 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             x[i] += s->xb[i];
         }
         
-        if (w->layer_scalars && w->layer_scalars[l] != 1.0f) {
-            #pragma omp simd
-            for (int i = 0; i < dim; i++) {
-                x[i] *= w->layer_scalars[l];
-            }
-        }
+        // DEBUG: Layer Scalars disabled to test base residual stream
+        // if (w->layer_scalars && w->layer_scalars[l] != 1.0f) {
+        //     #pragma omp simd
+        //     for (int i = 0; i < dim; i++) {
+        //         x[i] *= w->layer_scalars[l];
+        //     }
+        // }
     }
     
     rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
     matmul_qt(s->logits, x, &w->embed_tokens);
     
-    if (p->final_logit_softcapping > 0.0f) {
-        float cap = p->final_logit_softcapping;
-        float inv_cap = 1.0f / cap;
-        #pragma omp simd
-        for (int i = 0; i < p->vocab_size; i++) {
-            s->logits[i] = tanhf(s->logits[i] * inv_cap) * cap;
-        }
-    }
+    // DEBUG: Softcapping disabled
+//    if (p->final_logit_softcapping > 0.0f) {
+//        float cap = p->final_logit_softcapping;
+//        float inv_cap = 1.0f / cap;
+//        #pragma omp simd
+//        for (int i = 0; i < p->vocab_size; i++) {
+//            s->logits[i] = tanhf(s->logits[i] * inv_cap) * cap;
+//        }
+//    }
     
     static const int suppress_ids[] = {255999, 256000, 258880, 258881, 258882, 258883, 258884};
     for (int i = 0; i < 7; i++) {
