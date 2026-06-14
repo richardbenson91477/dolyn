@@ -145,171 +145,192 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
     }
 }
 
+static inline float gemma_gelu(float x) {
+    const float kBeta = 0.7978845608028654f;
+    const float kKappa = 0.044715f;
+    return 0.5f * x * (1.0f + tanhf(kBeta * (x + kKappa * x * x * x)));
+}
+
 float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     config_gemma4u *p = &model->config;
     weights_gemma4u *w = &model->weights;
     state_gemma4u *s = &model->state;
     float *x = s->x;
     int dim = p->dim;
-    int hidden_dim = p->hidden_dim;
     float eps = p->rms_norm_eps;
     float embed_scale = sqrtf((float)dim);
-    
-    int max_kv_dim = (p->n_kv_heads * p->head_dim > p->n_global_kv_heads * p->global_head_dim)
-                     ? p->n_kv_heads * p->head_dim : p->n_global_kv_heads * p->global_head_dim;
 
+    // Compute max dimensions (matching alloc_state)
+    int max_head_dim = p->global_head_dim > p->head_dim ? p->global_head_dim : p->head_dim;
+    int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
+    int max_kv_dim   = max_kv_heads * max_head_dim;
+
+    // Embedding
     dequantize_row(x, &w->embed_tokens, token);
-    #pragma omp simd
     for (int i = 0; i < dim; i++) {
         x[i] *= embed_scale;
     }
 
     for (int l = 0; l < p->n_layers; l++) {
         int is_full = model->layer_types[l];
-        int current_head_dim = is_full ? p->global_head_dim : p->head_dim;
-        int current_kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
-        int kv_dim = current_kv_heads * current_head_dim;
+        int head_dim = is_full ? p->global_head_dim : p->head_dim;
+        int kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
+        int kv_dim = kv_heads * head_dim;
         int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
-        
+
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
-        float *rms_input = w->rms_input_layernorm + l * dim;
-        float *rms_post_attn = w->rms_post_attn_layernorm + l * dim;
-        float *rms_pre_ffn = w->rms_pre_ffn_layernorm + l * dim;
-        float *rms_post_ffn = w->rms_post_ffn_layernorm + l * dim;
-        float *rms_q = w->rms_q_norm + w->norm_offsets[l];
-        float *rms_k = w->rms_k_norm + w->norm_offsets[l];
 
-        rmsnorm_gemma4u(s->xb, x, rms_input, dim, eps, 1);
+        float *rms_in      = w->rms_input_layernorm + l * dim;
+        float *rms_post_a  = w->rms_post_attn_layernorm + l * dim;
+        float *rms_pre_f   = w->rms_pre_ffn_layernorm + l * dim;
+        float *rms_post_f  = w->rms_post_ffn_layernorm + l * dim;
+        float *rms_q       = w->rms_q_norm + w->norm_offsets[l];
+        float *rms_k       = w->rms_k_norm + w->norm_offsets[l];
+
+        // Input norm + QKV
+        rmsnorm_gemma4u(s->xb, x, rms_in, dim, eps, 1);
+
         matmul_qt(s->q, s->xb, &w->q_proj[l]);
         matmul_qt(s->k, s->xb, &w->k_proj[l]);
-        
         if (is_full && p->attention_k_eq_v) {
-            memcpy(s->v, s->k, kv_dim * sizeof(float)); 
+            memcpy(s->v, s->k, kv_dim * sizeof(float));
         } else {
             matmul_qt(s->v, s->xb, &w->v_proj[l]);
         }
-        
-        for (int h = 0; h < current_kv_heads; h++) {
-            rmsnorm_gemma4u(s->v + h * current_head_dim, s->v + h * current_head_dim, NULL, current_head_dim, eps, 0);
-        }
-        
-        #pragma omp parallel for
+
+        // Q norm + RoPE
         for (int h = 0; h < p->n_heads; h++) {
-            rmsnorm_gemma4u(s->q + h * current_head_dim, s->q + h * current_head_dim, rms_q, current_head_dim, eps, 1);
+            float *qh = s->q + h * head_dim;
+            rmsnorm_gemma4u(qh, qh, rms_q, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
-                apply_rope(s->q + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
-            }
-        }
-        #pragma omp parallel for
-        for (int h = 0; h < current_kv_heads; h++) {
-            rmsnorm_gemma4u(s->k + h * current_head_dim, s->k + h * current_head_dim, rms_k, current_head_dim, eps, 1);
-            if (rotary_dim > 0 && cos_cache) {
-                apply_rope(s->k + h * current_head_dim, cos_cache, sin_cache, rotary_dim, current_head_dim, pos);
+                apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
         }
 
+        // K norm + RoPE, V norm
+        for (int h = 0; h < kv_heads; h++) {
+            float *kh = s->k + h * head_dim;
+            rmsnorm_gemma4u(kh, kh, rms_k, head_dim, eps, 1);
+            if (rotary_dim > 0 && cos_cache) {
+                apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
+            }
+            rmsnorm_gemma4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
+        }
+
+        // KV Cache write
         long long loff = (long long)l * p->seq_len * max_kv_dim;
         memcpy(s->key_cache + loff + (long long)pos * max_kv_dim, s->k, kv_dim * sizeof(float));
         memcpy(s->value_cache + loff + (long long)pos * max_kv_dim, s->v, kv_dim * sizeof(float));
-        
-        int start_t = 0;
-        if (!is_full) {
-            start_t = pos - p->sliding_window + 1;
-            if (start_t < 0) start_t = 0;
-        }
 
-        float scale = 1.0f;
-        
-        #pragma omp parallel for
+        int start_t = is_full ? 0 : fmax(0, pos - p->sliding_window + 1);
+
+        // Attention
         for (int h = 0; h < p->n_heads; h++) {
-            float *q = s->q + h * current_head_dim;
+            float *q = s->q + h * head_dim;
             float *att = s->att + h * p->seq_len;
-            int kv_head = h / (p->n_heads / current_kv_heads);
-            float *k_base = s->key_cache + loff;
-            float *v_base = s->value_cache + loff;
-            
-            for (int t = 0; t <= pos; t++) {
-                att[t] = -1e9f;
-            }
+            int kv_head = h / (p->n_heads / kv_heads);
+
+            for (int t = 0; t <= pos; t++) att[t] = -1e9f;
             for (int t = start_t; t <= pos; t++) {
-                float *k = k_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
+                float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float score = 0.0f;
-                #pragma omp simd reduction(+:score)
-                for (int i = 0; i < current_head_dim; i++) {
+                for (int i = 0; i < head_dim; i++) {
                     score += q[i] * k[i];
                 }
-                att[t] = score * scale; 
+                att[t] = score;  // scale = 1.0f
             }
             softmax(att, pos + 1);
-            
-            float *xb_h = s->hb + h * current_head_dim;
-            memset(xb_h, 0, current_head_dim * sizeof(float));
+
+            float *out = s->hb + h * head_dim;
+            memset(out, 0, head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
-                float *v = v_base + (long long)t * max_kv_dim + kv_head * current_head_dim;
+                float *v = s->value_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float a = att[t];
-                #pragma omp simd
-                for (int i = 0; i < current_head_dim; i++) {
-                    xb_h[i] += a * v[i];
+                for (int i = 0; i < head_dim; i++) {
+                    out[i] += a * v[i];
                 }
             }
         }
-        
-        matmul_qt(s->xb, s->hb, &w->o_proj[l]);
-        rmsnorm_gemma4u(s->xb, s->xb, rms_post_attn, dim, eps, 1);
-        #pragma omp simd
-        for (int i = 0; i < dim; i++) {
-            x[i] += s->xb[i];
-        }
 
-        rmsnorm_gemma4u(s->xb, x, rms_pre_ffn, dim, eps, 1);
+        matmul_qt(s->xb, s->hb, &w->o_proj[l]);
+        rmsnorm_gemma4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
+        for (int i = 0; i < dim; i++) x[i] += s->xb[i];   // attn residual
+
+        // FFN
+        rmsnorm_gemma4u(s->xb, x, rms_pre_f, dim, eps, 1);
         matmul_qt(s->hb, s->xb, &w->gate_proj[l]);
         matmul_qt(s->hb2, s->xb, &w->up_proj[l]);
-        
-        int layer_hidden_dim = w->gate_proj[l].rows; 
-        
-        #pragma omp parallel for
-        for (int i = 0; i < layer_hidden_dim; i++) {
-            float val = s->hb[i];
-//            float gelu = 0.5f * val * (1.0f + tanhf(0.79788456f * (val + 0.044715f * val * val * val)));
-            float gelu = 0.5f * val * (1.0f + tanhf(0.79788456f * (val + 0.044715f * val * val * val)));
 
-            s->hb[i] = gelu * s->hb2[i];
+        int ffn_dim = w->gate_proj[l].rows;
+        for (int i = 0; i < ffn_dim; i++) {
+            s->hb[i] = gemma_gelu(s->hb[i]) * s->hb2[i];
         }
 
         matmul_qt(s->xb, s->hb, &w->down_proj[l]);
-        
-        rmsnorm_gemma4u(s->xb, s->xb, rms_post_ffn, dim, eps, 1);
-        #pragma omp simd
-        for (int i = 0; i < dim; i++) {
-            x[i] += s->xb[i];
+        rmsnorm_gemma4u(s->xb, s->xb, rms_post_f, dim, eps, 1);
+        for (int i = 0; i < dim; i++) x[i] += s->xb[i];   // ffn residual
+
+        if (w->layer_scalars[l] != 1.0f) {
+            for (int i = 0; i < dim; i++) x[i] *= w->layer_scalars[l];
         }
-        
-        if (w->layer_scalars && w->layer_scalars[l] != 1.0f) {
-        #pragma omp simd
-            for (int i = 0; i < dim; i++) {
-                x[i] *= w->layer_scalars[l];
+    }
+
+    // Final norm
+    rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
+
+    // Try this scaling (common in Gemma family)
+    float final_scale = 1.0f / sqrtf((float)dim);   // or try without it
+    for (int i = 0; i < dim; i++) {
+        x[i] *= final_scale;
+    }
+
+    // === LM HEAD (tied embedding) ===
+    // Critical: make sure scaling matches training (often no extra scale here)
+    matmul_qt(s->logits, x, &w->embed_tokens);
+
+    // Softcapping (Gemma4 specific)
+//    if (p->final_logit_softcapping > 0.0f) {
+//        float cap = p->final_logit_softcapping;
+//        float inv = 1.0f / cap;
+//        for (int i = 0; i < p->vocab_size; i++) {
+//            float v = s->logits[i] * inv;
+//            s->logits[i] = tanhf(v) * cap;
+//        }
+//    }
+
+    // Suppress multimodal tokens
+    static const int suppress[] = {255999,256000,258880,258881,258882,258883,258884};
+    for (int i = 0; i < 7; i++) {
+        if (suppress[i] < p->vocab_size) s->logits[suppress[i]] = -1e9f;
+    }
+
+    rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
+
+    // Scale before LM head (common in these models)
+    float lm_scale = 1.0f / sqrtf((float)dim);
+    for (int i = 0; i < dim; i++) x[i] *= lm_scale;
+
+    matmul_qt(s->logits, x, &w->embed_tokens);
+    // Debug hidden state magnitude
+    if (pos < 10 || pos % 10 == 0) {
+        float norm = 0.0f;
+        for (int i = 0; i < dim; i++) norm += x[i] * x[i];
+        norm = sqrtf(norm / dim);
+        printf("[DEBUG pos=%d] hidden_norm=%.4f\n", pos, norm);
+    }    // === DEBUG (remove after fixing) ===
+
+    if (pos < 5 || (pos % 10 == 0)) {
+        float max_logit = s->logits[0];
+        int argmax = 0;
+        for (int i = 1; i < 100 && i < p->vocab_size; i++) {
+            if (s->logits[i] > max_logit) {
+                max_logit = s->logits[i];
+                argmax = i;
             }
         }
-    }
-    
-    rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
-    matmul_qt(s->logits, x, &w->embed_tokens);
-    
-    if (p->final_logit_softcapping > 0.0f) {
-        float cap = p->final_logit_softcapping;
-        float inv_cap = 1.0f / cap;
-        #pragma omp simd
-        for (int i = 0; i < p->vocab_size; i++) {
-            s->logits[i] = tanhf(s->logits[i] * inv_cap) * cap;
-        }
-    }
-  
-    static const int suppress_ids[] = {255999, 256000, 258880, 258881, 258882, 258883, 258884};
-    for (int i = 0; i < 7; i++) {
-        if (suppress_ids[i] < p->vocab_size) {
-            s->logits[suppress_ids[i]] = -1e9f;
-        }
+        printf("[DEBUG pos=%d token=%d] argmax=%d logit=%.3f  |  x_norm≈%.3f\n", 
+               pos, token, argmax, max_logit, 0.0f); // add x norm if you want
     }
 
     return s->logits;
