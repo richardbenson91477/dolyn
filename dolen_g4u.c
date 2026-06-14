@@ -174,9 +174,10 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     for (int l = 0; l < p->n_layers; l++) {
         int is_full = model->layer_types[l];
         int head_dim = is_full ? p->global_head_dim : p->head_dim;
+        int n_heads = p->n_heads;
         int kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = kv_heads * head_dim;
-        int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
+        int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : head_dim;
 
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
@@ -200,7 +201,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
 
         // Q norm + RoPE
-        for (int h = 0; h < p->n_heads; h++) {
+        for (int h = 0; h < n_heads; h++) {
             float *qh = s->q + h * head_dim;
             rmsnorm_gemma4u(qh, qh, rms_q, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
@@ -218,21 +219,26 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             rmsnorm_gemma4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
 
-        // KV Cache write
+        // KV Cache write - FIXED: use actual kv_dim, not max_kv_dim for storage
         long long loff = (long long)l * p->seq_len * max_kv_dim;
+        // Zero out the entire max_kv_dim slot first
+        memset(s->key_cache + loff + (long long)pos * max_kv_dim, 0, max_kv_dim * sizeof(float));
+        memset(s->value_cache + loff + (long long)pos * max_kv_dim, 0, max_kv_dim * sizeof(float));
+        // Copy actual data
         memcpy(s->key_cache + loff + (long long)pos * max_kv_dim, s->k, kv_dim * sizeof(float));
         memcpy(s->value_cache + loff + (long long)pos * max_kv_dim, s->v, kv_dim * sizeof(float));
 
         int start_t = is_full ? 0 : fmax(0, pos - p->sliding_window + 1);
 
         // Attention
-        for (int h = 0; h < p->n_heads; h++) {
+        for (int h = 0; h < n_heads; h++) {
             float *q = s->q + h * head_dim;
             float *att = s->att + h * p->seq_len;
-            int kv_head = h / (p->n_heads / kv_heads);
+            int kv_head = h / (n_heads / kv_heads);
 
             for (int t = 0; t <= pos; t++) att[t] = -1e9f;
             for (int t = start_t; t <= pos; t++) {
+                // FIXED: Read from cache using max_kv_dim spacing
                 float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float score = 0.0f;
                 for (int i = 0; i < head_dim; i++) {
@@ -245,6 +251,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             float *out = s->hb + h * head_dim;
             memset(out, 0, head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
+                // FIXED: Read from cache using max_kv_dim spacing
                 float *v = s->value_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float a = att[t];
                 for (int i = 0; i < head_dim; i++) {
@@ -253,6 +260,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             }
         }
 
+        int attn_out_dim = n_heads * head_dim;
         matmul_qt(s->xb, s->hb, &w->o_proj[l]);
         rmsnorm_gemma4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];   // attn residual
@@ -276,61 +284,26 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
     }
 
-    // Final norm
+    // Final norm - ONLY ONCE
     rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
 
-    // Try this scaling (common in Gemma family)
-    float final_scale = 1.0f / sqrtf((float)dim);   // or try without it
-    for (int i = 0; i < dim; i++) {
-        x[i] *= final_scale;
-    }
-
-    // === LM HEAD (tied embedding) ===
-    // Critical: make sure scaling matches training (often no extra scale here)
+    // LM HEAD (tied embedding)
     matmul_qt(s->logits, x, &w->embed_tokens);
 
-    // Softcapping (Gemma4 specific)
-//    if (p->final_logit_softcapping > 0.0f) {
-//        float cap = p->final_logit_softcapping;
-//        float inv = 1.0f / cap;
-//        for (int i = 0; i < p->vocab_size; i++) {
-//            float v = s->logits[i] * inv;
-//            s->logits[i] = tanhf(v) * cap;
-//        }
-//    }
+    // Softcapping (Gemma4 specific) - UNCOMMENT THIS!
+    if (p->final_logit_softcapping > 0.0f) {
+        float cap = p->final_logit_softcapping;
+        float inv = 1.0f / cap;
+        for (int i = 0; i < p->vocab_size; i++) {
+            float v = s->logits[i] * inv;
+            s->logits[i] = tanhf(v) * cap;
+        }
+    }
 
     // Suppress multimodal tokens
     static const int suppress[] = {255999,256000,258880,258881,258882,258883,258884};
     for (int i = 0; i < 7; i++) {
         if (suppress[i] < p->vocab_size) s->logits[suppress[i]] = -1e9f;
-    }
-
-    rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
-
-    // Scale before LM head (common in these models)
-    float lm_scale = 1.0f / sqrtf((float)dim);
-    for (int i = 0; i < dim; i++) x[i] *= lm_scale;
-
-    matmul_qt(s->logits, x, &w->embed_tokens);
-    // Debug hidden state magnitude
-    if (pos < 10 || pos % 10 == 0) {
-        float norm = 0.0f;
-        for (int i = 0; i < dim; i++) norm += x[i] * x[i];
-        norm = sqrtf(norm / dim);
-        printf("[DEBUG pos=%d] hidden_norm=%.4f\n", pos, norm);
-    }    // === DEBUG (remove after fixing) ===
-
-    if (pos < 5 || (pos % 10 == 0)) {
-        float max_logit = s->logits[0];
-        int argmax = 0;
-        for (int i = 1; i < 100 && i < p->vocab_size; i++) {
-            if (s->logits[i] > max_logit) {
-                max_logit = s->logits[i];
-                argmax = i;
-            }
-        }
-        printf("[DEBUG pos=%d token=%d] argmax=%d logit=%.3f  |  x_norm≈%.3f\n", 
-               pos, token, argmax, max_logit, 0.0f); // add x norm if you want
     }
 
     return s->logits;
