@@ -11,8 +11,12 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
     int half_rotary_sliding = p->head_dim / 2;
 
     int max_act_dim = p->dim;
-    if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
-    if (p->hidden_dim > max_act_dim) max_act_dim = p->hidden_dim;
+    if (attn_out_dim > max_act_dim) {
+        max_act_dim = attn_out_dim;
+    }
+    if (p->hidden_dim > max_act_dim) {
+        max_act_dim = p->hidden_dim;
+    }
 
     s->x = a_calloc((size_t)p->dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -93,7 +97,9 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
 }
 
 void free_state_gemma4u(state_gemma4u *s) {
-    if (!s->allocated) return;
+    if (!s->allocated) {
+        return;
+    }
     free(s->x);
     free(s->xb);
     free(s->hb);

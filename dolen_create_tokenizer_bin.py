@@ -46,12 +46,9 @@ def create_tokenizer(model_dir: str, out_path: str = None) -> str:
         if not isinstance(content, str):
             content = str(content)
         
-        # --- WHITESPACE NORMALIZATION FIX ---
         # Many BPE tokenizers represent a leading space with 'Ġ' (U+0120), 
-        # which encodes to bytes 0xC4 0xA0 in UTF-8. 
         # SentencePiece (used by LLaMA) uses '▁' (U+2581) for space.
-        # The C decoder prints strings verbatim, so we must manually replace 
-        # these markers with a real ASCII space (0x20) here.
+        # we manually replace these markers with a real ASCII space (0x20) here.
         content = content.replace("\u0120", " ")   \
                          .replace("\u2581", " ")   \
                          .replace("\u010a", "\n")  # 'Ċ' is often used for newline

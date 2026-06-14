@@ -32,7 +32,9 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     }
 
     JsonValue *cfg = json_object_get(root, "text_config");
-    if (!cfg) cfg = root;
+    if (!cfg) {
+        cfg = root;
+    }
 
     memset(p, 0, sizeof(config_gemma4u));
     p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
@@ -101,7 +103,9 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
     }
 
     for (size_t i = 0; i < idx->n_entries; i++) {
-        if (strcmp(idx->entries[i].filename, filename) != 0) continue;
+        if (strcmp(idx->entries[i].filename, filename) != 0) {
+            continue;
+        }
         const char *tname = idx->entries[i].tensor_name;
 
         if (strcmp(tname, "model.language_model.embed_tokens.weight") == 0) {
@@ -123,9 +127,13 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
         }
         else if (strncmp(tname, "model.language_model.layers.", 28) == 0) {
             int l = atoi(tname + 28);
-            if (l < 0 || l >= p->n_layers) continue;
+            if (l < 0 || l >= p->n_layers) {
+                continue;
+            }
             const char *suffix = strstr(tname + 28, ".");
-            if (!suffix) continue;
+            if (!suffix) {
+                continue;
+            }
             suffix++;
 
             if (strcmp(suffix, "input_layernorm.weight") == 0)
@@ -267,8 +275,12 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
 
 void build_gemma4u(Gemma4Unified *model, char *model_path) {
     memset(model, 0, sizeof(Gemma4Unified));
-    if (load_config_gemma4u(model, model_path) != 0) exit(EXIT_FAILURE);
-    if (load_gemma4u_from_safetensors(model, model_path) != 0) exit(EXIT_FAILURE);
+    if (load_config_gemma4u(model, model_path) != 0) {
+        exit(EXIT_FAILURE);
+    }
+    if (load_gemma4u_from_safetensors(model, model_path) != 0) {
+        exit(EXIT_FAILURE);
+    }
 }
 
 void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {

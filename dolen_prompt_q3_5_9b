@@ -16,5 +16,17 @@ top_p="0.95"
 prompt_n=32768
 
 
-dolen_q3_5 --model "${model}" --tokenizer "${tokenizer}" --prompt_file "${prompt_file}" --system_prompt "${system_prompt}" --seq_n "${seq_n}" --log "${log}" --seed "${seed}" --temp "${temp}" --top_p "${top_p}" --prompt_n "${prompt_n}"
+dolen_q3_5 \
+    --model "${model}" \
+    --tokenizer "${tokenizer}" \
+    --prompt_file "${prompt_file}" \
+    --system_prompt "${system_prompt}" \
+    --seq_n "${seq_n}" \
+    --log "${log}" \
+    --seed "${seed}" \
+    --temp "${temp}" \
+    --top_p "${top_p}" \
+    --prompt_n "${prompt_n} \
+    "$@"
+
 
