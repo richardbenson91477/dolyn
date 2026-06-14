@@ -1,4 +1,5 @@
 #!/bin/sh
+# Some interfaces such as "chat.z.ai" trim a single long prompt, but accept multiple ".md" attachments
 
 out_path="/scratch"
 
