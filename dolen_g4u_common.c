@@ -39,18 +39,16 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
-    // --- Full‑attention RoPE cache with proportional scaling ---
-    if (half_rotary_full > 0 && p->original_max_seq_len > 0) {
-        float ratio = (float)p->seq_len / p->original_max_seq_len;
+    // --- Full‑attention RoPE cache (proportional) ---
+    if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
 
         for (int pos = 0; pos < p->seq_len; pos++) {
-            float effective_pos = pos * ratio;
             for (int i = 0; i < half_rotary_full; i++) {
-                // FIX: Use rotary_dim_full instead of global_head_dim for correct frequency calculation
-                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_dim_full);
-                float val = effective_pos * freq;
+                // FIX: Gemma 4 proportional RoPE strictly uses global_head_dim as the denominator!
+                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                float val = (float)pos * freq; // No position ratio scaling!
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
                 s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
             }
@@ -58,7 +56,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     } else {
         s->cos_cache_full = NULL;
         s->sin_cache_full = NULL;
-    }
+    }    // --- Full‑attention RoPE cache with proportional scaling ---
 
     // --- Sliding‑attention RoPE cache (standard, no scaling) ---
     if (half_rotary_sliding > 0) {
@@ -79,25 +77,39 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     }
 
     if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
-        !s->att || !s->logits || !s->key_cache || !s->value_cache ||
-        !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
-        log_msg(stderr, "ERROR: Alloc failed!\n"); exit(EXIT_FAILURE);
+            !s->att || !s->logits || !s->key_cache || !s->value_cache ||
+            !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
+        log_msg(stderr, "ERROR: Alloc failed!\n");
+        exit(EXIT_FAILURE);
     }
     if (p->seq_len > 1 && (!s->cos_cache_full || !s->sin_cache_full || !s->cos_cache_sliding || !s->sin_cache_sliding)) {
-        log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n"); exit(EXIT_FAILURE);
+        log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
+        exit(EXIT_FAILURE);
     }
     s->allocated = 1;
 }
 
 void free_state_gemma4u(state_gemma4u *s) {
     if (!s->allocated) return;
-    free(s->x); free(s->xb); free(s->hb); free(s->hb2);
-    free(s->q); free(s->k); free(s->v); free(s->att); free(s->logits);
-    free(s->key_cache); free(s->value_cache);
-    free(s->xq.q); free(s->xq.s);
-    free(s->hq.q); free(s->hq.s);
-    free(s->cos_cache_full); free(s->sin_cache_full);
-    free(s->cos_cache_sliding); free(s->sin_cache_sliding);
+    free(s->x);
+    free(s->xb);
+    free(s->hb);
+    free(s->hb2);
+    free(s->q);
+    free(s->k);
+    free(s->v);
+    free(s->att);
+    free(s->logits);
+    free(s->key_cache);
+    free(s->value_cache);
+    free(s->xq.q);
+    free(s->xq.s);
+    free(s->hq.q);
+    free(s->hq.s);
+    free(s->cos_cache_full);
+    free(s->sin_cache_full);
+    free(s->cos_cache_sliding);
+    free(s->sin_cache_sliding);
     s->allocated = 0;
 }
 
@@ -105,9 +117,13 @@ void free_gemma4u(Gemma4Unified *model) {
     weights_gemma4u *w = &model->weights;
     int n_layer = model->config.n_layers;
     free_qt(&w->embed_tokens);
-    free(w->rms_input_layernorm); free(w->rms_post_attn_layernorm);
-    free(w->rms_pre_ffn_layernorm); free(w->rms_post_ffn_layernorm);
-    free(w->rms_q_norm); free(w->rms_k_norm); free(w->rms_final_norm);
+    free(w->rms_input_layernorm);
+    free(w->rms_post_attn_layernorm);
+    free(w->rms_pre_ffn_layernorm);
+    free(w->rms_post_ffn_layernorm);
+    free(w->rms_q_norm);
+    free(w->rms_k_norm);
+    free(w->rms_final_norm);
     free(w->norm_offsets);
     free_qt_array(w->q_proj, n_layer);
     free_qt_array(w->k_proj, n_layer);
@@ -123,3 +139,4 @@ void free_gemma4u(Gemma4Unified *model) {
     }
     free(model->layer_types);
 }
+

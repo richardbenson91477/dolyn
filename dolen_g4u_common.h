@@ -22,7 +22,7 @@ typedef struct {
     float rms_norm_eps;
     float final_logit_softcapping;
     int attention_k_eq_v;
-    int original_max_seq_len;      // NEW: training max length (for proportional RoPE)
+    int original_max_seq_len;
 } config_gemma4u;
 
 typedef struct {
@@ -80,3 +80,4 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
 float *forward_gemma4u(Gemma4Unified *model, int token, int pos);
 
 #endif // DOLEN_G4U_COMMON_H
+

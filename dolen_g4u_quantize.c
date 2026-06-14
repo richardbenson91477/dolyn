@@ -6,16 +6,30 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
     FILE *f = fopen(config_path, "rb");
-    if (!f) { log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path); return -1; }
-    fseek(f, 0, SEEK_END); long size = ftell(f); fseek(f, 0, SEEK_SET);
+    if (!f) {
+        log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
+        return -1;
+    }
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
     char *json_str = (char *)a_calloc(size + 1);
-    if (!json_str || fread(json_str, 1, size, f) != (size_t)size) { free(json_str); fclose(f); return -1; }
-    json_str[size] = '\0'; fclose(f);
+    if (!json_str || fread(json_str, 1, size, f) != (size_t)size) {
+        free(json_str);
+        fclose(f);
+        return -1;
+    }
+    json_str[size] = '\0';
+    fclose(f);
 
     char error[256] = {0};
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
-    if (!root) { log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error); return -1; }
+    if (!root) {
+        log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error);
+        return -1;
+    }
 
     JsonValue *cfg = json_object_get(root, "text_config");
     if (!cfg) cfg = root;
@@ -55,7 +69,9 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
             JsonValue *lt = json_array_get(layer_types_json, i);
             if (lt && lt->type == JSON_STRING) {
                 model->layer_types[i] = (strcmp(lt->data.string, "full_attention") == 0) ? 1 : 0;
-            } else { model->layer_types[i] = 0; }
+            } else {
+                model->layer_types[i] = 0;
+            }
         }
     } else {
         for (int i = 0; i < p->n_layers; i++) {
@@ -75,7 +91,8 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
     snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
     csafetensors_t st;
     if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
-        log_msg(stderr, "ERROR: Failed to load %s\n", filepath); exit(EXIT_FAILURE);
+        log_msg(stderr, "ERROR: Failed to load %s\n", filepath);
+        exit(EXIT_FAILURE);
     }
 
     for (size_t i = 0; i < idx->n_entries; i++) {
@@ -84,11 +101,17 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
 
         if (strcmp(tname, "model.language_model.embed_tokens.weight") == 0) {
             float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
-            if (f) { quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim); free(f); }
+            if (f) {
+                quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim);
+                free(f);
+            }
         }
         else if (strcmp(tname, "lm_head.weight") == 0 && !p->tie_word_embeddings) {
             float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
-            if (f) { quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim); free(f); }
+            if (f) {
+                quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim);
+                free(f);
+            }
         }
         else if (strcmp(tname, "model.language_model.norm.weight") == 0) {
             load_tensor_from_handle(&st, tname, w->rms_final_norm, p->dim);
@@ -159,7 +182,8 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     config_gemma4u *p = &model->config;
     safetensors_idx idx;
     if (load_safetensors_index(&idx, model_dir) != 0) {
-        log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir); return -1;
+        log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
+        return -1;
     }
 
     int total_norm_dim = 0;
@@ -183,9 +207,11 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     }
 
     if (!model->weights.rms_input_layernorm || !model->weights.rms_post_attn_layernorm ||
-        !model->weights.rms_pre_ffn_layernorm || !model->weights.rms_post_ffn_layernorm ||
-        !model->weights.rms_q_norm || !model->weights.rms_k_norm || !model->weights.rms_final_norm) {
-        log_msg(stderr, "ERROR: Alloc failed for RMS norms\n"); free_safetensors_index(&idx); return -1;
+            !model->weights.rms_pre_ffn_layernorm || !model->weights.rms_post_ffn_layernorm ||
+            !model->weights.rms_q_norm || !model->weights.rms_k_norm || !model->weights.rms_final_norm) {
+        log_msg(stderr, "ERROR: Alloc failed for RMS norms\n");
+        free_safetensors_index(&idx);
+        return -1;
     }
 
     model->weights.q_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -197,7 +223,9 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     model->weights.down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
     if (!model->weights.q_proj || !model->weights.k_proj) {
-        log_msg(stderr, "ERROR: Alloc failed\n"); free_safetensors_index(&idx); return -1;
+        log_msg(stderr, "ERROR: Alloc failed\n");
+        free_safetensors_index(&idx);
+        return -1;
     }
 
     for (int i = 0; i < idx.n_unique_files; i++) {
@@ -206,7 +234,8 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
 
     if (model->weights.embed_tokens.q == NULL) {
         log_msg(stderr, "ERROR: embed_tokens.weight was not found\n");
-        free_safetensors_index(&idx); return -1;
+        free_safetensors_index(&idx);
+        return -1;
     }
 
     log_msg(stderr, "INFO: Gemma4Unified weights loaded successfully\n");
@@ -222,7 +251,10 @@ void build_gemma4u(Gemma4Unified *model, char *model_path) {
 
 void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     FILE *f = fopen(filepath, "wb");
-    if (!f) { log_msg(stderr, "ERROR: Failed to open %s\n", filepath); exit(EXIT_FAILURE); }
+    if (!f) {
+        log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
+        exit(EXIT_FAILURE);
+    }
     uint32_t magic = 0x55344D47;
     uint32_t version = 1;
     fwrite(&magic, sizeof(uint32_t), 1, f);
@@ -267,8 +299,14 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
 int main(int argc, char *argv[]) {
     char *model_arg = NULL;
     char *output_file = NULL;
-    if (argc >= 3) { model_arg = argv[1]; output_file = argv[2]; }
-    else { log_msg(stderr, "Usage: dolen_g4u_quantize <model_dir> <output_file>\n"); exit(EXIT_FAILURE); }
+    if (argc >= 3) {
+        model_arg = argv[1];
+        output_file = argv[2];
+    }
+    else {
+        log_msg(stderr, "Usage: dolen_g4u_quantize <model_dir> <output_file>\n");
+        exit(EXIT_FAILURE);
+    }
 
     Gemma4Unified model;
     build_gemma4u(&model, model_arg);
@@ -276,3 +314,4 @@ int main(int argc, char *argv[]) {
     free_gemma4u(&model);
     return 0;
 }
+
