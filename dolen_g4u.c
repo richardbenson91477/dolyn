@@ -214,21 +214,28 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * head_dim;
             float *att = s->att + h * p->seq_len;
+
             int kv_head = h / (p->n_heads / kv_heads);
             for (int t = 0; t <= pos; t++) {
                 att[t] = -1e9f;
             }
+
+            float attn_scale = 1.0f / sqrtf((float)head_dim);
+
             for (int t = start_t; t <= pos; t++) {
                 float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float score = 0.0f;
                 for (int i = 0; i < head_dim; i++) {
                     score += q[i] * k[i];
                 }
-                att[t] = score;
+                att[t] = score * attn_scale;
             }
+
             softmax(att, pos + 1);
+
             float *out = s->hb + h * head_dim;
             memset(out, 0, head_dim * sizeof(float));
+
             for (int t = start_t; t <= pos; t++) {
                 float *v = s->value_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float a = att[t];
