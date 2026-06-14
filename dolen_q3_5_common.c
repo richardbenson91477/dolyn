@@ -75,7 +75,6 @@ void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
         float theta = p->rope_theta;
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < rotary_partial; i++) {
-                // FIX: Denominator must be rotary_partial to match HF's inv_freq calculation
                 float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_partial); 
                 float val = pos * freq;
                 s->cos_cache[pos * rotary_partial + i] = cosf(val);

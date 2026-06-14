@@ -313,15 +313,11 @@ void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int 
 
     rmsnorm_gemma(s->xb, x, rms_att_weight, dim, eps);
 
-    // Quantize input and use integer matmul
     quantize_vec(&s->xq, s->xb, dim);
     matmul_qq(s->q, &s->xq, &w->wq[la]);
     matmul_qq(s->k, &s->xq, &w->wk[la]);
     matmul_qq(s->v, &s->xq, &w->wv[la]);
 
-    // Phase 1: Extract gates and compact Q (MUST be sequential - in-place
-    // compaction from interleaved layout means head h's write region overlaps
-    // with head h-1's gate read region if parallelized)
     for (int h = 0; h < p->n_heads; h++) {
         float *q_ptr = s->q + h * head_size;
         float *gate_ptr = s->gate + h * head_size;
@@ -331,14 +327,12 @@ void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int 
         }
     }
 
-    // Phase 2: Apply Q norm in parallel (safe - each head owns its slice)
     #pragma omp parallel for
     for (int h = 0; h < p->n_heads; h++) {
         float *q_ptr = s->q + h * head_size;
         rmsnorm_gemma(q_ptr, q_ptr, q_norm, head_size, eps);
     }
 
-    // Parallelize K norm over kv-heads
     #pragma omp parallel for
     for (int h = 0; h < p->n_kv_heads; h++) {
         float *k_ptr = s->k + h * head_size;
@@ -470,7 +464,6 @@ void forward_qwen3_5_linear_attention_layer(Qwen3_5 *model_qwen3_5, int l, int l
         s->g[i] = A * softplus(a_val + dt_bias[i]);
     }
 
-    // Parallelize conv1d shift + compute over channels
     #pragma omp parallel for
     for (int i = 0; i < conv_dim; i++) {
         for (int j = 0; j < conv_kernel - 1; j++) {
@@ -493,7 +486,6 @@ void forward_qwen3_5_linear_attention_layer(Qwen3_5 *model_qwen3_5, int l, int l
     float *k = qkv_conv + key_dim;
     float *v = qkv_conv + key_dim * 2;
 
-    // Parallelize key/query normalization + scaling over heads
     float scale = 1.0f / sqrtf((float)d_k);
     #pragma omp parallel for
     for (int h = 0; h < n_k_heads; h++) {
@@ -575,7 +567,6 @@ void forward_qwen3_5_mlp_layer(Qwen3_5 *model_qwen3_5, int l) {
     matmul_qq(s->hb, &s->xq, &w->w1[l]);
     matmul_qq(s->hb2, &s->xq, &w->w3[l]);
 
-    // Parallelize SwiGLU activation
     #pragma omp parallel for
     for (int i = 0; i < hidden_dim; i++) {
         float val = s->hb[i];

@@ -57,7 +57,6 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
         p->seq_len = seq_n_max;
     }
     
-    // Allocate memory for non-quantized tensors
     w->rms_att_weight = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
     w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
     w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
@@ -71,7 +70,6 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
         return -1;
     }
     
-    // Read quantized token embedding table
     read_qt(f, &w->token_embedding_table);
     
     if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
@@ -110,7 +108,6 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
         w->wcls = w->token_embedding_table;
     }
     
-    // Allocate memory for quantized tensors
     w->wq = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->wk = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->wv = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -125,7 +122,6 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
         return -1;
     }
     
-    // Read quantized tensors
     for (int l = 0; l < p->n_layers; l++) {
         read_qt(f, &w->wq[l]);
         read_qt(f, &w->wk[l]);
@@ -176,14 +172,12 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
 
         rmsnorm(s->xb, s->x, w->rms_att_weight + l * p->dim, p->dim, eps);
 
-        // Quantize input for attention projections
         quantize_vec(&s->xq, s->xb, p->dim);
         
         matmul_qq(s->q, &s->xq, &w->wq[l]);
         matmul_qq(s->k, &s->xq, &w->wk[l]);
         matmul_qq(s->v, &s->xq, &w->wv[l]);
 
-        // Pre-computed RoPE cache
         int rotary_half = p->head_dim / 2;
 
         if (rotary_half > 0 && s->cos_cache != NULL) {
@@ -218,7 +212,6 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
                 }
             }
         } else {
-            // Fallback: no cache available (shouldn't happen, but be safe)
             #pragma omp parallel for
             for (int h = 0; h < p->n_heads; h++) {
                 float *q_ptr = s->q + h * p->head_dim;
@@ -250,7 +243,6 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
             }
         }
 
-        // Store k and v in cache
         memcpy(s->key_cache + loff + pos * kv_dim, s->k, kv_dim * sizeof(float));
         memcpy(s->value_cache + loff + pos * kv_dim, s->v, kv_dim * sizeof(float));
 
@@ -285,7 +277,6 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
             }
         }
 
-        // Quantize attention output for output projection
         quantize_vec(&s->xq, s->xb, all_heads_dim);
 
         matmul_qq(s->xb, &s->xq, &w->wo[l]);
@@ -296,7 +287,6 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
 
         rmsnorm(s->xb, s->x, w->rms_ffn_weight + l * p->dim, p->dim, eps);
 
-        // Quantize for MLP input
         quantize_vec(&s->xq, s->xb, p->dim);
 
         matmul_qq(s->hb, &s->xq, &w->w1[l]);
@@ -307,7 +297,6 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
             s->hb[i] = s->hb[i] * (1.0f / (1.0f + expf(-s->hb[i]))) * s->hb2[i];
         }
 
-        // Quantize MLP output for down projection
         quantize_vec(&s->hq, s->hb, p->hidden_dim);
 
         matmul_qq(s->xb, &s->hq, &w->w2[l]);

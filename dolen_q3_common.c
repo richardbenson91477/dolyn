@@ -29,7 +29,6 @@ void alloc_state_qwen3(state_qwen3 *s, config_qwen3 *p) {
     s->key_cache = a_calloc((size_t)p->n_layers * p->seq_len * kv_dim * sizeof(float));
     s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * kv_dim * sizeof(float));
 
-    // Pre-compute RoPE cos/sin cache
     int rotary_half = p->head_dim / 2;
     if (rotary_half > 0) {
         s->cos_cache = (float *)a_calloc((size_t)p->seq_len * rotary_half * sizeof(float));

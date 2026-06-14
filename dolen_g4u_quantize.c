@@ -52,7 +52,6 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->final_logit_softcapping = json_get_double(json_object_get(cfg, "final_logit_softcapping"), 30.0);
     p->attention_k_eq_v = json_get_bool(json_object_get(cfg, "attention_k_eq_v"), 0);
 
-    // NEW: load original max seq len for proportional RoPE
     p->original_max_seq_len = json_get_int(json_object_get(cfg, "original_max_position_embeddings"), 8192);
 
     JsonValue *rope_params = json_object_get(cfg, "rope_parameters");

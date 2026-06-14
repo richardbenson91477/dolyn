@@ -39,16 +39,14 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
-    // --- Full‑attention RoPE cache (proportional) ---
     if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
 
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_full; i++) {
-                // FIX: Gemma 4 proportional RoPE strictly uses global_head_dim as the denominator!
                 float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
-                float val = (float)pos * freq; // No position ratio scaling!
+                float val = (float)pos * freq;
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
                 s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
             }
@@ -56,15 +54,13 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     } else {
         s->cos_cache_full = NULL;
         s->sin_cache_full = NULL;
-    }    // --- Full‑attention RoPE cache with proportional scaling ---
+    }
 
-    // --- Sliding‑attention RoPE cache (standard, no scaling) ---
     if (half_rotary_sliding > 0) {
         s->cos_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_sliding; i++) {
-                // Note: rotary_dim for sliding is p->head_dim, so this denominator is correct
                 float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2 * i) / p->head_dim);
                 float val = pos * freq;
                 s->cos_cache_sliding[pos * half_rotary_sliding + i] = cosf(val);

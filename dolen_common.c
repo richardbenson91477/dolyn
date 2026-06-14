@@ -476,13 +476,11 @@ int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, 
     }
 
     if (n0 == 0) {
-        // Fallback: return the highest probability token
         return sample_argmax(probs, n);
     }
 
     qsort(probindex, n0, sizeof(ProbIndex), compare_prob);
 
-    // Apply top-k filtering just before top-p
     if (topk > 0 && n0 > topk) {
         n0 = topk;
     }
@@ -701,8 +699,6 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
     while (pos < steps_n_max) {
         if (user_turn) {
             if (first_turn && (init_prompt != NULL)) {
-                // Replaced strcpy with strncpy to prevent buffer overflow 
-                // when loading large prompts from a file
                 strncpy(prompt, init_prompt, prompt_n_max);
                 prompt[prompt_n_max] = '\0';
             }
@@ -939,7 +935,6 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     }
     log_msg(stderr, "INFO: Using seed %lu\n", rng_seed);
 
-    // Handle reading prompt from file
     if (prompt_file) {
         if (prompt) {
             free(prompt);

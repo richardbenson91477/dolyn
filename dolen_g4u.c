@@ -127,16 +127,22 @@ static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float e
 }
 
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
-    (void)vec_dim;
-    if (rotary_dim <= 0) return;
+    if (rotary_dim <= 0) {
+        return;
+    }
+    
+    int half_vec_dim = vec_dim / 2;
     int half_rot = rotary_dim / 2;
+    
     float *cos_row = cos + pos * half_rot;
     float *sin_row = sin + pos * half_rot;
+    
     for (int i = 0; i < half_rot; i++) {
         float c = cos_row[i], sn = sin_row[i];
-        float v0 = vec[i], v1 = vec[i + half_rot];
+        float v0 = vec[i], v1 = vec[i + half_vec_dim];
+        
         vec[i] = v0 * c - v1 * sn;
-        vec[i + half_rot] = v0 * sn + v1 * c;
+        vec[i + half_vec_dim] = v0 * sn + v1 * c;
     }
 }
 
@@ -213,7 +219,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             if (start_t < 0) start_t = 0;
         }
 
-        // FIX: Gemma4 uses no pre-attention scaling (self.scaling = 1.0)
         float scale = 1.0f;
         
         #pragma omp parallel for
@@ -250,7 +255,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             }
         }
         
-        // FIX: Safely read from s->hb (attention output) and write the result to s->xb
         matmul_qt(s->xb, s->hb, &w->o_proj[l]);
         rmsnorm_gemma4u(s->xb, s->xb, rms_post_attn, dim, eps, 1);        
         #pragma omp simd
@@ -267,7 +271,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         #pragma omp parallel for
         for (int i = 0; i < layer_hidden_dim; i++) {
             float val = s->hb[i];
-            // Fixed GELU approximation constant to be more precise (sqrt(2/pi) ≈ 0.79788456)
             float gelu = 0.5f * val * (1.0f + tanhf(0.79788456f * (val + 0.044715f * val * val * val)));
             s->hb[i] = gelu * s->hb2[i];
         }
