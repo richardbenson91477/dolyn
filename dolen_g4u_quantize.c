@@ -61,6 +61,12 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->rope_partial_factor = json_get_double(json_object_get(full_rope, "partial_rotary_factor"), 0.25);
     p->rope_theta_sliding = json_get_double(json_object_get(slide_rope, "rope_theta"), 10000.0);
 
+    const char *rope_type = json_get_string(json_object_get(full_rope, "rope_type"), "proportional");
+    p->use_rope_freqs = (rope_type && strcmp(rope_type, "proportional") == 0) ? 1 : 0;
+    if (p->use_rope_freqs) {
+        log_msg(stderr, "INFO: Full attention uses proportional RoPE (will load learned freq factors)\n");
+    }
+
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
     model->layer_types = a_calloc((size_t)p->n_layers * sizeof(int));
     if (layer_types_json && layer_types_json->type == JSON_ARRAY) {
@@ -138,6 +144,16 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
                 load_tensor_from_handle(&st, tname, w->rms_k_norm + w->norm_offsets[l], hd);
             }
+            else if (strcmp(suffix, "self_attn.rope_freqs.weight") == 0) {
+                if (model->layer_types[l] && p->use_rope_freqs) {
+                    if (!w->rope_freqs_full) {
+                        int freq_dim = p->global_head_dim / 2;
+                        w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
+                        load_tensor_from_handle(&st, tname, w->rope_freqs_full, freq_dim);
+                        log_msg(stderr, "INFO: Loaded rope_freqs from layer %d (shared)\n", l);
+                    }
+                }
+            }
             else if (strcmp(suffix, "self_attn.q_proj.weight") == 0) {
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
                 load_and_quantize_from_handle(&st, tname, &w->q_proj[l], p->n_heads * hd, p->dim);
@@ -204,6 +220,7 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     for (int i = 0; i < p->n_layers; i++) {
         model->weights.layer_scalars[i] = 1.0f;
     }
+    model->weights.rope_freqs_full = NULL;
 
     if (!model->weights.rms_input_layernorm || !model->weights.rms_post_attn_layernorm ||
             !model->weights.rms_pre_ffn_layernorm || !model->weights.rms_post_ffn_layernorm ||
@@ -237,6 +254,12 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         return -1;
     }
 
+    if (p->use_rope_freqs && !model->weights.rope_freqs_full) {
+        log_msg(stderr, "WARNING: use_rope_freqs=1 but rope_freqs.weight not found in safetensors\n");
+        log_msg(stderr, "WARNING: Falling back to default RoPE (no learned freq factors)\n");
+        p->use_rope_freqs = 0;
+    }
+
     log_msg(stderr, "INFO: Gemma4Unified weights loaded successfully\n");
     free_safetensors_index(&idx);
     return 0;
@@ -255,7 +278,7 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         exit(EXIT_FAILURE);
     }
     uint32_t magic = 0x55344D47;
-    uint32_t version = 1;
+    uint32_t version = 2;  // UPDATED to Version 2
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);
     fwrite(&model->config, sizeof(config_gemma4u), 1, f);
@@ -291,6 +314,12 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
 
     fwrite(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
+    if (p->use_rope_freqs && w->rope_freqs_full) {
+        int freq_dim = p->global_head_dim / 2;
+        fwrite(w->rope_freqs_full, sizeof(float), freq_dim, f);
+        log_msg(stderr, "INFO: Saved rope_freqs (%d floats)\n", freq_dim);
+    }
+
     fclose(f);
     log_msg(stderr, "INFO: Quantized Gemma4Unified saved to %s\n", filepath);
 }
@@ -313,4 +342,3 @@ int main(int argc, char *argv[]) {
     free_gemma4u(&model);
     return 0;
 }
-

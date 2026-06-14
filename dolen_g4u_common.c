@@ -1,6 +1,6 @@
 #include "dolen_g4u_common.h"
 
-void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
+void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w) {
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
     int max_kv_heads = p->n_kv_heads > p->n_global_kv_heads ? p->n_kv_heads : p->n_global_kv_heads;
     int max_kv_dim = max_kv_heads * max_head_dim;
@@ -39,13 +39,19 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
+    // RoPE cache for full attention - NOW USES learned freq factors
     if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
 
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < half_rotary_full; i++) {
-                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                float base_freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                float freq = base_freq;
+                // Apply learned frequency factor if available
+                if (p->use_rope_freqs && w->rope_freqs_full) {
+                    freq *= w->rope_freqs_full[i];
+                }
                 float val = (float)pos * freq;
                 s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
                 s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
@@ -56,6 +62,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
         s->sin_cache_full = NULL;
     }
 
+    // RoPE cache for sliding attention (no freq factors)
     if (half_rotary_sliding > 0) {
         s->cos_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
@@ -129,10 +136,10 @@ void free_gemma4u(Gemma4Unified *model) {
     free_qt_array(w->up_proj, n_layer);
     free_qt_array(w->down_proj, n_layer);
     free(w->layer_scalars);
+    free(w->rope_freqs_full);
 
     if (model->state.allocated) {
         free_state_gemma4u(&model->state);
     }
     free(model->layer_types);
 }
-
