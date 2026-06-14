@@ -155,7 +155,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
             else if (strcmp(suffix, "self_attn.rope_freqs.weight") == 0) {
                 if (model->layer_types[l] && p->use_rope_freqs) {
                     if (!w->rope_freqs_full) {
-                        // Dynamically extract to get the exact size the safetensors provides
                         float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
                         if (f) {
                             w->rope_freqs_full = f; 
@@ -177,7 +176,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
             else if (strcmp(suffix, "self_attn.v_proj.weight") == 0) {
                 if (p->attention_k_eq_v) {
                     log_msg(stderr, "INFO: Skipping v_proj.weight for layer %d (K=V shared per config)\n", l);
-                    // Alias to k_proj so forward() has a valid qtensor pointer to work with
                     w->v_proj[l] = w->k_proj[l];
                 } else {
                     int is_full = model->layer_types[l];
@@ -256,7 +254,7 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         free_safetensors_index(&idx);
         return -1;
-        }
+    }
 
     for (int i = 0; i < idx.n_unique_files; i++) {
         process_gemma4u_safetensors_file(model, &idx, idx.unique_filenames[i]);
@@ -296,7 +294,8 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         exit(EXIT_FAILURE);
     }
     uint32_t magic = 0x55344D47;
-    uint32_t version = 2;
+    uint32_t version = 3; // Bumped to version 3 to invalidate old corrupted .bin files
+
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);
     fwrite(&model->config, sizeof(config_gemma4u), 1, f);
@@ -333,8 +332,8 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     fwrite(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs && w->rope_freqs_full) {
-        // FIX: Use partial_rotary_factor to match Ollama's partialRotaryDims calculation
-        int freq_dim = (int)(p->global_head_dim * p->rope_partial_factor);
+        // FIX: Write the full tensor size (global_head_dim / 2)
+        int freq_dim = p->global_head_dim / 2;
         fwrite(w->rope_freqs_full, sizeof(float), freq_dim, f);
         log_msg(stderr, "INFO: Saved rope_freqs (%d floats)\n", freq_dim);
     }

@@ -19,8 +19,8 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         fclose(f);
         return -1;
     }
-    if (version != 2) {
-        log_msg(stderr, "ERROR: Unsupported version %u (expected 2). RE-RUN QUANTIZER.\n", version);
+    if (version != 3) {
+        log_msg(stderr, "ERROR: Unsupported version %u (expected 3). RE-RUN QUANTIZER.\n", version);
         fclose(f);
         return -1;
     }
@@ -98,8 +98,8 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     fread(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs) {
-        // FIX: Use partial_rotary_factor to match quantizer
-        int freq_dim = (int)(p->global_head_dim * p->rope_partial_factor);
+        // FIX: Match the actual safetensors tensor size (global_head_dim / 2)
+        int freq_dim = p->global_head_dim / 2;
         w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
         fread(w->rope_freqs_full, sizeof(float), freq_dim, f);
     }
@@ -131,13 +131,18 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
         return;
     }
     int half_rot = rotary_dim / 2;
-    float *cos_row = cos + pos * half_rot;
-    float *sin_row = sin + pos * half_rot;
+    
+    // FIX: NeoX style RoPE pairs the first half of the FULL head dimension 
+    // with the second half. The cache stride and offset must be vec_dim / 2.
+    int cache_stride = vec_dim / 2; 
+    
+    float *cos_row = cos + pos * cache_stride;
+    float *sin_row = sin + pos * cache_stride;
     for (int i = 0; i < half_rot; i++) {
         float c = cos_row[i], sn = sin_row[i];
-        float v0 = vec[i], v1 = vec[i + half_rot];
+        float v0 = vec[i], v1 = vec[i + cache_stride];
         vec[i] = v0 * c - v1 * sn;
-        vec[i + half_rot] = v0 * sn + v1 * c;
+        vec[i + cache_stride] = v0 * sn + v1 * c;
     }
 }
 
@@ -183,17 +188,14 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         rmsnorm_gemma4u(s->xb, x, rms_in, dim, eps, 1);
         matmul_qt(s->q, s->xb, &w->q_proj[l]);
         
-        // FIX: Compute raw K into a separate buffer before any normalization
         matmul_qt(s->k_raw, s->xb, &w->k_proj[l]);
 
         if (is_full && p->attention_k_eq_v) {
-            // FIX: V is the RAW K projection (before K norm), exactly as Ollama does
             memcpy(s->v, s->k_raw, kv_dim * sizeof(float));
         } else {
             matmul_qt(s->v, s->xb, &w->v_proj[l]);
         }
 
-        // Apply Q-norm per head
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
             rmsnorm_gemma4u(qh, qh, rms_q, head_dim, eps, 1);
@@ -202,7 +204,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             }
         }
 
-        // Apply K-norm per head to the RAW K
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
             rmsnorm_gemma4u(kh, kh, rms_k, head_dim, eps, 1);
@@ -210,10 +211,8 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
         }
-        // Copy the now-normalized K to the cache buffer
         memcpy(s->k, s->k_raw, kv_dim * sizeof(float));
 
-        // Apply unweighted RMSNorm to V (separately from K)
         for (int h = 0; h < kv_heads; h++) {
             rmsnorm_gemma4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
