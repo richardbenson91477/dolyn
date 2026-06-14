@@ -17,8 +17,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         return -1;
     }
     
-    // 'QW35'
-    if (magic != 0x35335751) {
+    if (magic != 0x35335751) { // 'QW35'
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
         fclose(f);
         return -1;

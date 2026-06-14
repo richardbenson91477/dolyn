@@ -54,7 +54,7 @@ typedef struct {
     float *hb2;
     float *q;
     float *k;
-    float *k_raw;      // <-- ADDED: buffer for raw K projection before normalization
+    float *k_raw;
     float *v;
     float *att;
     float *logits;

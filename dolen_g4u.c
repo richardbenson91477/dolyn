@@ -98,7 +98,6 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     fread(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs) {
-        // FIX: Match the actual safetensors tensor size (global_head_dim / 2)
         int freq_dim = p->global_head_dim / 2;
         w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
         fread(w->rope_freqs_full, sizeof(float), freq_dim, f);
@@ -232,7 +231,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 att[t] = -1e9f;
             }
 
-            //float attn_scale = 1.0f / sqrtf((float)head_dim);
             float attn_scale = 1.0f;
 
             for (int t = start_t; t <= pos; t++) {

@@ -146,10 +146,8 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
     if (expected_size > 0 && (num_elements != expected_size)) {
         log_msg(stderr, "ERROR: Tensor %s size mismatch: got %zu, expected %zu\n", name, num_elements, expected_size);
         if (!dest) {
-            free(dest); // Note: dest is NULL here, but if it was allocated, we free it. 
-            // Actually, 'output' is the allocated pointer. Let's fix the variable name.
+            free(dest);
         }
-        // FIX: Prevent OOB read by returning NULL immediately on size mismatch
         return NULL; 
     }
 

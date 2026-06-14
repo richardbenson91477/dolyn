@@ -294,7 +294,7 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         exit(EXIT_FAILURE);
     }
     uint32_t magic = 0x55344D47;
-    uint32_t version = 3; // Bumped to version 3 to invalidate old corrupted .bin files
+    uint32_t version = 3;
 
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);
@@ -332,7 +332,6 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     fwrite(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs && w->rope_freqs_full) {
-        // FIX: Write the full tensor size (global_head_dim / 2)
         int freq_dim = p->global_head_dim / 2;
         fwrite(w->rope_freqs_full, sizeof(float), freq_dim, f);
         log_msg(stderr, "INFO: Saved rope_freqs (%d floats)\n", freq_dim);
