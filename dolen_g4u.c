@@ -204,14 +204,10 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
     }
 
-    // Final norm
+    // Final norm (matches llama.cpp exactly)
     rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
 
-    // CRITICAL FIX: Scale hidden state before LM head to prevent logit saturation
-    float lm_scale = 1.0f / sqrtf((float)dim);
-    for (int i = 0; i < dim; i++) x[i] *= lm_scale;
-
-    // LM HEAD (tied embedding)
+    // LM HEAD (tied embedding) - NO EXTRA SCALING
     matmul_qt(s->logits, x, &w->embed_tokens);
 
     // Softcapping
@@ -223,7 +219,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
     }
 
-    // Suppress special tokens to keep output clean
+    // Suppress known problematic special tokens to keep output clean
     static const int suppress[] = {0, 1, 2, 3, 255999, 256000, 258880, 258881, 258882, 258883, 258884};
     for (int i = 0; i < 11; i++) if (suppress[i] < p->vocab_size) s->logits[suppress[i]] = -1e9f;
 

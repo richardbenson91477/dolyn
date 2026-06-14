@@ -142,4 +142,4 @@ clean:
 
 
 wip: $(BIN_G4U)
-	./$(BIN_G4U) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p "The capitol of france is " -n 50 -t 0.0 -M generate
+	./$(BIN_G4U) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p "The capitol of France is " -n 50 -t 0.0 -M generate
