@@ -1,10 +1,14 @@
 #include "dolen_g4u_common.h"
 
 void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
-    int max_head_dim = p->global_head_dim > p->head_dim ? p->global_head_dim : p->head_dim;
-    int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
+    int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
+    int max_kv_heads = p->n_kv_heads > p->n_global_kv_heads ? p->n_kv_heads : p->n_global_kv_heads;
     int max_kv_dim = max_kv_heads * max_head_dim;
-    int attn_out_dim = p->n_heads * max_head_dim;   // largest possible
+    int attn_out_dim = p->n_heads * max_head_dim;
+
+    int rotary_dim_full = (int)(p->rope_partial_factor * p->global_head_dim);
+    int half_rotary_full = rotary_dim_full / 2;
+    int half_rotary_sliding = p->head_dim / 2;
 
     int max_act_dim = p->dim;
     if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
@@ -12,7 +16,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
 
     s->x = a_calloc((size_t)p->dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
-    s->hb = a_calloc((size_t)attn_out_dim * sizeof(float));     // must cover full attention output
+    s->hb = a_calloc((size_t)p->hidden_dim * sizeof(float));
     s->hb2 = a_calloc((size_t)p->hidden_dim * sizeof(float));
     s->q = a_calloc((size_t)attn_out_dim * sizeof(float));
     s->k = a_calloc((size_t)max_kv_dim * sizeof(float));
@@ -23,43 +27,61 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p) {
     s->key_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
     s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
 
-    // quant temps
-    int ng_x = (max_act_dim + GS - 1) / GS;
+    int num_groups_xq = (max_act_dim + GS - 1) / GS;
     s->xq.q = a_calloc((size_t)max_act_dim * sizeof(int8_t));
-    s->xq.s = a_calloc((size_t)ng_x * sizeof(float));
-    s->xq.rows = 1; s->xq.cols = max_act_dim;
+    s->xq.s = a_calloc((size_t)num_groups_xq * sizeof(float));
+    s->xq.rows = 1;
+    s->xq.cols = max_act_dim;
 
-    int ng_h = (p->hidden_dim + GS - 1) / GS;
+    int num_groups_hq = (p->hidden_dim + GS - 1) / GS;
     s->hq.q = a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
-    s->hq.s = a_calloc((size_t)ng_h * sizeof(float));
-    s->hq.rows = 1; s->hq.cols = p->hidden_dim;
+    s->hq.s = a_calloc((size_t)num_groups_hq * sizeof(float));
+    s->hq.rows = 1;
+    s->hq.cols = p->hidden_dim;
 
-    // RoPE
-    int half_full = (int)(p->rope_partial_factor * p->global_head_dim) / 2;
-    int half_slide = p->head_dim / 2;
+    if (half_rotary_full > 0) {
+        s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
+        s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
 
-    if (half_full > 0) {
-        s->cos_cache_full = a_calloc((size_t)p->seq_len * half_full * sizeof(float));
-        s->sin_cache_full = a_calloc((size_t)p->seq_len * half_full * sizeof(float));
-        for (int pos=0; pos<p->seq_len; pos++) for (int i=0; i<half_full; i++) {
-            float freq = 1.0f / powf(p->rope_theta_full, (float)(2*i)/p->global_head_dim);
-            float val = (float)pos * freq;
-            s->cos_cache_full[pos*half_full + i] = cosf(val);
-            s->sin_cache_full[pos*half_full + i] = sinf(val);
+        for (int pos = 0; pos < p->seq_len; pos++) {
+            for (int i = 0; i < half_rotary_full; i++) {
+                float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
+                float val = (float)pos * freq;
+                s->cos_cache_full[pos * half_rotary_full + i] = cosf(val);
+                s->sin_cache_full[pos * half_rotary_full + i] = sinf(val);
+            }
         }
-    } else s->cos_cache_full = s->sin_cache_full = NULL;
+    } else {
+        s->cos_cache_full = NULL;
+        s->sin_cache_full = NULL;
+    }
 
-    if (half_slide > 0) {
-        s->cos_cache_sliding = a_calloc((size_t)p->seq_len * half_slide * sizeof(float));
-        s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_slide * sizeof(float));
-        for (int pos=0; pos<p->seq_len; pos++) for (int i=0; i<half_slide; i++) {
-            float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2*i)/p->head_dim);
-            float val = (float)pos * freq;
-            s->cos_cache_sliding[pos*half_slide + i] = cosf(val);
-            s->sin_cache_sliding[pos*half_slide + i] = sinf(val);
+    if (half_rotary_sliding > 0) {
+        s->cos_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
+        s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
+        for (int pos = 0; pos < p->seq_len; pos++) {
+            for (int i = 0; i < half_rotary_sliding; i++) {
+                float freq = 1.0f / powf(p->rope_theta_sliding, (float)(2 * i) / p->head_dim);
+                float val = pos * freq;
+                s->cos_cache_sliding[pos * half_rotary_sliding + i] = cosf(val);
+                s->sin_cache_sliding[pos * half_rotary_sliding + i] = sinf(val);
+            }
         }
-    } else s->cos_cache_sliding = s->sin_cache_sliding = NULL;
+    } else {
+        s->cos_cache_sliding = NULL;
+        s->sin_cache_sliding = NULL;
+    }
 
+    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
+            !s->att || !s->logits || !s->key_cache || !s->value_cache ||
+            !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
+        log_msg(stderr, "ERROR: Alloc failed!\n");
+        exit(EXIT_FAILURE);
+    }
+    if (p->seq_len > 1 && (!s->cos_cache_full || !s->sin_cache_full || !s->cos_cache_sliding || !s->sin_cache_sliding)) {
+        log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
+        exit(EXIT_FAILURE);
+    }
     s->allocated = 1;
 }
 
