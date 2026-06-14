@@ -1,6 +1,5 @@
 #include "dolen_quantize_common.h"
 
-
 void quantize_group(qtensor *qt, const float *weights, int rows, int cols) {
     qt->rows = rows;
     qt->cols = cols;
@@ -47,7 +46,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     snprintf(index_path, sizeof(index_path), "%s/model.safetensors.index.json", model_dir);
 
     FILE *f = fopen(index_path, "rb");
-    if (! f) {
+    if (!f) {
         return -1;
     }
 
@@ -56,7 +55,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     fseek(f, 0, SEEK_SET);
 
     char *json_str = (char *)a_calloc(size + 1);
-    if (! json_str) {
+    if (!json_str) {
         fclose(f);
         return -1;
     }
@@ -71,19 +70,19 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     char error[256] = {0};
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
-    if (! root) {
+    if (!root) {
         return -1;
     }
 
     JsonValue *weight_map = json_object_get(root, "weight_map");
-    if (! weight_map || weight_map->type != JSON_OBJECT) {
+    if (!weight_map || weight_map->type != JSON_OBJECT) {
         json_free(root);
         return -1;
     }
 
     idx->n_entries = weight_map->data.object.count;
     idx->entries = (weightmap_entry *)a_calloc(idx->n_entries * sizeof(weightmap_entry));
-    if (! idx->entries) {
+    if (!idx->entries) {
         json_free(root);
         return -1;
     }
@@ -103,7 +102,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
                 break;
             }
         }
-        if (! found) {
+        if (!found) {
             n_temp_files++;
             temp_files = (char **)realloc(temp_files, n_temp_files * sizeof(char *));
             temp_files[n_temp_files - 1] = strdup(pair->value->data.string);
@@ -134,25 +133,31 @@ void free_safetensors_index(safetensors_idx *idx) {
 float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, size_t expected_size) {
     csafetensors_t *st = (csafetensors_t *)st_ptr;
     const csafetensors_tensor_t *tensor = csafetensors_get_tensor(st, name);
-    if (! tensor) {
+    if (!tensor) {
         return NULL;
     }
 
     const uint8_t *data = csafetensors_get_tensor_data(st, tensor);
-    if (! data) {
+    if (!data) {
         return NULL;
     }
 
     size_t num_elements = csafetensors_shape_size(tensor);
     if (expected_size > 0 && (num_elements != expected_size)) {
         log_msg(stderr, "ERROR: Tensor %s size mismatch: got %zu, expected %zu\n", name, num_elements, expected_size);
+        if (!dest) {
+            free(dest); // Note: dest is NULL here, but if it was allocated, we free it. 
+            // Actually, 'output' is the allocated pointer. Let's fix the variable name.
+        }
+        // FIX: Prevent OOB read by returning NULL immediately on size mismatch
+        return NULL; 
     }
 
     float *output = dest;
-    if (! dest) {
+    if (!dest) {
         output = (float *)a_calloc(num_elements * sizeof(float));
-        if (! output) {
-            return NULL;
+        if (!output) {
+             return NULL;
         }
     }
 
@@ -168,7 +173,7 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
         memcpy(output, data, num_elements * sizeof(float));
     } else {
         log_msg(stderr, "ERROR: Unsupported dtype for tensor %s\n", name);
-        if (! dest) {
+        if (!dest) {
             free(output);
         }
         return NULL;
@@ -178,7 +183,7 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
 
 float *load_tensor_from_handle(void *st, const char *name, float *dest, size_t expected_size) {
     float *res = extract_tensor_from_handle(st, name, dest, expected_size);
-    if ((! res) && dest) {
+    if ((!res) && dest) {
         log_msg(stderr, "ERROR: Failed to load tensor %s into provided buffer\n", name);
     }
     return res;
@@ -186,11 +191,10 @@ float *load_tensor_from_handle(void *st, const char *name, float *dest, size_t e
 
 void load_and_quantize_from_handle(void *st, const char *name, qtensor *qt, int rows, int cols) {
     float *f = extract_tensor_from_handle(st, name, NULL, 0);
-    if (! f) {
+    if (!f) {
         log_msg(stderr, "ERROR: missing tensor %s in current shard\n", name);
         exit(EXIT_FAILURE);
     }
     quantize_group(qt, f, rows, cols);
     free(f);
 }
-

@@ -98,7 +98,8 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     fread(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs) {
-        int freq_dim = p->global_head_dim / 2;
+        // FIX: Use partial_rotary_factor to match quantizer
+        int freq_dim = (int)(p->global_head_dim * p->rope_partial_factor);
         w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
         fread(w->rope_freqs_full, sizeof(float), freq_dim, f);
     }
@@ -157,7 +158,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
     int max_kv_dim   = max_kv_heads * max_head_dim;
 
-    // Embedding
     dequantize_row(x, &w->embed_tokens, token);
     for (int i = 0; i < dim; i++) {
         x[i] *= embed_scale;
@@ -182,12 +182,18 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
         rmsnorm_gemma4u(s->xb, x, rms_in, dim, eps, 1);
         matmul_qt(s->q, s->xb, &w->q_proj[l]);
-        matmul_qt(s->k, s->xb, &w->k_proj[l]);
-        if (is_full && p->attention_k_eq_v) {
-            memcpy(s->v, s->k, kv_dim * sizeof(float));
-        }
-        else matmul_qt(s->v, s->xb, &w->v_proj[l]);
+        
+        // FIX: Compute raw K into a separate buffer before any normalization
+        matmul_qt(s->k_raw, s->xb, &w->k_proj[l]);
 
+        if (is_full && p->attention_k_eq_v) {
+            // FIX: V is the RAW K projection (before K norm), exactly as Ollama does
+            memcpy(s->v, s->k_raw, kv_dim * sizeof(float));
+        } else {
+            matmul_qt(s->v, s->xb, &w->v_proj[l]);
+        }
+
+        // Apply Q-norm per head
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
             rmsnorm_gemma4u(qh, qh, rms_q, head_dim, eps, 1);
@@ -196,12 +202,19 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             }
         }
 
+        // Apply K-norm per head to the RAW K
         for (int h = 0; h < kv_heads; h++) {
-            float *kh = s->k + h * head_dim;
+            float *kh = s->k_raw + h * head_dim;
             rmsnorm_gemma4u(kh, kh, rms_k, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
+        }
+        // Copy the now-normalized K to the cache buffer
+        memcpy(s->k, s->k_raw, kv_dim * sizeof(float));
+
+        // Apply unweighted RMSNorm to V (separately from K)
+        for (int h = 0; h < kv_heads; h++) {
             rmsnorm_gemma4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
 
@@ -271,13 +284,10 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
     }
 
-    // Final norm
     rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
 
-    // LM HEAD (tied embedding)
     matmul_qt(s->logits, x, &w->embed_tokens);
 
-    // Softcapping
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;
         float inv = 1.0f / cap;
@@ -322,4 +332,3 @@ static model_iface *init_gemma4u(const char *model_path, int seq_n_max) {
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_gemma4u, "dolen_g4u");
 }
-

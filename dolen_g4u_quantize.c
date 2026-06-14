@@ -155,10 +155,12 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
             else if (strcmp(suffix, "self_attn.rope_freqs.weight") == 0) {
                 if (model->layer_types[l] && p->use_rope_freqs) {
                     if (!w->rope_freqs_full) {
-                        int freq_dim = p->global_head_dim / 2;
-                        w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
-                        load_tensor_from_handle(&st, tname, w->rope_freqs_full, freq_dim);
-                        log_msg(stderr, "INFO: Loaded rope_freqs from layer %d (shared)\n", l);
+                        // Dynamically extract to get the exact size the safetensors provides
+                        float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
+                        if (f) {
+                            w->rope_freqs_full = f; 
+                            log_msg(stderr, "INFO: Loaded rope_freqs from layer %d (shared)\n", l);
+                        }
                     }
                 }
             }
@@ -173,8 +175,12 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 load_and_quantize_from_handle(&st, tname, &w->k_proj[l], kv_heads * hd, p->dim);
             }
             else if (strcmp(suffix, "self_attn.v_proj.weight") == 0) {
-                int is_full = model->layer_types[l];
-                if (!(is_full && p->attention_k_eq_v)) {
+                if (p->attention_k_eq_v) {
+                    log_msg(stderr, "INFO: Skipping v_proj.weight for layer %d (K=V shared per config)\n", l);
+                    // Alias to k_proj so forward() has a valid qtensor pointer to work with
+                    w->v_proj[l] = w->k_proj[l];
+                } else {
+                    int is_full = model->layer_types[l];
                     int hd = is_full ? p->global_head_dim : p->head_dim;
                     load_and_quantize_from_handle(&st, tname, &w->v_proj[l], p->n_kv_heads * hd, p->dim);
                 }
@@ -250,7 +256,7 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         free_safetensors_index(&idx);
         return -1;
-    }
+        }
 
     for (int i = 0; i < idx.n_unique_files; i++) {
         process_gemma4u_safetensors_file(model, &idx, idx.unique_filenames[i]);
@@ -290,7 +296,7 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         exit(EXIT_FAILURE);
     }
     uint32_t magic = 0x55344D47;
-    uint32_t version = 2;  // UPDATED to Version 2
+    uint32_t version = 2;
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);
     fwrite(&model->config, sizeof(config_gemma4u), 1, f);
@@ -327,7 +333,8 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     fwrite(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs && w->rope_freqs_full) {
-        int freq_dim = p->global_head_dim / 2;
+        // FIX: Use partial_rotary_factor to match Ollama's partialRotaryDims calculation
+        int freq_dim = (int)(p->global_head_dim * p->rope_partial_factor);
         fwrite(w->rope_freqs_full, sizeof(float), freq_dim, f);
         log_msg(stderr, "INFO: Saved rope_freqs (%d floats)\n", freq_dim);
     }
@@ -354,4 +361,3 @@ int main(int argc, char *argv[]) {
     free_gemma4u(&model);
     return 0;
 }
-

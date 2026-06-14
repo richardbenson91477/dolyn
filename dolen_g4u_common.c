@@ -24,6 +24,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
     s->hb2 = a_calloc((size_t)p->hidden_dim * sizeof(float));
     s->q = a_calloc((size_t)attn_out_dim * sizeof(float));
     s->k = a_calloc((size_t)max_kv_dim * sizeof(float));
+    s->k_raw = a_calloc((size_t)max_kv_dim * sizeof(float)); // <-- ADDED
     s->v = a_calloc((size_t)max_kv_dim * sizeof(float));
     s->att = a_calloc((size_t)p->n_heads * p->seq_len * sizeof(float));
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
@@ -43,7 +44,6 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
-    // RoPE cache for full attention - NOW USES learned freq factors
     if (half_rotary_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * half_rotary_full * sizeof(float));
@@ -52,7 +52,6 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
             for (int i = 0; i < half_rotary_full; i++) {
                 float base_freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
                 float freq = base_freq;
-                // Apply learned frequency factor if available
                 if (p->use_rope_freqs && w->rope_freqs_full) {
                     freq *= w->rope_freqs_full[i];
                 }
@@ -66,7 +65,6 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
         s->sin_cache_full = NULL;
     }
 
-    // RoPE cache for sliding attention (no freq factors)
     if (half_rotary_sliding > 0) {
         s->cos_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * half_rotary_sliding * sizeof(float));
@@ -83,7 +81,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
         s->sin_cache_sliding = NULL;
     }
 
-    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
+    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->k_raw || !s->v || // <-- ADDED !s->k_raw
             !s->att || !s->logits || !s->key_cache || !s->value_cache ||
             !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
@@ -106,6 +104,7 @@ void free_state_gemma4u(state_gemma4u *s) {
     free(s->hb2);
     free(s->q);
     free(s->k);
+    free(s->k_raw); // <-- ADDED
     free(s->v);
     free(s->att);
     free(s->logits);
@@ -123,9 +122,13 @@ void free_state_gemma4u(state_gemma4u *s) {
 }
 
 void free_gemma4u(Gemma4Unified *model) {
+    if (!model) return;
+    
+    config_gemma4u *p = &model->config;
     weights_gemma4u *w = &model->weights;
-    int n_layer = model->config.n_layers;
-    free_qt(&w->embed_tokens);
+
+    free(model->layer_types);
+    free(w->norm_offsets);
     free(w->rms_input_layernorm);
     free(w->rms_post_attn_layernorm);
     free(w->rms_pre_ffn_layernorm);
@@ -133,19 +136,41 @@ void free_gemma4u(Gemma4Unified *model) {
     free(w->rms_q_norm);
     free(w->rms_k_norm);
     free(w->rms_final_norm);
-    free(w->norm_offsets);
-    free_qt_array(w->q_proj, n_layer);
-    free_qt_array(w->k_proj, n_layer);
-    free_qt_array(w->v_proj, n_layer);
-    free_qt_array(w->o_proj, n_layer);
-    free_qt_array(w->gate_proj, n_layer);
-    free_qt_array(w->up_proj, n_layer);
-    free_qt_array(w->down_proj, n_layer);
     free(w->layer_scalars);
     free(w->rope_freqs_full);
 
-    if (model->state.allocated) {
-        free_state_gemma4u(&model->state);
+    for (int i = 0; i < p->n_layers; i++) {
+        free(w->q_proj[i].q);
+        free(w->q_proj[i].s);
+        
+        free(w->k_proj[i].q);
+        free(w->k_proj[i].s);
+        
+        if (w->v_proj[i].q != w->k_proj[i].q) {
+            free(w->v_proj[i].q);
+            free(w->v_proj[i].s);
+        }
+        
+        free(w->o_proj[i].q);
+        free(w->o_proj[i].s);
+        free(w->gate_proj[i].q);
+        free(w->gate_proj[i].s);
+        free(w->up_proj[i].q);
+        free(w->up_proj[i].s);
+        free(w->down_proj[i].q);
+        free(w->down_proj[i].s);
     }
-    free(model->layer_types);
+
+    free(w->q_proj);
+    free(w->k_proj);
+    free(w->v_proj);
+    free(w->o_proj);
+    free(w->gate_proj);
+    free(w->up_proj);
+    free(w->down_proj);
+
+    free(w->embed_tokens.q);
+    free(w->embed_tokens.s);
+
+    memset(model, 0, sizeof(Gemma4Unified));
 }

@@ -23,7 +23,7 @@ typedef struct {
     float final_logit_softcapping;
     int attention_k_eq_v;
     int original_max_seq_len;
-    int use_rope_freqs;  // NEW: whether to use learned freq factors
+    int use_rope_freqs;
 } config_gemma4u;
 
 typedef struct {
@@ -44,7 +44,7 @@ typedef struct {
     qtensor *up_proj;
     qtensor *down_proj;
     float *layer_scalars;
-    float *rope_freqs_full;  // NEW: learned freq factors for full attention
+    float *rope_freqs_full;
 } weights_gemma4u;
 
 typedef struct {
@@ -54,6 +54,7 @@ typedef struct {
     float *hb2;
     float *q;
     float *k;
+    float *k_raw;      // <-- ADDED: buffer for raw K projection before normalization
     float *v;
     float *att;
     float *logits;
@@ -82,4 +83,3 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
 float *forward_gemma4u(Gemma4Unified *model, int token, int pos);
 
 #endif // DOLEN_G4U_COMMON_H
-
