@@ -201,6 +201,16 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
             if (rotary_dim > 0 && cos_cache) {
                 apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
+
+            // inside forward_gemma4u, after the per‑head q RoPE application
+            if (l == 5 && h == 0 && pos == 0 && is_full) {  // first full-attention layer
+                float *qh = s->q + 0 * head_dim;  // head 0
+                log_msg(stderr, "DEBUG: q0 after RoPE: %.4f %.4f %.4f\n", qh[0], qh[1], qh[2]);
+                // Also check the raw cos/sin that were applied
+                float *cos_row = cos_cache + pos * (head_dim / 2);
+                float *sin_row = sin_cache + pos * (head_dim / 2);
+                log_msg(stderr, "DEBUG: cos[0]=%.4f sin[0]=%.4f\n", cos_row[0], sin_row[0]);
+            }
         }
 
         for (int h = 0; h < kv_heads; h++) {
