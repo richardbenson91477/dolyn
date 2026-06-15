@@ -1,14 +1,14 @@
 #include "dolen_q3_common.h"
 
 
-int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max) {
+int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
     
-    memset(model_qwen3, 0, sizeof(Qwen3));
+    memset(model_q3, 0, sizeof(Q3));
 
     uint32_t magic, version;
     if ((fread(&magic, sizeof(uint32_t), 1, f) != 1)
@@ -30,15 +30,15 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
         return -1;
     }
 
-    config_qwen3 *p = &model_qwen3->config;
+    config_q3 *p = &model_q3->config;
 
-    if (fread(p, sizeof(config_qwen3), 1, f) != 1) {
+    if (fread(p, sizeof(config_q3), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
         fclose(f);
         return -1;
     }
 
-    weights_qwen3 *w = &model_qwen3->weights;
+    weights_q3 *w = &model_q3->weights;
 
     if (seq_n_max) {
         p->seq_len = seq_n_max;
@@ -127,7 +127,7 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     fclose(f);
     log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
 
-    alloc_state_qwen3(&(model_qwen3->state), &(model_qwen3->config));
+    alloc_state_q3(&(model_q3->state), &(model_q3->config));
 
     return 0;
 }
@@ -148,10 +148,10 @@ void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
     }
 }
 
-float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
-    config_qwen3 *p = &model_qwen3->config;
-    weights_qwen3 *w = &model_qwen3->weights;
-    state_qwen3 *s = &model_qwen3->state;
+float *forward_q3(Q3 *model_q3, int token, int pos) {
+    config_q3 *p = &model_q3->config;
+    weights_q3 *w = &model_q3->weights;
+    state_q3 *s = &model_q3->state;
     int kv_dim = p->n_kv_heads * p->head_dim;
     int kv_mul = p->n_heads / p->n_kv_heads;
     int all_heads_dim = p->n_heads * p->head_dim;
@@ -305,16 +305,16 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
     return s->logits;
 }
 
-static float *forward_qwen3_wrap(void *model, int token, int pos) {
-    return forward_qwen3((Qwen3 *)model, token, pos);
+static float *forward_q3_wrap(void *model, int token, int pos) {
+    return forward_q3((Q3 *)model, token, pos);
 }
 
-static void free_qwen3_wrap(void *model) {
-    free_qwen3((Qwen3 *)model);
+static void free_q3_wrap(void *model) {
+    free_q3((Q3 *)model);
     free(model);
 }
 
-static const chat_template QWEN3_CHAT_TEMPLATE = {
+static const chat_template CHAT_TEMPLATE_Q3 = {
     .first_turn_and_system =
         "<|im_start|>system\n%s<|im_end|>\n"
         "<|im_start|>user\n%s<|im_end|>\n"
@@ -328,11 +328,11 @@ static const chat_template QWEN3_CHAT_TEMPLATE = {
         "<|im_start|>assistant\n",
 };
 
-static model_iface *init_qwen3(const char *model_path, int seq_n_max) {
-    Qwen3 *model = a_calloc(1 * sizeof(Qwen3));
+static model_iface *init_q3(const char *model_path, int seq_n_max) {
+    Q3 *model = a_calloc(1 * sizeof(Q3));
 
-    if (load_quantized_qwen3(model_path, model, seq_n_max)) {
-        free_qwen3(model);
+    if (load_quantized_q3(model_path, model, seq_n_max)) {
+        free_q3(model);
         free(model);
         return NULL;
     }
@@ -340,21 +340,21 @@ static model_iface *init_qwen3(const char *model_path, int seq_n_max) {
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface) {
         .model = model,
-        .forward = forward_qwen3_wrap,
-        .free_model = free_qwen3_wrap,
+        .forward = forward_q3_wrap,
+        .free_model = free_q3_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
-        // Qwen tokenizers have no BOS token and add_bos_token is false.
+        // Q3 tokenizers have no BOS token and add_bos_token is false.
         .bos_token_id = 0,
         .eos_token_id = 151645,
         .im_end_id = 151645,
-        .special_tokens = special_tokens_qwen3,
-        .chat_template = &QWEN3_CHAT_TEMPLATE,
+        .special_tokens = special_tokens_q3,
+        .chat_template = &CHAT_TEMPLATE_Q3,
     };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_qwen3, "dolen3");
+    return common_main(argc, argv, init_q3, "dolen3");
 }
 

@@ -1,14 +1,14 @@
 #include "dolen_q3_5_common.h"
 
 
-int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq_n_max) {
+int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
 
-    memset(model_qwen3_5, 0, sizeof(Qwen3_5));
+    memset(model_q3_5, 0, sizeof(Q3_5));
     
     uint32_t magic, version;
     if ((fread(&magic, sizeof(uint32_t), 1, f) != 1)
@@ -30,31 +30,31 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         return -1;
     }
     
-    if (fread(&model_qwen3_5->config, sizeof(config_qwen3_5), 1, f) != 1) {
+    if (fread(&model_q3_5->config, sizeof(config_q3_5), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
         fclose(f);
         return -1;
     }
     
-    config_qwen3_5 *p = &model_qwen3_5->config;
-    weights_qwen3_5 *w = &model_qwen3_5->weights;
+    config_q3_5 *p = &model_q3_5->config;
+    weights_q3_5 *w = &model_q3_5->weights;
     
     if (seq_n_max) {
         p->seq_len = seq_n_max;
     }
 
-    model_qwen3_5->layer_types = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
-    model_qwen3_5->attn_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
-    model_qwen3_5->deltanet_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
+    model_q3_5->layer_types = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
+    model_q3_5->attn_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
+    model_q3_5->deltanet_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     
-    if (!model_qwen3_5->layer_types || !model_qwen3_5->attn_layer_indices || 
-        !model_qwen3_5->deltanet_layer_indices) {
+    if (!model_q3_5->layer_types || !model_q3_5->attn_layer_indices || 
+        !model_q3_5->deltanet_layer_indices) {
         log_msg(stderr, "ERROR: Failed to allocate memory for layer indices\n");
         fclose(f);
         return -1;
     }
     
-    if (fread(model_qwen3_5->layer_types, sizeof(int), (size_t)p->n_layer, f)
+    if (fread(model_q3_5->layer_types, sizeof(int), (size_t)p->n_layer, f)
             != (size_t)p->n_layer) {
         log_msg(stderr, "ERROR: Failed to read layer_types from %s\n", filepath);
         fclose(f);
@@ -63,10 +63,10 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     
     int la = 0, ld = 0;
     for (int i = 0; i < p->n_layer; i++) {
-        if (model_qwen3_5->layer_types[i] == 1) {
-            model_qwen3_5->deltanet_layer_indices[i] = ld++;
+        if (model_q3_5->layer_types[i] == 1) {
+            model_q3_5->deltanet_layer_indices[i] = ld++;
         } else {
-            model_qwen3_5->attn_layer_indices[i] = la++;
+            model_q3_5->attn_layer_indices[i] = la++;
         }
     }
     
@@ -254,7 +254,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
 
     log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
 
-    alloc_state_qwen3_5(&(model_qwen3_5->state), &(model_qwen3_5->config));
+    alloc_state_q3_5(&(model_q3_5->state), &(model_q3_5->config));
 
     return 0;
 }
@@ -300,10 +300,10 @@ void rmsnorm_gated(float *o, float *x, float *gate, float *weight, int n_heads, 
     }
 }
 
-void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int pos) {
-    config_qwen3_5 *p = &model_qwen3_5->config;
-    weights_qwen3_5 *w = &model_qwen3_5->weights;
-    state_qwen3_5 *s = &model_qwen3_5->state;
+void forward_q3_5_attention_layer(Q3_5 *model_q3_5, int l, int la, int pos) {
+    config_q3_5 *p = &model_q3_5->config;
+    weights_q3_5 *w = &model_q3_5->weights;
+    state_q3_5 *s = &model_q3_5->state;
     float *x = s->x;
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
@@ -423,10 +423,10 @@ void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int 
     }
 }
 
-void forward_qwen3_5_linear_attention_layer(Qwen3_5 *model_qwen3_5, int l, int ld, int pos) {
-    config_qwen3_5 *p = &model_qwen3_5->config;
-    weights_qwen3_5 *w = &model_qwen3_5->weights;
-    state_qwen3_5 *s = &model_qwen3_5->state;
+void forward_q3_5_linear_attention_layer(Q3_5 *model_q3_5, int l, int ld, int pos) {
+    config_q3_5 *p = &model_q3_5->config;
+    weights_q3_5 *w = &model_q3_5->weights;
+    state_q3_5 *s = &model_q3_5->state;
     float *x = s->x;
     int dim = p->dim;
     float eps = p->rms_norm_eps;
@@ -558,10 +558,10 @@ void forward_qwen3_5_linear_attention_layer(Qwen3_5 *model_qwen3_5, int l, int l
     }
 }
 
-void forward_qwen3_5_mlp_layer(Qwen3_5 *model_qwen3_5, int l) {
-    config_qwen3_5 *p = &model_qwen3_5->config;
-    weights_qwen3_5 *w = &model_qwen3_5->weights;
-    state_qwen3_5 *s = &model_qwen3_5->state;
+void forward_q3_5_mlp_layer(Q3_5 *model_q3_5, int l) {
+    config_q3_5 *p = &model_q3_5->config;
+    weights_q3_5 *w = &model_q3_5->weights;
+    state_q3_5 *s = &model_q3_5->state;
     float *x = s->x;
     int dim = p->dim;
     int hidden_dim = p->n_mlp;
@@ -589,22 +589,22 @@ void forward_qwen3_5_mlp_layer(Qwen3_5 *model_qwen3_5, int l) {
     }
 }
 
-float *forward_qwen3_5(Qwen3_5 *model_qwen3_5, int token, int pos) {
-    config_qwen3_5 *p = &model_qwen3_5->config;
-    weights_qwen3_5 *w = &model_qwen3_5->weights;
-    state_qwen3_5 *s = &model_qwen3_5->state;
+float *forward_q3_5(Q3_5 *model_q3_5, int token, int pos) {
+    config_q3_5 *p = &model_q3_5->config;
+    weights_q3_5 *w = &model_q3_5->weights;
+    state_q3_5 *s = &model_q3_5->state;
     float *x = s->x;
     int dim = p->dim;
 
     dequantize_row(x, &w->token_embedding_table, token);
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (model_qwen3_5->layer_types[l] == 1) {
-            forward_qwen3_5_linear_attention_layer(model_qwen3_5, l, model_qwen3_5->deltanet_layer_indices[l], pos);
+        if (model_q3_5->layer_types[l] == 1) {
+            forward_q3_5_linear_attention_layer(model_q3_5, l, model_q3_5->deltanet_layer_indices[l], pos);
         } else {
-            forward_qwen3_5_attention_layer(model_qwen3_5, l, model_qwen3_5->attn_layer_indices[l], pos);
+            forward_q3_5_attention_layer(model_q3_5, l, model_q3_5->attn_layer_indices[l], pos);
         }
-        forward_qwen3_5_mlp_layer(model_qwen3_5, l);
+        forward_q3_5_mlp_layer(model_q3_5, l);
     }
 
     rmsnorm_gemma(x, x, w->rms_final_weight, dim, p->rms_norm_eps);
@@ -617,16 +617,16 @@ float *forward_qwen3_5(Qwen3_5 *model_qwen3_5, int token, int pos) {
     return s->logits;
 }
 
-static float *forward_qwen3_5_wrap(void *model, int token, int pos) {
-    return forward_qwen3_5((Qwen3_5 *)model, token, pos);
+static float *forward_q3_5_wrap(void *model, int token, int pos) {
+    return forward_q3_5((Q3_5 *)model, token, pos);
 }
 
-static void free_qwen3_5_wrap(void *model) {
-    free_qwen3_5((Qwen3_5 *)model);
+static void free_q3_5_wrap(void *model) {
+    free_q3_5((Q3_5 *)model);
     free(model);
 }
 
-static const chat_template QWEN3_5_CHAT_TEMPLATE = {
+static const chat_template CHAT_TEMPLATE_Q3_5 = {
     .first_turn_and_system =
         "<|im_start|>system\n%s<|im_end|>\n"
         "<|im_start|>user\n%s<|im_end|>\n"
@@ -643,11 +643,11 @@ static const chat_template QWEN3_5_CHAT_TEMPLATE = {
         "<think>\n\n</think>\n\n",
 };
 
-static model_iface *init_qwen3_5(const char *model_path, int seq_n_max) {
-    Qwen3_5 *model = a_calloc(1 * sizeof(Qwen3_5));
+static model_iface *init_q3_5(const char *model_path, int seq_n_max) {
+    Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
 
-    if (load_quantized_qwen3_5(model_path, model, seq_n_max)) {
-        free_qwen3_5(model);
+    if (load_quantized_q3_5(model_path, model, seq_n_max)) {
+        free_q3_5(model);
         free(model);
         return NULL;
     }
@@ -655,20 +655,20 @@ static model_iface *init_qwen3_5(const char *model_path, int seq_n_max) {
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface) {
         .model = model,
-        .forward = forward_qwen3_5_wrap,
-        .free_model = free_qwen3_5_wrap,
+        .forward = forward_q3_5_wrap,
+        .free_model = free_q3_5_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 0,
         .eos_token_id = 248046,
         .im_end_id = 248046,
-        .special_tokens = special_tokens_qwen3_5,
-        .chat_template = &QWEN3_5_CHAT_TEMPLATE,
+        .special_tokens = special_tokens_q3_5,
+        .chat_template = &CHAT_TEMPLATE_Q3_5,
     };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_qwen3_5, "dolen3_5");
+    return common_main(argc, argv, init_q3_5, "dolen3_5");
 }
 

@@ -1,7 +1,7 @@
 #include "dolen_q3_5_common.h"
 
 
-void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
+void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
     int kv_dim = p->n_kv_heads * head_size;
@@ -100,7 +100,7 @@ void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p) {
     s->allocated = 1;
 }
 
-void free_state_qwen3_5(state_qwen3_5 *s) {
+void free_state_q3_5(state_q3_5 *s) {
     if (! s->allocated) {
         return;
     }
@@ -141,11 +141,11 @@ void free_state_qwen3_5(state_qwen3_5 *s) {
     s->allocated = 0;
 }
 
-void free_qwen3_5(Qwen3_5 *model_qwen3_5) {
-    weights_qwen3_5 *w = &model_qwen3_5->weights;
-    int n_full_attn = model_qwen3_5->config.n_full_attn_layers;
-    int n_linear_attn = model_qwen3_5->config.n_linear_attn_layers;
-    int n_layer = model_qwen3_5->config.n_layer;
+void free_q3_5(Q3_5 *model_q3_5) {
+    weights_q3_5 *w = &model_q3_5->weights;
+    int n_full_attn = model_q3_5->config.n_full_attn_layers;
+    int n_linear_attn = model_q3_5->config.n_linear_attn_layers;
+    int n_layer = model_q3_5->config.n_layer;
 
     free_qt(&w->token_embedding_table);
     free(w->rms_att_weight);
@@ -170,16 +170,16 @@ void free_qwen3_5(Qwen3_5 *model_qwen3_5) {
     free_qt_array(w->w3, n_layer);
     free(w->rms_final_weight);
 
-    if (!model_qwen3_5->config.tie_word_embeddings) {
+    if (!model_q3_5->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 
-    free(model_qwen3_5->layer_types);
-    free(model_qwen3_5->attn_layer_indices);
-    free(model_qwen3_5->deltanet_layer_indices);
+    free(model_q3_5->layer_types);
+    free(model_q3_5->attn_layer_indices);
+    free(model_q3_5->deltanet_layer_indices);
 
-    if (model_qwen3_5->state.allocated) {
-        free_state_qwen3_5(&model_qwen3_5->state);
+    if (model_q3_5->state.allocated) {
+        free_state_q3_5(&model_q3_5->state);
     }
 }
 

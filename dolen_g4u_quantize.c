@@ -93,287 +93,207 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     return 0;
 }
 
-static void process_g4u_safetensors_file(G4U *model, safetensors_idx *idx, const char *filename) {
-    config_g4u *p = &model->config;
-    weights_g4u *w = &model->weights;
-    char filepath[4096];
-    snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
-    csafetensors_t st;
-    if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
-        log_msg(stderr, "ERROR: Failed to load %s\n", filepath);
-        exit(EXIT_FAILURE);
+static int write_named_f32(quantize_ctx *ctx, FILE *out,
+        const char *name, size_t elements) {
+    if (quantize_write_f32_or_zeros(ctx, out, name, elements)) {
+        log_msg(stderr, "ERROR: Failed writing %s\n", name);
+        return -1;
     }
-
-    for (size_t i = 0; i < idx->n_entries; i++) {
-        if (strcmp(idx->entries[i].filename, filename)) {
-            continue;
-        }
-        const char *tname = idx->entries[i].tensor_name;
-
-        if (strcmp(tname, "model.language_model.embed_tokens.weight") == 0) {
-            float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
-            if (f) {
-                quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim);
-                free(f);
-            }
-        }
-        else if (strcmp(tname, "lm_head.weight") == 0 && !p->tie_word_embeddings) {
-            float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
-            if (f) {
-                quantize_group(&w->embed_tokens, f, p->vocab_size, p->dim);
-                free(f);
-            }
-        }
-        else if (strcmp(tname, "model.language_model.norm.weight") == 0) {
-            load_tensor_from_handle(&st, tname, w->rms_final_norm, p->dim);
-        }
-        else if (strncmp(tname, "model.language_model.layers.", 28) == 0) {
-            int l = atoi(tname + 28);
-            if (l < 0 || l >= p->n_layers) {
-                continue;
-            }
-            const char *suffix = strstr(tname + 28, ".");
-            if (!suffix) {
-                continue;
-            }
-            suffix++;
-
-            if (strcmp(suffix, "input_layernorm.weight") == 0)
-                load_tensor_from_handle(&st, tname, w->rms_input_layernorm + l * p->dim, p->dim);
-            else if (strcmp(suffix, "post_attention_layernorm.weight") == 0)
-                load_tensor_from_handle(&st, tname, w->rms_post_attn_layernorm + l * p->dim, p->dim);
-            else if (strcmp(suffix, "pre_feedforward_layernorm.weight") == 0)
-                load_tensor_from_handle(&st, tname, w->rms_pre_ffn_layernorm + l * p->dim, p->dim);
-            else if (strcmp(suffix, "post_feedforward_layernorm.weight") == 0)
-                load_tensor_from_handle(&st, tname, w->rms_post_ffn_layernorm + l * p->dim, p->dim);
-            else if (strcmp(suffix, "self_attn.q_norm.weight") == 0) {
-                int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
-                load_tensor_from_handle(&st, tname, w->rms_q_norm + w->norm_offsets[l], hd);
-            }
-            else if (strcmp(suffix, "self_attn.k_norm.weight") == 0) {
-                int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
-                load_tensor_from_handle(&st, tname, w->rms_k_norm + w->norm_offsets[l], hd);
-            }
-            else if (strcmp(suffix, "self_attn.rope_freqs.weight") == 0) {
-                continue;
-            }
-            else if (strcmp(suffix, "self_attn.q_proj.weight") == 0) {
-                int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
-                load_and_quantize_from_handle(&st, tname, &w->q_proj[l], p->n_heads * hd, p->dim);
-            }
-            else if (strcmp(suffix, "self_attn.k_proj.weight") == 0) {
-                int is_full = model->layer_types[l];
-                int hd = is_full ? p->global_head_dim : p->head_dim;
-                int kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
-                load_and_quantize_from_handle(&st, tname, &w->k_proj[l], kv_heads * hd, p->dim);
-            }
-            else if (strcmp(suffix, "self_attn.v_proj.weight") == 0) {
-                int is_full = model->layer_types[l];
-                int use_alternative_attention = is_full && p->attention_k_eq_v;
-                if (use_alternative_attention) {
-                    log_msg(stderr, "INFO: Skipping v_proj.weight for full-attention layer %d (K=V)\n", l);
-                } else {
-                    int hd = is_full ? p->global_head_dim : p->head_dim;
-                    int kv_heads = p->n_kv_heads;
-                    load_and_quantize_from_handle(&st, tname, &w->v_proj[l], kv_heads * hd, p->dim);
-                }
-            }
-            else if (strcmp(suffix, "self_attn.o_proj.weight") == 0) {
-                int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
-                load_and_quantize_from_handle(&st, tname, &w->o_proj[l], p->dim, p->n_heads * hd);
-            }
-            else if (strcmp(suffix, "layer_scalar") == 0 ||
-                     strcmp(suffix, "layer_scalar.weight") == 0 ||
-                     strcmp(suffix, "layer_output_scale.weight") == 0) {
-                float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
-                if (f) {
-                    w->layer_scalars[l] = f[0];
-                    free(f);
-                }
-            }
-            else if (strcmp(suffix, "mlp.gate_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->gate_proj[l], p->hidden_dim, p->dim);
-            else if (strcmp(suffix, "mlp.up_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->up_proj[l], p->hidden_dim, p->dim);
-            else if (strcmp(suffix, "mlp.down_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->down_proj[l], p->dim, p->hidden_dim);
-        }
-    }
-    csafetensors_free(&st);
+    return 0;
 }
 
-int load_g4u_from_safetensors(G4U *model, const char *model_dir) {
-    config_g4u *p = &model->config;
-    safetensors_idx idx;
-    if (load_safetensors_index(&idx, model_dir)) {
-        log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
+static int write_named_qt(quantize_ctx *ctx, FILE *out,
+        const char *name, int rows, int cols) {
+    if (quantize_write_qtensor(ctx, out, name, rows, cols)) {
+        log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
+        return -1;
+    }
+    return 0;
+}
+
+int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
+    G4U model;
+    memset(&model, 0, sizeof(model));
+    if (load_config_g4u(&model, model_dir)) {
         return -1;
     }
 
-    int total_norm_dim = 0;
-    model->weights.norm_offsets = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
-    for (int i = 0; i < p->n_layers; i++) {
-        model->weights.norm_offsets[i] = total_norm_dim;
-        int hd = model->layer_types[i] ? p->global_head_dim : p->head_dim;
-        total_norm_dim += hd;
-    }
-
-    model->weights.rms_input_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    model->weights.rms_post_attn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    model->weights.rms_pre_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    model->weights.rms_post_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    model->weights.rms_q_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
-    model->weights.rms_k_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
-    model->weights.rms_final_norm = (float *)a_calloc((size_t)p->dim * sizeof(float));
-    model->weights.layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
-    for (int i = 0; i < p->n_layers; i++) {
-        model->weights.layer_scalars[i] = 1.0f;
-    }
-    model->weights.rope_freqs_full = NULL;
-
-    if (!model->weights.rms_input_layernorm || !model->weights.rms_post_attn_layernorm ||
-            !model->weights.rms_pre_ffn_layernorm || !model->weights.rms_post_ffn_layernorm ||
-            !model->weights.rms_q_norm || !model->weights.rms_k_norm || !model->weights.rms_final_norm) {
-        log_msg(stderr, "ERROR: Alloc failed for RMS norms\n");
-        free_safetensors_index(&idx);
+    quantize_ctx ctx;
+    if (quantize_ctx_open(&ctx, model_dir)) {
+        log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", model_dir);
+        free(model.layer_types);
         return -1;
     }
 
-    model->weights.q_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    model->weights.k_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    model->weights.v_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    model->weights.o_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    model->weights.gate_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    model->weights.up_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    model->weights.down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-
-    if (!model->weights.q_proj || !model->weights.k_proj) {
-        log_msg(stderr, "ERROR: Alloc failed\n");
-        free_safetensors_index(&idx);
+    FILE *out = fopen(output_file, "wb");
+    if (!out) {
+        log_msg(stderr, "ERROR: Failed to open %s\n", output_file);
+        quantize_ctx_close(&ctx);
+        free(model.layer_types);
         return -1;
     }
 
-    for (int i = 0; i < idx.n_unique_files; i++) {
-        process_g4u_safetensors_file(model, &idx, idx.unique_filenames[i]);
+    config_g4u *p = &model.config;
+    uint32_t magic = 0x55344D47;
+    uint32_t version = 4;
+    int failed = 0;
+
+    if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
+            quantize_write_bytes(out, &version, sizeof(version), 1) ||
+            quantize_write_bytes(out, p, sizeof(*p), 1) ||
+            quantize_write_bytes(out, model.layer_types, sizeof(int), p->n_layers)) {
+        failed = 1;
+        goto cleanup;
+    }
+
+    const char *embed_names[2] = {
+        "model.language_model.embed_tokens.weight",
+        "lm_head.weight"
+    };
+    size_t n_embed_names = p->tie_word_embeddings ? 1 : 2;
+    const weightmap_entry *embed = quantize_find_last_tensor(
+            &ctx, embed_names, n_embed_names);
+    if (quantize_write_qtensor_entry(&ctx, out, embed, p->vocab_size, p->dim)) {
+        log_msg(stderr, "ERROR: Failed quantizing embedding/classifier weights\n");
+        failed = 1;
+        goto cleanup;
+    }
+
+    char name[256];
+    for (int l = 0; l < p->n_layers; l++) {
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.input_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+    }
+    for (int l = 0; l < p->n_layers; l++) {
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.post_attention_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+    }
+    for (int l = 0; l < p->n_layers; l++) {
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.pre_feedforward_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+    }
+    for (int l = 0; l < p->n_layers; l++) {
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.post_feedforward_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+    }
+    for (int l = 0; l < p->n_layers; l++) {
+        int hd = model.layer_types[l] ? p->global_head_dim : p->head_dim;
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.self_attn.q_norm.weight", l);
+        if (write_named_f32(&ctx, out, name, hd)) { failed = 1; goto cleanup; }
+    }
+    for (int l = 0; l < p->n_layers; l++) {
+        int hd = model.layer_types[l] ? p->global_head_dim : p->head_dim;
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.self_attn.k_norm.weight", l);
+        if (write_named_f32(&ctx, out, name, hd)) { failed = 1; goto cleanup; }
+    }
+    if (write_named_f32(&ctx, out,
+            "model.language_model.norm.weight", p->dim)) {
+        failed = 1;
+        goto cleanup;
     }
 
     for (int l = 0; l < p->n_layers; l++) {
-        int is_full = model->layer_types[l];
+        int is_full = model.layer_types[l];
         int use_alternative_attention = is_full && p->attention_k_eq_v;
         int hd = is_full ? p->global_head_dim : p->head_dim;
-        int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
+        int kv_heads = use_alternative_attention ?
+                p->n_global_kv_heads : p->n_kv_heads;
 
-        if (model->weights.q_proj[l].rows != (p->n_heads * hd) || model->weights.q_proj[l].cols != p->dim ||
-            model->weights.k_proj[l].rows != (kv_heads * hd) || model->weights.k_proj[l].cols != p->dim ||
-            model->weights.o_proj[l].rows != p->dim || model->weights.o_proj[l].cols != p->n_heads * hd ||
-            model->weights.gate_proj[l].rows != p->hidden_dim || model->weights.gate_proj[l].cols != p->dim ||
-            model->weights.up_proj[l].rows != p->hidden_dim || model->weights.up_proj[l].cols != p->dim ||
-            model->weights.down_proj[l].rows != p->dim || model->weights.down_proj[l].cols != p->hidden_dim) {
-            log_msg(stderr, "ERROR: Missing or incorrectly shaped weights in layer %d\n", l);
-            free_safetensors_index(&idx);
-            return -1;
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.self_attn.q_proj.weight", l);
+        if (write_named_qt(&ctx, out, name, p->n_heads * hd, p->dim)) {
+            failed = 1; goto cleanup;
+        }
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.self_attn.k_proj.weight", l);
+        if (write_named_qt(&ctx, out, name, kv_heads * hd, p->dim)) {
+            failed = 1; goto cleanup;
         }
 
-        if ((! use_alternative_attention) &&
-                ((model->weights.v_proj[l].rows != (kv_heads * hd))
-                || (model->weights.v_proj[l].cols != p->dim))) {
-            log_msg(stderr, "ERROR: Missing sliding-attention v_proj in layer %d\n", l);
-            free_safetensors_index(&idx);
-            return -1;
+        if (use_alternative_attention) {
+            if (quantize_write_empty_qtensor(out)) {
+                failed = 1; goto cleanup;
+            }
+        } else {
+            snprintf(name, sizeof(name),
+                    "model.language_model.layers.%d.self_attn.v_proj.weight", l);
+            if (write_named_qt(&ctx, out, name, kv_heads * hd, p->dim)) {
+                failed = 1; goto cleanup;
+            }
+        }
+
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.self_attn.o_proj.weight", l);
+        if (write_named_qt(&ctx, out, name, p->dim, p->n_heads * hd)) {
+            failed = 1; goto cleanup;
+        }
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.mlp.gate_proj.weight", l);
+        if (write_named_qt(&ctx, out, name, p->hidden_dim, p->dim)) {
+            failed = 1; goto cleanup;
+        }
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.mlp.up_proj.weight", l);
+        if (write_named_qt(&ctx, out, name, p->hidden_dim, p->dim)) {
+            failed = 1; goto cleanup;
+        }
+        snprintf(name, sizeof(name),
+                "model.language_model.layers.%d.mlp.down_proj.weight", l);
+        if (write_named_qt(&ctx, out, name, p->dim, p->hidden_dim)) {
+            failed = 1; goto cleanup;
         }
     }
 
-    if (model->weights.embed_tokens.q == NULL) {
-        log_msg(stderr, "ERROR: embed_tokens.weight was not found\n");
-        free_safetensors_index(&idx);
+    for (int l = 0; l < p->n_layers; l++) {
+        char scalar0[256], scalar1[256], scalar2[256];
+        snprintf(scalar0, sizeof(scalar0),
+                "model.language_model.layers.%d.layer_scalar", l);
+        snprintf(scalar1, sizeof(scalar1),
+                "model.language_model.layers.%d.layer_scalar.weight", l);
+        snprintf(scalar2, sizeof(scalar2),
+                "model.language_model.layers.%d.layer_output_scale.weight", l);
+        const char *names[] = { scalar0, scalar1, scalar2 };
+        if (quantize_write_scalar_or_default(&ctx, out, names, 3, 1.0f)) {
+            failed = 1; goto cleanup;
+        }
+    }
+
+    if (p->use_rope_freqs) {
+        if (write_named_f32(&ctx, out,
+                "model.language_model.layers.0.self_attn.rope_freqs.weight",
+                p->global_head_dim / 2)) {
+            failed = 1;
+            goto cleanup;
+        }
+    }
+
+cleanup:
+    if (fclose(out) != 0) {
+        failed = 1;
+    }
+    quantize_ctx_close(&ctx);
+    free(model.layer_types);
+
+    if (failed) {
+        remove(output_file);
         return -1;
     }
 
-    log_msg(stderr, "INFO: G4U weights loaded successfully\n");
-    free_safetensors_index(&idx);
+    log_msg(stderr, "INFO: Quantized G4U saved to %s\n", output_file);
     return 0;
-}
-
-void build_g4u(G4U *model, char *model_path) {
-    memset(model, 0, sizeof(G4U));
-    if (load_config_g4u(model, model_path)) {
-        exit(EXIT_FAILURE);
-    }
-    if (load_g4u_from_safetensors(model, model_path)) {
-        exit(EXIT_FAILURE);
-    }
-}
-
-void save_quantized_g4u(const char *filepath, G4U* model) {
-    FILE *f = fopen(filepath, "wb");
-    if (!f) {
-        log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
-        exit(EXIT_FAILURE);
-    }
-    uint32_t magic = 0x55344D47;
-    uint32_t version = 4;
-
-    fwrite(&magic, sizeof(uint32_t), 1, f);
-    fwrite(&version, sizeof(uint32_t), 1, f);
-    fwrite(&model->config, sizeof(config_g4u), 1, f);
-    fwrite(model->layer_types, sizeof(int), model->config.n_layers, f);
-
-    config_g4u *p = &model->config;
-    weights_g4u *w = &model->weights;
-
-    write_qt(f, &w->embed_tokens);
-    fwrite(w->rms_input_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fwrite(w->rms_post_attn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fwrite(w->rms_pre_ffn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fwrite(w->rms_post_ffn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    
-    int total_norm_dim = 0;
-    for (int i = 0; i < p->n_layers; i++) {
-        int hd = model->layer_types[i] ? p->global_head_dim : p->head_dim;
-        total_norm_dim += hd;
-    }
-    fwrite(w->rms_q_norm, sizeof(float), total_norm_dim, f);
-    fwrite(w->rms_k_norm, sizeof(float), total_norm_dim, f);
-    fwrite(w->rms_final_norm, sizeof(float), (size_t)p->dim, f);
-
-    for (int i = 0; i < p->n_layers; i++) {
-        write_qt(f, &w->q_proj[i]);
-        write_qt(f, &w->k_proj[i]);
-        write_qt(f, &w->v_proj[i]);
-        write_qt(f, &w->o_proj[i]);
-        write_qt(f, &w->gate_proj[i]);
-        write_qt(f, &w->up_proj[i]);
-        write_qt(f, &w->down_proj[i]);
-    }
-
-    fwrite(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
-
-    if (p->use_rope_freqs && w->rope_freqs_full) {
-        int freq_dim = p->global_head_dim / 2;
-        fwrite(w->rope_freqs_full, sizeof(float), freq_dim, f);
-        log_msg(stderr, "INFO: Saved rope_freqs (%d floats)\n", freq_dim);
-    }
-
-    fclose(f);
-    log_msg(stderr, "INFO: Quantized G4U saved to %s\n", filepath);
 }
 
 int main(int argc, char *argv[]) {
-    char *model_arg = NULL;
-    char *output_file = NULL;
-    if (argc >= 3) {
-        model_arg = argv[1];
-        output_file = argv[2];
-    }
-    else {
+    if (argc < 3) {
         log_msg(stderr, "Usage: dolen_g4u_quantize <model_dir> <output_file>\n");
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
-
-    G4U model;
-    build_g4u(&model, model_arg);
-    save_quantized_g4u(output_file, &model);
-    free_g4u(&model);
-    return 0;
+    return quantize_g4u_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

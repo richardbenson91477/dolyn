@@ -82,227 +82,133 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     return 0;
 }
 
-static float *load_layer_tensor_from_handle(csafetensors_t *st, int l, const char *suffix, float *dest, size_t expected_size) {
+static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer,
+        const char *suffix, size_t elements) {
     char name[256];
-    snprintf(name, sizeof(name), "model.layers.%d.%s", l, suffix);
-    return load_tensor_from_handle(st, name, dest, expected_size);
-}
-
-static void process_ig4_1_safetensors_file(IG4_1 *model_ig4_1, safetensors_idx *idx, const char *filename) {
-    config_ig4_1 *p = &model_ig4_1->config;
-    weights_ig4_1 *w = &model_ig4_1->weights;
-
-    char filepath[4096];
-    snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
-
-    log_msg(stderr, "INFO: Loading shard: %s\n", filename);
-    csafetensors_t st;
-    if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
-        log_msg(stderr, "ERROR: Failed to load %s\n", filepath);
-        exit(EXIT_FAILURE);
-    }
-
-    int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
-    int kv_dim = p->n_kv_heads * head_size;
-    int attn_out_dim = p->n_heads * head_size;
-
-    for (size_t i = 0; i < idx->n_entries; i++) {
-        if (strcmp(idx->entries[i].filename, filename)) {
-            continue;
-        }
-
-        const char *tname = idx->entries[i].tensor_name;
-
-        if (strcmp(tname, "model.embed_tokens.weight") == 0) {
-            float *f = load_tensor_from_handle(&st, tname, NULL, 0);
-            if (f) {
-                quantize_group(&w->token_embedding_table, f, p->vocab_size, p->dim);
-                free(f);
-            }
-        }
-        else if (strcmp(tname, "lm_head.weight") == 0) {
-            if (!p->tie_word_embeddings) {
-                float *f = load_tensor_from_handle(&st, tname, NULL, 0);
-                if (f) {
-                    quantize_group(&w->wcls, f, p->vocab_size, p->dim);
-                    free(f);
-                }
-            }
-        }
-        else if (strcmp(tname, "model.norm.weight") == 0) {
-            load_tensor_from_handle(&st, tname, w->rms_final_weight, p->dim);
-        }
-        else if (strncmp(tname, "model.layers.", 13) == 0) {
-            int l = atoi(tname + 13);
-            if (l < 0 || l >= p->n_layer) {
-                continue;
-            }
-
-            const char *suffix = strstr(tname + 13, ".");
-            if (!suffix) {
-                continue;
-            }
-            suffix++;
-
-            if (strcmp(suffix, "input_layernorm.weight") == 0) {
-                load_layer_tensor_from_handle(&st, l, suffix, w->rms_att_weight + l * p->dim, p->dim);
-            }
-            else if (strcmp(suffix, "post_attention_layernorm.weight") == 0) {
-                load_layer_tensor_from_handle(&st, l, suffix, w->rms_ffn_weight + l * p->dim, p->dim);
-            }
-            else if (strcmp(suffix, "self_attn.q_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->wq[l], p->n_heads * head_size, p->dim);
-            else if (strcmp(suffix, "self_attn.k_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->wk[l], kv_dim, p->dim);
-            else if (strcmp(suffix, "self_attn.v_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->wv[l], kv_dim, p->dim);
-            else if (strcmp(suffix, "self_attn.o_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->wo[l], p->dim, attn_out_dim);
-            else if (strcmp(suffix, "mlp.gate_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->w1[l], p->n_mlp, p->dim);
-            else if (strcmp(suffix, "mlp.down_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->w2[l], p->dim, p->n_mlp);
-            else if (strcmp(suffix, "mlp.up_proj.weight") == 0)
-                load_and_quantize_from_handle(&st, tname, &w->w3[l], p->n_mlp, p->dim);
-        }
-    }
-
-    csafetensors_free(&st);
-    log_msg(stderr, "INFO: Finished shard: %s\n", filename);
-}
-
-int load_ig4_1_from_safetensors(IG4_1 *model_ig4_1, const char *model_dir) {
-    config_ig4_1 *p = &model_ig4_1->config;
-    weights_ig4_1 *w = &model_ig4_1->weights;
-    safetensors_idx idx;
-
-    if (load_safetensors_index(&idx, model_dir)) {
-        log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
+    snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
+    if (quantize_write_f32_or_zeros(ctx, out, name, elements)) {
+        log_msg(stderr, "ERROR: Failed writing %s\n", name);
         return -1;
     }
-
-    int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
-    int kv_dim = p->n_kv_heads * head_size;
-    int attn_out_dim = p->n_heads * head_size;
-
-    w->rms_att_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
-    w->wq = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->wk = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->wv = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->wo = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-
-    w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
-    w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->w3 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-
-    w->rms_final_weight = (float *)a_calloc(p->dim * sizeof(float));
-
-    memset(&w->token_embedding_table, 0, sizeof(qtensor));
-    memset(&w->wcls, 0, sizeof(qtensor));
-
-    for (int i = 0; i < idx.n_unique_files; i++) {
-        process_ig4_1_safetensors_file(model_ig4_1, &idx, idx.unique_filenames[i]);
-    }
-
-    if (p->tie_word_embeddings) {
-        w->wcls = w->token_embedding_table;
-    } else if (w->wcls.q == NULL) {
-         log_msg(stderr, "ERROR: lm_head.weight was not found and tie_word_embeddings is false\n");
-         return -1;
-    }
-
-    if (w->token_embedding_table.q == NULL) {
-        log_msg(stderr, "ERROR: embed_tokens.weight was not found\n");
-        return -1;
-    }
-
-    if (w->rms_final_weight == NULL) {
-        log_msg(stderr, "ERROR: model.norm.weight was not found\n");
-        return -1;
-    }
-
-    log_msg(stderr, "INFO: Weights loaded successfully\n");
-    free_safetensors_index(&idx);
     return 0;
 }
 
-void build_ig4_1(IG4_1 *model_ig4_1, char *model_path) {
-    memset(model_ig4_1, 0, sizeof(IG4_1));
-
-    if (load_config_ig4_1(model_path, &model_ig4_1->config)) {
-        exit(EXIT_FAILURE);
+static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer,
+        const char *suffix, int rows, int cols) {
+    char name[256];
+    snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
+    if (quantize_write_qtensor_or_empty(ctx, out, name, rows, cols)) {
+        log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
+        return -1;
     }
-
-    if (load_ig4_1_from_safetensors(model_ig4_1, model_path)) {
-        exit(EXIT_FAILURE);
-    }
+    return 0;
 }
 
-void save_quantized_ig4_1(const char *filepath, IG4_1* model_ig4_1) {
-    FILE *f = fopen(filepath, "wb");
-    if (!f) {
-        log_msg(stderr, "ERROR: Failed to open %s for writing\n", filepath);
-        exit(EXIT_FAILURE);
+int quantize_ig4_1_to_file(const char *model_dir, const char *output_file) {
+    config_ig4_1 config;
+    if (load_config_ig4_1(model_dir, &config)) {
+        return -1;
     }
-    
-    uint32_t magic = 0x31344749; // 'IG4_1'
+
+    quantize_ctx ctx;
+    if (quantize_ctx_open(&ctx, model_dir)) {
+        log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", model_dir);
+        return -1;
+    }
+
+    FILE *out = fopen(output_file, "wb");
+    if (!out) {
+        log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
+        quantize_ctx_close(&ctx);
+        return -1;
+    }
+
+    uint32_t magic = 0x31344749;
     uint32_t version = 1;
-    fwrite(&magic, sizeof(uint32_t), 1, f);
-    fwrite(&version, sizeof(uint32_t), 1, f);
+    int failed = 0;
+    int head_size = config.d_head > 0 ? config.d_head : config.dim / config.n_heads;
+    int kv_dim = config.n_kv_heads * head_size;
+    int attn_out_dim = config.n_heads * head_size;
 
-    fwrite(&model_ig4_1->config, sizeof(config_ig4_1), 1, f);
+    if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
+            quantize_write_bytes(out, &version, sizeof(version), 1) ||
+            quantize_write_bytes(out, &config, sizeof(config), 1) ||
+            quantize_write_qtensor(&ctx, out, "model.embed_tokens.weight",
+                    config.vocab_size, config.dim)) {
+        failed = 1;
+        goto cleanup;
+    }
 
-    config_ig4_1 *p = &model_ig4_1->config;
-    weights_ig4_1 *w = &model_ig4_1->weights;
-    
-    write_qt(f, &w->token_embedding_table);
-    fwrite(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f);
-    
-    for (int i = 0; i < p->n_layer; i++) {
-        write_qt(f, &w->wq[i]);
-        write_qt(f, &w->wk[i]);
-        write_qt(f, &w->wv[i]);
-        write_qt(f, &w->wo[i]);
+    for (int l = 0; l < config.n_layer; l++) {
+        if (write_layer_f32(&ctx, out, l, "input_layernorm.weight", config.dim)) {
+            failed = 1; goto cleanup;
+        }
     }
-    
-    fwrite(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f);
-    
-    for (int i = 0; i < p->n_layer; i++) {
-        write_qt(f, &w->w1[i]);
-        write_qt(f, &w->w2[i]);
-        write_qt(f, &w->w3[i]);
+
+    for (int l = 0; l < config.n_layer; l++) {
+        if (write_layer_qt(&ctx, out, l, "self_attn.q_proj.weight",
+                    config.n_heads * head_size, config.dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.k_proj.weight",
+                    kv_dim, config.dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.v_proj.weight",
+                    kv_dim, config.dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.o_proj.weight",
+                    config.dim, attn_out_dim)) {
+            failed = 1; goto cleanup;
+        }
     }
-    
-    fwrite(w->rms_final_weight, sizeof(float), p->dim, f);
-    
-    if (!p->tie_word_embeddings) {
-        write_qt(f, &w->wcls);
+
+    for (int l = 0; l < config.n_layer; l++) {
+        if (write_layer_f32(&ctx, out, l,
+                    "post_attention_layernorm.weight", config.dim)) {
+            failed = 1; goto cleanup;
+        }
     }
-    
-    fclose(f);
-    log_msg(stderr, "INFO: Quantized model saved to %s\n", filepath);
+
+    for (int l = 0; l < config.n_layer; l++) {
+        if (write_layer_qt(&ctx, out, l, "mlp.gate_proj.weight",
+                    config.n_mlp, config.dim) ||
+                write_layer_qt(&ctx, out, l, "mlp.down_proj.weight",
+                    config.dim, config.n_mlp) ||
+                write_layer_qt(&ctx, out, l, "mlp.up_proj.weight",
+                    config.n_mlp, config.dim)) {
+            failed = 1; goto cleanup;
+        }
+    }
+
+    if (quantize_write_f32_or_zeros(&ctx, out,
+                "model.norm.weight", config.dim)) {
+        failed = 1;
+        goto cleanup;
+    }
+
+    if (!config.tie_word_embeddings &&
+            quantize_write_qtensor(&ctx, out, "lm_head.weight",
+                config.vocab_size, config.dim)) {
+        failed = 1;
+        goto cleanup;
+    }
+
+cleanup:
+    if (fclose(out) != 0) {
+        failed = 1;
+    }
+    quantize_ctx_close(&ctx);
+
+    if (failed) {
+        remove(output_file);
+        return -1;
+    }
+
+    log_msg(stderr, "INFO: Quantized model saved to %s\n", output_file);
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
-    char *model_arg = NULL;
-    char *output_file = NULL;
-
-    if (argc >= 3) {
-        model_arg = argv[1];
-        output_file = argv[2];
-    } else {
+    if (argc < 3) {
         log_msg(stderr, "Usage: dolen_ig4_1_quantize <model_dir> <output_file>\n");
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
-
-    IG4_1 model_ig4_1;
-    build_ig4_1(&model_ig4_1, model_arg);
-
-    save_quantized_ig4_1(output_file, &model_ig4_1);
-
-    free_ig4_1(&model_ig4_1);
-    
-    return 0;
+    return quantize_ig4_1_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

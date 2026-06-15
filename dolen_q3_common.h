@@ -16,7 +16,7 @@ typedef struct {
     float rope_theta;
     float rope_scaling_factor;
     float rms_norm_eps;
-} config_qwen3;
+} config_q3;
 
 typedef struct {
     qtensor token_embedding_table;
@@ -33,7 +33,7 @@ typedef struct {
     qtensor *w3;
     float *rms_final_weight;
     qtensor wcls;
-} weights_qwen3;
+} weights_q3;
 
 typedef struct {
     float *x;
@@ -52,15 +52,15 @@ typedef struct {
     float *cos_cache;
     float *sin_cache;
     int allocated;
-} state_qwen3;
+} state_q3;
 
 typedef struct {
-    config_qwen3 config;
-    weights_qwen3 weights;
-    state_qwen3 state;
-} Qwen3;
+    config_q3 config;
+    weights_q3 weights;
+    state_q3 state;
+} Q3;
 
-static token_map special_tokens_qwen3[] = {
+static token_map special_tokens_q3[] = {
     {"<|endoftext|\x3e", 151643},
     {"<|im_start|\x3e", 151644},
     {"<|im_end|\x3e", 151645},
@@ -79,11 +79,11 @@ static token_map special_tokens_qwen3[] = {
 };
 
 
-void alloc_state_qwen3(state_qwen3 *s, config_qwen3 *p);
+void alloc_state_q3(state_q3 *s, config_q3 *p);
 
-void free_state_qwen3(state_qwen3 *s);
+void free_state_q3(state_q3 *s);
 
-void free_qwen3(Qwen3 *t);
+void free_q3(Q3 *t);
 
 
 #endif //DOLEN_Q3_COMMON_H

@@ -23,7 +23,7 @@ typedef struct {
     int linear_conv_kernel;
     int n_full_attn_layers;
     int n_linear_attn_layers;
-} config_qwen3_5;
+} config_q3_5;
 
 typedef struct {
     qtensor token_embedding_table;
@@ -49,7 +49,7 @@ typedef struct {
     qtensor *w3;
     float *rms_final_weight;
     qtensor wcls;
-} weights_qwen3_5;
+} weights_q3_5;
 
 typedef struct {
     float *x;
@@ -78,18 +78,18 @@ typedef struct {
     float *cos_cache;
     float *sin_cache;
     int allocated;
-} state_qwen3_5;
+} state_q3_5;
 
 typedef struct {
-    config_qwen3_5 config;
-    weights_qwen3_5 weights;
-    state_qwen3_5 state;
+    config_q3_5 config;
+    weights_q3_5 weights;
+    state_q3_5 state;
     int *layer_types;
     int *attn_layer_indices;
     int *deltanet_layer_indices;
-} Qwen3_5;
+} Q3_5;
 
-static token_map special_tokens_qwen3_5[] = {
+static token_map special_tokens_q3_5[] = {
     {"<|endoftext|\x3e", 248044},
     {"<|im_start|\x3e", 248045},
     {"<|im_end|\x3e", 248046},
@@ -108,11 +108,11 @@ static token_map special_tokens_qwen3_5[] = {
 };
 
 
-void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p);
+void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p);
 
-void free_state_qwen3_5(state_qwen3_5 *s);
+void free_state_q3_5(state_q3_5 *s);
 
-void free_qwen3_5(Qwen3_5 *model_qwen3_5);
+void free_q3_5(Q3_5 *model_q3_5);
 
 
 #endif //DOLEN_Q3_5_COMMON_H

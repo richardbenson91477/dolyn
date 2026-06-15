@@ -1,7 +1,7 @@
 #include "dolen_q3_common.h"
 
 
-void alloc_state_qwen3(state_qwen3 *s, config_qwen3 *p) {
+void alloc_state_q3(state_q3 *s, config_q3 *p) {
     int all_heads_dim = p->n_heads * p->head_dim;
     int kv_dim = p->n_kv_heads * p->head_dim;
 
@@ -59,7 +59,7 @@ void alloc_state_qwen3(state_qwen3 *s, config_qwen3 *p) {
     s->allocated = 1;
 }
 
-void free_state_qwen3(state_qwen3 *s) {
+void free_state_q3(state_q3 *s) {
     if (! s->allocated) {
         return;
     }
@@ -90,9 +90,9 @@ void free_state_qwen3(state_qwen3 *s) {
     s->allocated = 0;
 }
 
-void free_qwen3(Qwen3 *model_qwen3) {
-    weights_qwen3 *w = &model_qwen3->weights;
-    int n_layer = model_qwen3->config.n_layers;
+void free_q3(Q3 *model_q3) {
+    weights_q3 *w = &model_q3->weights;
+    int n_layer = model_q3->config.n_layers;
 
     free_qt(&w->token_embedding_table);
     free(w->rms_att_weight);
@@ -109,12 +109,12 @@ void free_qwen3(Qwen3 *model_qwen3) {
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
 
-    if (! model_qwen3->config.shared_classifier) {
+    if (! model_q3->config.shared_classifier) {
         free_qt(&w->wcls);
     }
 
-    if (model_qwen3->state.allocated == 1) {
-        free_state_qwen3(&model_qwen3->state);
+    if (model_q3->state.allocated == 1) {
+        free_state_q3(&model_q3->state);
     }
 }
 
