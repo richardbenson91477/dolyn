@@ -5,7 +5,7 @@ model="${model_path}/gemma4_12b_a"
 tokenizer="${model_path}/gemma4_12b_tokenizer.bin"
 prompt="The capital of France is "
 mode="generate"
-seq_n=16
+seq_n=32
 temp="0.0"
 log="/scratch/wip_log.prompt.m4"
 
