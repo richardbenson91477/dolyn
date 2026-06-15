@@ -7,7 +7,6 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         return -1;
     }
     memset(model, 0, sizeof(Gemma4Unified));
-
     uint32_t magic, version;
     if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read header\n");
@@ -24,7 +23,6 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         fclose(f);
         return -1;
     }
-
     config_gemma4u *p = &model->config;
     if (fread(p, sizeof(config_gemma4u), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read config\n");
@@ -34,14 +32,12 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     if (seq_n_max != 0) {
         p->seq_len = seq_n_max;
     }
-
     model->layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
     if (fread(model->layer_types, sizeof(int), (size_t)p->n_layers, f) != (size_t)p->n_layers) {
         log_msg(stderr, "ERROR: Failed to read layer_types\n");
         fclose(f);
         return -1;
     }
-
     weights_gemma4u *w = &model->weights;
     int total_norm_dim = 0;
     w->norm_offsets = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
@@ -49,7 +45,6 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         w->norm_offsets[i] = total_norm_dim;
         total_norm_dim += (model->layer_types[i] ? p->global_head_dim : p->head_dim);
     }
-
     w->rms_input_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
     w->rms_post_attn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
     w->rms_pre_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
@@ -57,13 +52,11 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     w->rms_q_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
     w->rms_k_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
     w->rms_final_norm = (float *)a_calloc((size_t)p->dim * sizeof(float));
-
     if (!w->rms_input_layernorm || !w->rms_final_norm || !w->rms_q_norm) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(f);
         return -1;
     }
-
     read_qt(f, &w->embed_tokens);
     fread(w->rms_input_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
     fread(w->rms_post_attn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
@@ -72,7 +65,6 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     fread(w->rms_q_norm, sizeof(float), total_norm_dim, f);
     fread(w->rms_k_norm, sizeof(float), total_norm_dim, f);
     fread(w->rms_final_norm, sizeof(float), (size_t)p->dim, f);
-
     w->q_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->k_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->v_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -80,12 +72,10 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
     w->gate_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->up_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-
     w->layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
     for (int i = 0; i < p->n_layers; i++) {
         w->layer_scalars[i] = 1.0f;
     }
-
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->q_proj[i]);
         read_qt(f, &w->k_proj[i]);
@@ -96,13 +86,11 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         read_qt(f, &w->down_proj[i]);
     }
     fread(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
-
     if (p->use_rope_freqs) {
         int freq_dim = p->global_head_dim / 2;
         w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
         fread(w->rope_freqs_full, sizeof(float), freq_dim, f);
     }
-
     fclose(f);
     log_msg(stderr, "INFO: Quantized Gemma4Unified loaded from %s\n", filepath);
     alloc_state_gemma4u(&model->state, p, w);
@@ -111,18 +99,20 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
 
 static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
     float ss = 0.0f;
-    #pragma omp simd reduction(+:ss)
+#pragma omp simd reduction(+:ss)
     for (int j = 0; j < size; j++) {
         ss += x[j] * x[j];
     }
-
     ss = 1.0f / sqrtf(ss / size + eps);
-
-    #pragma omp simd
-    for (int j = 0; j < size; j++) {
-        o[j] = x[j] * ss;
-        if (with_scale && weight) {
-            o[j] *= weight[j];
+    if (with_scale && weight) {
+#pragma omp simd
+        for (int j = 0; j < size; j++) {
+            o[j] = x[j] * ss * weight[j];
+        }
+    } else {
+#pragma omp simd
+        for (int j = 0; j < size; j++) {
+            o[j] = x[j] * ss;
         }
     }
 }
@@ -132,9 +122,7 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
         return;
     }
     int half_rot = rotary_dim / 2;
-    
-    int cache_stride = vec_dim / 2; 
-    
+    int cache_stride = vec_dim / 2;
     float *cos_row = cos + pos * cache_stride;
     float *sin_row = sin + pos * cache_stride;
     for (int i = 0; i < half_rot; i++) {
@@ -157,7 +145,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     int dim = p->dim;
     float eps = p->rms_norm_eps;
     float embed_scale = sqrtf((float)dim);
-
     int max_head_dim = p->global_head_dim > p->head_dim ? p->global_head_dim : p->head_dim;
     int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
     int max_kv_dim   = max_kv_heads * max_head_dim;
@@ -172,6 +159,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     }
 
     dequantize_row(x, &w->embed_tokens, token);
+#pragma omp simd
     for (int i = 0; i < dim; i++) {
         x[i] *= embed_scale;
     }
@@ -183,9 +171,10 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = kv_heads * head_dim;
         int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
-
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
+        
+        int layer_attn_out_dim = p->n_heads * head_dim;
 
         float *rms_in      = w->rms_input_layernorm + l * dim;
         float *rms_post_a  = w->rms_post_attn_layernorm + l * dim;
@@ -195,25 +184,25 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         float *rms_k       = w->rms_k_norm + w->norm_offsets[l];
 
         rmsnorm_gemma4u(s->xb, x, rms_in, dim, eps, 1);
-        matmul_qt(s->q, s->xb, &w->q_proj[l]);
-        
-        matmul_qt(s->k_raw, s->xb, &w->k_proj[l]);
-
+        quantize_vec(&s->xq, s->xb, dim);
+        matmul_qq(s->q, &s->xq, &w->q_proj[l]);
+        matmul_qq(s->k_raw, &s->xq, &w->k_proj[l]);
         if (use_alternative_attention) {
             memcpy(s->v, s->k_raw, kv_dim * sizeof(float));
         } else {
-            matmul_qt(s->v, s->xb, &w->v_proj[l]);
+            matmul_qq(s->v, &s->xq, &w->v_proj[l]);
         }
 
+#pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
             rmsnorm_gemma4u(qh, qh, rms_q, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
                 apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
-
         }
 
+#pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
             rmsnorm_gemma4u(kh, kh, rms_k, head_dim, eps, 1);
@@ -221,8 +210,9 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
         }
-        memcpy(s->k, s->k_raw, kv_dim * sizeof(float));
 
+        memcpy(s->k, s->k_raw, kv_dim * sizeof(float));
+#pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
             rmsnorm_gemma4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
@@ -232,79 +222,87 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         memcpy(s->value_cache + loff + (long long)pos * max_kv_dim, s->v, kv_dim * sizeof(float));
 
         int start_t = is_full ? 0 : fmax(0, pos - p->sliding_window + 1);
-
+#pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * head_dim;
             float *att = s->att + h * p->seq_len;
-
             int kv_head = h / (p->n_heads / kv_heads);
-            for (int t = 0; t <= pos; t++) {
+            
+            for (int t = 0; t < start_t; t++) {
                 att[t] = -1e9f;
             }
 
             float attn_scale = 1.0f;
-
             for (int t = start_t; t <= pos; t++) {
                 float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float score = 0.0f;
+#pragma omp simd reduction(+:score)
                 for (int i = 0; i < head_dim; i++) {
                     score += q[i] * k[i];
                 }
                 att[t] = score * attn_scale;
             }
-
             softmax(att, pos + 1);
-
+            
             float *out = s->hb + h * head_dim;
             memset(out, 0, head_dim * sizeof(float));
-
             for (int t = start_t; t <= pos; t++) {
                 float *v = s->value_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float a = att[t];
+#pragma omp simd
                 for (int i = 0; i < head_dim; i++) {
                     out[i] += a * v[i];
                 }
             }
         }
 
-        matmul_qt(s->xb, s->hb, &w->o_proj[l]);
+        quantize_vec(&s->xq, s->hb, layer_attn_out_dim);
+        matmul_qq(s->xb, &s->xq, &w->o_proj[l]);
         rmsnorm_gemma4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
+#pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
 
         rmsnorm_gemma4u(s->xb, x, rms_pre_f, dim, eps, 1);
-        matmul_qt(s->hb, s->xb, &w->gate_proj[l]);
-        matmul_qt(s->hb2, s->xb, &w->up_proj[l]);
+        quantize_vec(&s->xq, s->xb, dim);
+        matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
+        matmul_qq(s->hb2, &s->xq, &w->up_proj[l]);
         int ffn_dim = w->gate_proj[l].rows;
+#pragma omp parallel for
         for (int i = 0; i < ffn_dim; i++) {
             s->hb[i] = gemma_gelu(s->hb[i]) * s->hb2[i];
         }
-        matmul_qt(s->xb, s->hb, &w->down_proj[l]);
+        
+        quantize_vec(&s->hq, s->hb, ffn_dim);
+        matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
         rmsnorm_gemma4u(s->xb, s->xb, rms_post_f, dim, eps, 1);
+#pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
 
         if (w->layer_scalars[l] != 1.0f) {
+            float scale = w->layer_scalars[l];
+#pragma omp simd
             for (int i = 0; i < dim; i++) {
-                x[i] *= w->layer_scalars[l];
+                x[i] *= scale;
             }
         }
     }
 
     rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
-
-    matmul_qt(s->logits, x, &w->embed_tokens);
-
+    quantize_vec(&s->xq, x, dim);
+    matmul_qq(s->logits, &s->xq, &w->embed_tokens);
+    
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;
         float inv = 1.0f / cap;
+#pragma omp parallel for
         for (int i = 0; i < p->vocab_size; i++) {
             s->logits[i] = tanhf(s->logits[i] * inv) * cap;
         }
     }
-
     return s->logits;
 }
 
