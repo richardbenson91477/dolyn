@@ -282,16 +282,16 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
 
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
     .first_turn_and_system =
-        "<|start_of_role|>system<|end_of_role|>\n%s<|end_of_text|>\n"
-        "<|start_of_role|>user<|end_of_role|>\n%s<|end_of_turn|>\n"
-        "<|start_of_role|>assistant<|end_of_role|>\n",
+        "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|> "
+        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|> "
+        "<|start_of_role|>assistant<|end_of_role|>",
     .first_turn =
-        "<|start_of_role|>user<|end_of_role|>\n%s<|end_of_turn|>\n"
-        "<|start_of_role|>assistant<|end_of_role|>\n",
+        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|> "
+        "<|start_of_role|>assistant<|end_of_role|>",
     .next_turn =
-        "<|end_of_text|>\n"
-        "<|start_of_role|>user<|end_of_role|>\n%s<|end_of_turn|>\n"
-        "<|start_of_role|>assistant<|end_of_role|>\n",
+        "<|end_of_text|>"
+        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|> "
+        "<|start_of_role|>assistant<|end_of_role|>",
 };
 
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
@@ -312,7 +312,7 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 100257, 
         .eos_token_id = 100257, 
-        .im_end_id = 0,
+        .im_end_id = 100257,
         .special_tokens = NULL,
         .chat_template = &CHAT_TEMPLATE_IG4_1 
     };
