@@ -1,0 +1,25 @@
+#!/bin/sh
+
+model_path="/home/models/dolen_models"
+model="${model_path}/gemma4_12b_a"
+tokenizer="${model_path}/gemma4_12b_tokenizer.bin"
+prompt="The capital of France is "
+mode="generate"
+seq_n=16
+temp="0.0"
+log="/scratch/wip_log.prompt.m4"
+
+
+echo "./dolen_g4u --model \"$model\" --tokenizer \"$tokenizer\" --prompt \"$prompt\" --mode \"$mode\" --seq_n \"$seq_n\" --temp \"$temp\" --log \"$log\" $@" | tee "$log"
+
+
+./dolen_g4u \
+  --model "$model" \
+  --tokenizer "$tokenizer" \
+  --prompt "$prompt" \
+  --mode "$mode" \
+  --seq_n "$seq_n" \
+  --temp "$temp" \
+  --log "$log" \
+  "$@"
+
