@@ -35,6 +35,5 @@ prompt_n=1024
     --temp "${temp}" \
     --top_p "${top_p}" \
     --top_k "${top_k}" \
-    --log "${log}" \
     "$@"
 
