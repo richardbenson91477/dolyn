@@ -1,6 +1,8 @@
 dolen
 
-Qwen3 / Qwen3.5 / Qwen3.6 inference in C, based originally on "Qwen3.c" [https://github.com/adriancable/qwen3.c] and "Qwen3.5.c" [https://github.com/kroggen/qwen3.5-c]
+Qwen3 / Qwen3.5 / Qwen3.6 / Gemma4-Universal inference in C, based originally on "Qwen3.c" [https://github.com/adriancable/qwen3.c] and "Qwen3.5.c" [https://github.com/kroggen/qwen3.5-c]
+
+Currently supports non-MoE and text only.
 
 Derived ultimately from "llama2.c" [https://github.com/karpathy/llama2.c] by Andrej Karpathy.
 

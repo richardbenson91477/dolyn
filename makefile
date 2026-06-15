@@ -48,7 +48,7 @@ BINS = $(BIN_Q3_5) $(BIN_Q3_5_Q) $(BIN_Q3) $(BIN_Q3_Q) $(BIN_G4U) $(BIN_G4U_Q)
 BINS_DBG = $(BIN_Q3_5_DBG) $(BIN_Q3_5_Q_DBG) $(BIN_Q3_DBG) $(BIN_Q3_Q_DBG) $(BIN_G4U_DBG) $(BIN_G4U_Q_DBG)
 
 
-all: $(BINS) $(BINS_DBG)
+all: strip $(BINS_DBG)
 
 test: test_q3_5
 test_dbg: test_q3_5_dbg
@@ -58,14 +58,12 @@ debug_q: debug_q35_q
 
 $(BIN_Q3_5): $(SRC_Q3_5) $(INC_Q3_5)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_Q3_5) -lm
-	strip $@
 
 $(BIN_Q3_5_DBG): $(SRC_Q3_5) $(INC_Q3_5)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q3_5) -lm
 
 $(BIN_Q3_5_Q): $(SRC_Q3_5_Q) $(LIB_SRCS) $(INC_Q3_5_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_Q3_5_Q) $(LIB_SRCS) -lm
-	strip $@
 
 $(BIN_Q3_5_Q_DBG): $(SRC_Q3_5_Q) $(LIB_SRCS) $(INC_Q3_5_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q3_5_Q) $(LIB_SRCS) -lm
@@ -85,14 +83,12 @@ debug_q3_5_q: $(BIN_Q3_5_Q_DBG)
 
 $(BIN_Q3): $(SRC_Q3) $(INC_Q3)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_Q3) -lm
-	strip $@
 
 $(BIN_Q3_DBG): $(SRC_Q3) $(INC_Q3)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q3) -lm
 
 $(BIN_Q3_Q): $(SRC_Q3_Q) $(LIB_SRCS) $(INC_Q3_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_Q3_Q) $(LIB_SRCS) -lm
-	strip $@
 
 $(BIN_Q3_Q_DBG): $(SRC_Q3_Q) $(LIB_SRCS) $(INC_Q3_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q3_Q) $(LIB_SRCS) -lm
@@ -112,14 +108,12 @@ debug_q3_q: $(BIN_Q3_Q_DBG)
 
 $(BIN_G4U): $(SRC_G4U) $(INC_G4U)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_G4U) -lm
-	strip $@
 
 $(BIN_G4U_DBG): $(SRC_G4U) $(INC_G4U)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_G4U) -lm
 
 $(BIN_G4U_Q): $(SRC_G4U_Q) $(LIB_SRCS) $(INC_G4U_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_G4U_Q) $(LIB_SRCS) -lm
-	strip $@
 
 $(BIN_G4U_Q_DBG): $(SRC_G4U_Q) $(LIB_SRCS) $(INC_G4U_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_G4U_Q) $(LIB_SRCS) -lm
@@ -137,10 +131,9 @@ debug_g4u_q: $(BIN_G4U_Q_DBG)
 	./dolen_q_run_gdb $(BIN_G4U_Q_DBG)
 
 
+strip: $(BINS)
+	strip $(BINS)
+
 clean:
 	rm -vf $(BINS) $(BINS_DBG)
-
-
-wip: $(BIN_G4U)
-	./dolen_wip
 

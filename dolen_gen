@@ -1,0 +1,35 @@
+#!/bin/sh
+export OMP_NUM_THREADS=11
+export OMP_PLACES="cores"
+export OMP_PROC_BIND="close"
+
+model_type="q3_5"
+model_path="/home/models/dolen_models"
+model="${model_path}/gemma4_12b_a"
+tokenizer="${model_path}/gemma4_12b_tokenizer.bin"
+prompt="The capital of France is "
+mode="generate"
+seq_n=32
+log="/scratch/dolen_gen.log"
+seed=85
+temp="0.2"
+top_p="0.95"
+top_k=40
+prompt_n=1024
+
+
+./"dolen_${model_type}" \
+    --model "${model}" \
+    --tokenizer "${tokenizer}" \
+    --prompt "${prompt}" \
+    --prompt_n "${prompt_n}" \
+    --mode "${mode}" \
+    --seq_n "${seq_n}" \
+    --log "${log}" \
+    --seed "${seed}" \
+    --temp "${temp}" \
+    --top_p "${top_p}" \
+    --top_k "${top_k}" \
+    --log "${log}" \
+    "$@"
+
