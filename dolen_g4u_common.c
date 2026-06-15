@@ -43,31 +43,38 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
+
     int rotary_dim_full = (int)(p->rope_partial_factor * p->global_head_dim);
-    float rope_attn_scale = 1.0f / sqrtf(p->rope_partial_factor);
+    // REMOVED: float rope_attn_scale = 1.0f / sqrtf(p->rope_partial_factor);
+
     if (cache_stride_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * cache_stride_full * sizeof(float));
         s->sin_cache_full = a_calloc((size_t)p->seq_len * cache_stride_full * sizeof(float));
 
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < cache_stride_full; i++) {
+                float cos_val, sin_val;
                 if (i < rotary_dim_full / 2) {
-                    float base_freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / rotary_dim_full);
-                    float freq = base_freq;
+                    float freq;
+                    if (p->use_rope_freqs && w->rope_freqs_full) {
+                        freq = w->rope_freqs_full[i];
+                    } else {
+                        freq = 1.0f / powf(p->rope_theta_full,
+                                           (float)(2 * i) / rotary_dim_full);
+                    }
                     float val = (float)pos * freq;
-                    s->cos_cache_full[pos * cache_stride_full + i] = cosf(val) * rope_attn_scale;
-                    s->sin_cache_full[pos * cache_stride_full + i] = sinf(val) * rope_attn_scale;
-
+                    cos_val = cosf(val);
+                    sin_val = sinf(val);
                 } else {
-                    s->cos_cache_full[pos * cache_stride_full + i] = 1.0f;
-                    s->sin_cache_full[pos * cache_stride_full + i] = 0.0f;
+                    cos_val = 1.0f;
+                    sin_val = 0.0f;
                 }
+                s->cos_cache_full[pos * cache_stride_full + i] = cos_val;
+                s->sin_cache_full[pos * cache_stride_full + i] = sin_val;
             }
         }
-    } else {
-        s->cos_cache_full = NULL;
-        s->sin_cache_full = NULL;
     }
+
 
     if (cache_stride_sliding > 0) {
         s->cos_cache_sliding = a_calloc((size_t)p->seq_len * cache_stride_sliding * sizeof(float));

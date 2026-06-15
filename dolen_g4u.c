@@ -296,6 +296,19 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
     matmul_qt(s->logits, x, &w->embed_tokens);
 
+    // DEBUG: check raw logits
+    int max_i = 0;
+    float max_v = s->logits[0];
+    for (int i = 1; i < p->vocab_size && i < 20; i++) {
+        if (s->logits[i] > max_v) { max_v = s->logits[i]; max_i = i; }
+    }
+    log_msg(stderr, "\nDEBUG max token %d = %.4f\n", max_i, max_v);
+    log_msg(stderr, "DEBUG first 3 logits: ");
+    for (int i = 0; i < 3; i++) {
+        log_msg(stderr, "%.4f ", s->logits[i]);
+    }
+
+
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;
         float inv = 1.0f / cap;
