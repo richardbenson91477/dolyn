@@ -41,11 +41,24 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     config->vocab_size = json_get_int(json_object_get(root, "vocab_size"), 32000);
     config->seq_len = json_get_int(json_object_get(root, "max_position_embeddings"), 2048);
 
+    JsonValue *rope_theta_value = NULL;
     JsonValue *rope_params = json_object_get(root, "rope_parameters");
-    if (rope_params) {
-        config->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
-    } else {
-        config->rope_theta = json_get_double(json_object_get(root, "rope_theta"), 10000.0);
+    if (rope_params && rope_params->type == JSON_OBJECT) {
+        rope_theta_value = json_object_get(rope_params, "rope_theta");
+    }
+    if (!rope_theta_value) {
+        rope_theta_value = json_object_get(root, "rope_theta");
+    }
+    if (!rope_theta_value) {
+        log_msg(stderr, "ERROR: config.json has no rope_theta\n");
+        json_free(root);
+        return -1;
+    }
+    config->rope_theta = json_get_double(rope_theta_value, 0.0);
+    if (!(config->rope_theta > 1.0f)) {
+        log_msg(stderr, "ERROR: Invalid rope_theta %.9g in config.json\n", config->rope_theta);
+        json_free(root);
+        return -1;
     }
     
     config->rms_norm_eps = json_get_double(json_object_get(root, "rms_norm_eps"), 1e-6);
@@ -57,8 +70,15 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     config->residual_multiplier = json_get_double(json_object_get(root, "residual_multiplier"), 1.0);
     config->logits_scaling = json_get_double(json_object_get(root, "logits_scaling"), 1.0);
 
+    log_msg(stderr,
+            "INFO: Model config loaded: dim=%d heads=%d kv_heads=%d head_dim=%d "
+            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
+            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
+            config->dim, config->n_heads, config->n_kv_heads, config->d_head,
+            config->n_layer, config->seq_len, config->rope_theta,
+            config->attention_multiplier, config->embedding_multiplier,
+            config->residual_multiplier, config->logits_scaling);
     json_free(root);
-    log_msg(stderr, "INFO: Model config loaded\n");
     return 0;
 }
 

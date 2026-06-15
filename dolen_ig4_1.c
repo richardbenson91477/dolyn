@@ -135,7 +135,7 @@ void forward_ig4_1_mlp_layer(IG4_1 *model_ig4_1, int l) {
     #pragma omp parallel for
     for (int i = 0; i < hidden_dim; i++) {
         float val = s->hb[i];
-        val *= (1.0f / (1.0f + expf(-val))); // SiLU
+        val *= (1.0f / (1.0f + expf(-val)));
         val *= s->hb2[i];
         s->hb[i] = val;
     }
@@ -230,6 +230,20 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     
     config_ig4_1 *p = &model_ig4_1->config;
     weights_ig4_1 *w = &model_ig4_1->weights;
+
+    log_msg(stderr,
+            "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
+            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
+            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
+            p->dim, p->n_heads, p->n_kv_heads, p->d_head,
+            p->n_layer, p->seq_len, p->rope_theta, p->attention_multiplier,
+            p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
+
+    if (!(p->rope_theta > 1.0f)) {
+        log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", p->rope_theta);
+        fclose(f);
+        return -1;
+    }
     
     if (seq_n_max) {
         p->seq_len = seq_n_max;
@@ -282,16 +296,23 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
 
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
     .first_turn_and_system =
-        "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|> "
-        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|> "
+        "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n"
+        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
         "<|start_of_role|>assistant<|end_of_role|>",
     .first_turn =
-        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|> "
+        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
         "<|start_of_role|>assistant<|end_of_role|>",
     .next_turn =
-        "<|end_of_text|>"
-        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|> "
+        "<|end_of_text|>\n"
+        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
         "<|start_of_role|>assistant<|end_of_role|>",
+};
+
+static token_map SPECIAL_TOKENS_IG4_1[] = {
+    { .str = "<|end_of_text|>",  .id = 100257 },
+    { .str = "<|start_of_role|>", .id = 100264 },
+    { .str = "<|end_of_role|>",   .id = 100265 },
+    { .str = NULL,                  .id = 0 },
 };
 
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
@@ -310,10 +331,10 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
         .free_model = free_ig4_1_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
-        .bos_token_id = 100257, 
-        .eos_token_id = 100257, 
+        .bos_token_id = 0,
+        .eos_token_id = 100257,
         .im_end_id = 100257,
-        .special_tokens = NULL,
+        .special_tokens = SPECIAL_TOKENS_IG4_1,
         .chat_template = &CHAT_TEMPLATE_IG4_1 
     };
     return model_i;
@@ -322,4 +343,3 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
- 
