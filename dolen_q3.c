@@ -308,6 +308,22 @@ static void free_qwen3_wrap(void *model) {
     free(model);
 }
 
+// Qwen 3's native text chat format. The default Qwen 3 template leaves the
+// assistant prefix open so the model can choose its normal thinking behavior.
+static const chat_template QWEN3_CHAT_TEMPLATE = {
+    .first_with_system =
+        "<|im_start|>system\n%s<|im_end|>\n"
+        "<|im_start|>user\n%s<|im_end|>\n"
+        "<|im_start|>assistant\n",
+    .first_without_system =
+        "<|im_start|>user\n%s<|im_end|>\n"
+        "<|im_start|>assistant\n",
+    .next_turn =
+        "<|im_end|>\n"
+        "<|im_start|>user\n%s<|im_end|>\n"
+        "<|im_start|>assistant\n",
+};
+
 static model_iface *init_qwen3(const char *model_path, int seq_n_max) {
     Qwen3 *model = a_calloc(1 * sizeof(Qwen3));
 
@@ -324,9 +340,12 @@ static model_iface *init_qwen3(const char *model_path, int seq_n_max) {
         .free_model = free_qwen3_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
-        .bos_token_id = 1,
+        // Qwen tokenizers have no BOS token and add_bos_token is false.
+        .bos_token_id = 0,
+        .eos_token_id = 151645,
         .im_end_id = 151645,
         .special_tokens = special_tokens_qwen3,
+        .chat_template = &QWEN3_CHAT_TEMPLATE,
     };
     return model_i;
 }

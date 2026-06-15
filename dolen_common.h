@@ -115,6 +115,22 @@ void *a_calloc(size_t size);
 #define TOP_K_DEFAULT 40
 
 typedef struct {
+    // Initial turn when a non-empty system prompt was supplied.
+    // Arguments: system prompt, user prompt.
+    const char *first_with_system;
+
+    // Initial turn without a system prompt.
+    // Argument: user prompt.
+    const char *first_without_system;
+
+    // Every later user turn. This should begin with the token/string that
+    // closes the preceding assistant turn, because chat_common stops before
+    // feeding that sampled token back through the model.
+    // Argument: user prompt.
+    const char *next_turn;
+} chat_template;
+
+typedef struct {
     void *model;
 
     float *(*forward)(void *model, int token, int pos);
@@ -127,6 +143,13 @@ typedef struct {
     int bos_token_id;
     int im_end_id;
     token_map *special_tokens;
+
+    // Optional additions are kept at the end so older positional model_iface
+    // initializers still map the original fields correctly.
+    int eos_token_id;
+
+    // NULL keeps the historical ChatML template.
+    const chat_template *chat_template;
 
 } model_iface;
 

@@ -700,9 +700,79 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
     free(prompt_tokens);
 }
 
+static const chat_template CHAT_TEMPLATE_CHATML = {
+    .first_with_system =
+        "<|im_start|>system\n%s<|im_end|>\n"
+        "<|im_start|>user\n%s<|im_end|>\n"
+        "<|im_start|>assistant\n",
+    .first_without_system =
+        "<|im_start|>user\n%s<|im_end|>\n"
+        "<|im_start|>assistant\n",
+    .next_turn =
+        "<|im_end|>\n"
+        "<|im_start|>user\n%s<|im_end|>\n"
+        "<|im_start|>assistant\n",
+};
+
+static char *render_chat_turn(const chat_template *tmpl, bool first_turn,
+        const char *system_prompt, const char *prompt, int *rendered_len) {
+    const char *format = NULL;
+    int len;
+
+    if (first_turn && system_prompt && system_prompt[0] != '\0') {
+        format = tmpl->first_with_system;
+        len = snprintf(NULL, 0, format, system_prompt, prompt);
+    } else {
+        format = first_turn ? tmpl->first_without_system : tmpl->next_turn;
+        len = snprintf(NULL, 0, format, prompt);
+    }
+
+    if (!format || len < 0) {
+        log_msg(stderr, "ERROR: Invalid chat template\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char *rendered = a_calloc((size_t)len + 1);
+    if (!rendered) {
+        log_msg(stderr, "ERROR: Failed to allocate rendered chat prompt\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (first_turn && system_prompt && system_prompt[0] != '\0') {
+        snprintf(rendered, (size_t)len + 1, format, system_prompt, prompt);
+    } else {
+        snprintf(rendered, (size_t)len + 1, format, prompt);
+    }
+
+    *rendered_len = len;
+    return rendered;
+}
+
+static bool is_chat_stop_token(const model_iface *model_i, int token) {
+    if (token == model_i->im_end_id) {
+        return true;
+    }
+    if (model_i->eos_token_id > 0 && token == model_i->eos_token_id) {
+        return true;
+    }
+
+    // Preserve the old common-path behavior for model initializers that have
+    // not populated eos_token_id yet.
+    return token == 2;
+}
+
 void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
         char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max,
         bool _debug) {
+    const chat_template *tmpl = model_i->chat_template;
+    if (!tmpl) {
+        tmpl = &CHAT_TEMPLATE_CHATML;
+    }
+    if (!tmpl->first_with_system || !tmpl->first_without_system || !tmpl->next_turn) {
+        log_msg(stderr, "ERROR: Model supplied an incomplete chat template\n");
+        exit(EXIT_FAILURE);
+    }
+
     int rendered_len = 0;
     char *rendered_prompt = NULL;
     int prompt_tokens_n = 0;
@@ -732,72 +802,20 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
                 continue;
             }
 
-            if (first_turn) {
-                if (system_prompt && (system_prompt[0] != '\0')) {
-                    rendered_len = snprintf(NULL, 0,
-                            "<|im_start|\x3e" "system\n" "%s"
-                            "<|im_end|\x3e" "\n"
-                            "<|im_start|\x3e" "user\n" "%s"
-                            "<|im_end|\x3e" "\n"
-                            "<|im_start|\x3e" "assistant\n",
-                            system_prompt, prompt);
+            rendered_prompt = render_chat_turn(tmpl, first_turn,
+                    system_prompt, prompt, &rendered_len);
 
-                    rendered_prompt = a_calloc((rendered_len + 1 ) * sizeof(char));
-
-                    snprintf(rendered_prompt, rendered_len + 1,
-                            "<|im_start|\x3e" "system\n"
-                            "%s"
-                            "<|im_end|\x3e" "\n"
-                            "<|im_start|\x3e" "user\n"
-                            "%s"
-                            "<|im_end|\x3e" "\n"
-                            "<|im_start|\x3e" "assistant\n",
-                            system_prompt, prompt);
-                }
-                else {
-                    rendered_len = snprintf(NULL, 0,
-                            "<|im_start|\x3e" "user\n"
-                            "%s"
-                            "<|im_end|\x3e" "\n"
-                            "<|im_start|\x3e" "assistant\n",
-                            prompt);
-
-                    rendered_prompt = a_calloc((rendered_len + 1 ) * sizeof(char));
-
-                    snprintf(rendered_prompt, rendered_len + 1,
-                            "<|im_start|\x3e" "user\n"
-                            "%s"
-                            "<|im_end|\x3e" "\n"
-                            "<|im_start|\x3e" "assistant\n",
-                            prompt);
-                }
-            } else {
-                rendered_len = snprintf(NULL, 0,
-                        "<|im_end|\x3e" "\n"
-                        "<|im_start|\x3e" "user\n"
-                        "%s"
-                        "<|im_end|\x3e" "\n"
-                        "<|im_start|\x3e" "assistant\n",
-                        prompt);
-
-                rendered_prompt = a_calloc((rendered_len + 1 ) * sizeof(char));
-
-                snprintf(rendered_prompt, rendered_len + 1,
-                        "<|im_end|\x3e" "\n"
-                        "<|im_start|\x3e" "user\n"
-                        "%s"
-                        "<|im_end|\x3e" "\n"
-                        "<|im_start|\x3e" "assistant\n",
-                        prompt);
-            }
-        
             if (prompt_tokens) {
                 free(prompt_tokens);
             }
 
-            prompt_tokens = (int *)a_calloc((rendered_len * 4 + 1) * sizeof(int));
+            prompt_tokens = (int *)a_calloc(((size_t)rendered_len * 4 + 3) * sizeof(int));
 
-            encode(tokenizer, rendered_prompt, model_i->bos_token_id, 0, prompt_tokens, &prompt_tokens_n);
+            // BOS belongs only at position zero. Re-adding it before every
+            // later turn corrupts the conversation token stream.
+            int bos_token = first_turn ? model_i->bos_token_id : 0;
+            encode(tokenizer, rendered_prompt, bos_token, 0,
+                    prompt_tokens, &prompt_tokens_n);
 
             free(rendered_prompt);
             rendered_prompt = NULL;
@@ -823,7 +841,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
         pos++;
 
         if (user_idx >= prompt_tokens_n) {
-            if ((next == model_i->im_end_id) || (next == 2)) {
+            if (is_chat_stop_token(model_i, next)) {
                 log_msg(stdout, "\n");
                 long end = time_in_ms();
                 if ((generated_tokens > 0) && ((end - start) > 0)) {

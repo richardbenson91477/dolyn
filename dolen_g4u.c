@@ -319,6 +319,23 @@ static void free_gemma4u_wrap(void *model) {
     free(model);
 }
 
+static const chat_template GEMMA4U_CHAT_TEMPLATE = {
+    .first_with_system =
+        "<|turn>system\n%s<turn|>\n"
+        "<|turn>user\n%s<turn|>\n"
+        "<|turn>model\n"
+        "<|channel>thought\n<channel|>",
+    .first_without_system =
+        "<|turn>user\n%s<turn|>\n"
+        "<|turn>model\n"
+        "<|channel>thought\n<channel|>",
+    .next_turn =
+        "<turn|>\n"
+        "<|turn>user\n%s<turn|>\n"
+        "<|turn>model\n"
+        "<|channel>thought\n<channel|>",
+};
+
 static model_iface *init_gemma4u(const char *model_path, int seq_n_max) {
     Gemma4Unified *model = a_calloc(1 * sizeof(Gemma4Unified));
     if (load_quantized_gemma4u(model_path, model, seq_n_max) != 0) {
@@ -334,8 +351,10 @@ static model_iface *init_gemma4u(const char *model_path, int seq_n_max) {
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 2,
-        .im_end_id = 1,
-        .special_tokens = NULL
+        .eos_token_id = 1,
+        .im_end_id = 106,
+        .special_tokens = NULL,
+        .chat_template = &GEMMA4U_CHAT_TEMPLATE
     };
     return model_i;
 }
