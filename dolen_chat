@@ -4,9 +4,14 @@ export OMP_PLACES="cores"
 export OMP_PROC_BIND="close"
 
 model_type="q3_5"
+[ "$1" ] && {
+    model_type="$1"
+    shift
+    }
+
 model_path="/home/models/dolen_models"
-model="${model_path}/qwen3_5_9b"
-tokenizer="${model_path}/qwen3_5_tokenizer.bin"
+model="${model_path}/model_${model_type}"
+tokenizer="${model_path}/tokenizer_${model_type}.bin"
 system_prompt="You are a helpful assistant."
 mode="chat"
 seq_n=8192
