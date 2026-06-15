@@ -298,8 +298,6 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
     if (bos_token > 0) {
         tokens[(*tokens_n)++] = bos_token;
 
-        // Do not encode a second BOS when callers pass a prompt beginning
-        // with the tokenizer's literal BOS piece (for Gemma 4, "<bos>").
         const char *bos_piece = t->vocab[bos_token];
         if (bos_piece) {
             size_t bos_len = strlen(bos_piece);
@@ -701,11 +699,11 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 }
 
 static const chat_template CHAT_TEMPLATE_CHATML = {
-    .first_with_system =
+    .first_turn_and_system =
         "<|im_start|>system\n%s<|im_end|>\n"
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n",
-    .first_without_system =
+    .first_turn =
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n",
     .next_turn =
@@ -720,10 +718,10 @@ static char *render_chat_turn(const chat_template *tmpl, bool first_turn,
     int len;
 
     if (first_turn && system_prompt && system_prompt[0] != '\0') {
-        format = tmpl->first_with_system;
+        format = tmpl->first_turn_and_system;
         len = snprintf(NULL, 0, format, system_prompt, prompt);
     } else {
-        format = first_turn ? tmpl->first_without_system : tmpl->next_turn;
+        format = first_turn ? tmpl->first_turn : tmpl->next_turn;
         len = snprintf(NULL, 0, format, prompt);
     }
 
@@ -756,8 +754,6 @@ static bool is_chat_stop_token(const model_iface *model_i, int token) {
         return true;
     }
 
-    // Preserve the old common-path behavior for model initializers that have
-    // not populated eos_token_id yet.
     return token == 2;
 }
 
@@ -768,7 +764,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
     if (!tmpl) {
         tmpl = &CHAT_TEMPLATE_CHATML;
     }
-    if (!tmpl->first_with_system || !tmpl->first_without_system || !tmpl->next_turn) {
+    if (!tmpl->first_turn_and_system || !tmpl->first_turn || !tmpl->next_turn) {
         log_msg(stderr, "ERROR: Model supplied an incomplete chat template\n");
         exit(EXIT_FAILURE);
     }
@@ -811,8 +807,6 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 
             prompt_tokens = (int *)a_calloc(((size_t)rendered_len * 4 + 3) * sizeof(int));
 
-            // BOS belongs only at position zero. Re-adding it before every
-            // later turn corrupts the conversation token stream.
             int bos_token = first_turn ? model_i->bos_token_id : 0;
             encode(tokenizer, rendered_prompt, bos_token, 0,
                     prompt_tokens, &prompt_tokens_n);

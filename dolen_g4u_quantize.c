@@ -64,8 +64,7 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->rope_theta_sliding = json_get_double(json_object_get(slide_rope, "rope_theta"), 10000.0);
 
     const char *rope_type = json_get_string(json_object_get(full_rope, "rope_type"), "proportional");
-    // In the Hugging Face Gemma 4 Unified checkpoint, proportional RoPE is
-    // derived from config and is not a learned safetensors parameter.
+
     p->use_rope_freqs = 0;
     if (rope_type && strcmp(rope_type, "proportional") == 0) {
         log_msg(stderr, "INFO: Full attention uses config-derived proportional RoPE\n");
@@ -155,9 +154,6 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 load_tensor_from_handle(&st, tname, w->rms_k_norm + w->norm_offsets[l], hd);
             }
             else if (strcmp(suffix, "self_attn.rope_freqs.weight") == 0) {
-                // Some converted formats materialize RoPE factors, but the
-                // source safetensors model computes proportional RoPE from
-                // config. Do not treat these factors as raw inverse freqs.
                 continue;
             }
             else if (strcmp(suffix, "self_attn.q_proj.weight") == 0) {
@@ -313,8 +309,6 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         exit(EXIT_FAILURE);
     }
     uint32_t magic = 0x55344D47;
-    // Version 4 fixes sliding-attention V projection serialization and
-    // config-derived proportional RoPE.
     uint32_t version = 4;
 
     fwrite(&magic, sizeof(uint32_t), 1, f);
@@ -380,3 +374,4 @@ int main(int argc, char *argv[]) {
     free_gemma4u(&model);
     return 0;
 }
+

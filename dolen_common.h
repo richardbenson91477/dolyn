@@ -25,23 +25,36 @@ typedef struct {
     int cols;
 } qtensor;
 
+
 void dequantize_row(float *output, const qtensor *qt, int row_idx);
+
 void matmul_qt(float *output, const float *input, const qtensor *qt);
+
 void quantize_vec(qtensor *xq, const float *x, int n);
+
 void matmul_qq(float *output, const qtensor *x, const qtensor *w);
+
 void free_qt(qtensor *qt);
+
 void free_qt_array(qtensor *arr, int n);
+
 void read_qt(FILE *f, qtensor *qt);
+
 void write_qt(FILE *f, qtensor *qt);
 
 
 // Math Utilities
 
 void softmax(float *x, int size);
+
 float silu(float x);
+
 float sigmoid(float x);
+
 float softplus(float x);
+
 void l2norm(float *x, int size);
+
 float matmul_scalar(float *x, float *w, int n);
 
 
@@ -51,6 +64,7 @@ typedef struct {
     char *str;
     int id;
 } token_map;
+
 
 typedef struct {
     char **vocab;
@@ -62,12 +76,19 @@ typedef struct {
     int n_special_tokens;
 } Tokenizer;
 
+
 int compare_tokens(const void *a, const void *b);
+
 int str_lookup(char *str, token_map *sorted_vocab, int vocab_size);
+
 void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n);
+
 void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, int *tokens_n);
+
 char *decode(Tokenizer *t, int token, bool debug);
+
 void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_map *special_tokens);
+
 void free_tokenizer(Tokenizer *t);
 
 
@@ -87,14 +108,22 @@ typedef struct {
     unsigned long long rng_state;
 } Sampler;
 
+
 int sample_argmax(float *probs, int n);
+
 unsigned int random_u32(unsigned long long *state);
+
 float random_f32(unsigned long long *state);
+
 int sample_mult(float *probs, int n, float coin);
+
 int compare_prob(const void *a, const void *b);
+
 int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, float coin);
+
 int sample(Sampler *sampler, float *logits);
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed); // <-- UPDATED
+
+void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed);
 
 
 // I/O Utilities
@@ -102,8 +131,11 @@ void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk
 extern char *log_path;
 
 long time_in_ms(void);
+
 void log_msg(FILE *stream, const char *format, ...);
+
 void read_msg(char *buf, size_t buf_len);
+
 void *a_calloc(size_t size);
 
 
@@ -115,18 +147,8 @@ void *a_calloc(size_t size);
 #define TOP_K_DEFAULT 40
 
 typedef struct {
-    // Initial turn when a non-empty system prompt was supplied.
-    // Arguments: system prompt, user prompt.
-    const char *first_with_system;
-
-    // Initial turn without a system prompt.
-    // Argument: user prompt.
-    const char *first_without_system;
-
-    // Every later user turn. This should begin with the token/string that
-    // closes the preceding assistant turn, because chat_common stops before
-    // feeding that sampled token back through the model.
-    // Argument: user prompt.
+    const char *first_turn_and_system;
+    const char *first_turn;
     const char *next_turn;
 } chat_template;
 
@@ -144,11 +166,8 @@ typedef struct {
     int im_end_id;
     token_map *special_tokens;
 
-    // Optional additions are kept at the end so older positional model_iface
-    // initializers still map the original fields correctly.
     int eos_token_id;
 
-    // NULL keeps the historical ChatML template.
     const chat_template *chat_template;
 
 } model_iface;
@@ -156,9 +175,12 @@ typedef struct {
 
 void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
         char *prompt, int steps_n_max);
+
 void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
         char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max, bool _debug);
+
 void error_usage(const char *prog_name);
+
 int common_main(int argc, char *argv[],
         model_iface *(*init_fn)(const char *model_path, int seq_n_max),
         const char *prog_name);

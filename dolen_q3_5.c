@@ -618,16 +618,13 @@ static void free_qwen3_5_wrap(void *model) {
     free(model);
 }
 
-// Qwen 3.5's native text chat format. This is the default non-thinking form
-// used by the small/dense Qwen 3.5 checkpoints: the empty think block tells
-// the model to answer directly while preserving its trained turn protocol.
 static const chat_template QWEN3_5_CHAT_TEMPLATE = {
-    .first_with_system =
+    .first_turn_and_system =
         "<|im_start|>system\n%s<|im_end|>\n"
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n"
         "<think>\n\n</think>\n\n",
-    .first_without_system =
+    .first_turn =
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n"
         "<think>\n\n</think>\n\n",
@@ -654,7 +651,6 @@ static model_iface *init_qwen3_5(const char *model_path, int seq_n_max) {
         .free_model = free_qwen3_5_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
-        // Qwen tokenizers have no BOS token and add_bos_token is false.
         .bos_token_id = 0,
         .eos_token_id = 248046,
         .im_end_id = 248046,

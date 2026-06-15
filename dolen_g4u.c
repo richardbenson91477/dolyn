@@ -199,8 +199,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         
         matmul_qt(s->k_raw, s->xb, &w->k_proj[l]);
 
-        // Gemma 4's K=V alternative attention is only used by full-attention
-        // layers. Sliding layers always have a distinct v_proj.
         if (use_alternative_attention) {
             memcpy(s->v, s->k_raw, kv_dim * sizeof(float));
         } else {
@@ -320,12 +318,12 @@ static void free_gemma4u_wrap(void *model) {
 }
 
 static const chat_template GEMMA4U_CHAT_TEMPLATE = {
-    .first_with_system =
+    .first_turn_and_system =
         "<|turn>system\n%s<turn|>\n"
         "<|turn>user\n%s<turn|>\n"
         "<|turn>model\n"
         "<|channel>thought\n<channel|>",
-    .first_without_system =
+    .first_turn =
         "<|turn>user\n%s<turn|>\n"
         "<|turn>model\n"
         "<|channel>thought\n<channel|>",

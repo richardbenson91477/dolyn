@@ -308,14 +308,12 @@ static void free_qwen3_wrap(void *model) {
     free(model);
 }
 
-// Qwen 3's native text chat format. The default Qwen 3 template leaves the
-// assistant prefix open so the model can choose its normal thinking behavior.
 static const chat_template QWEN3_CHAT_TEMPLATE = {
-    .first_with_system =
+    .first_turn_and_system =
         "<|im_start|>system\n%s<|im_end|>\n"
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n",
-    .first_without_system =
+    .first_turn =
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n",
     .next_turn =

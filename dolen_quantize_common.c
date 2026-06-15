@@ -196,3 +196,4 @@ void load_and_quantize_from_handle(void *st, const char *name, qtensor *qt, int 
     quantize_group(qt, f, rows, cols);
     free(f);
 }
+

@@ -55,12 +55,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
             for (int i = 0; i < cache_stride_full; i++) {
                 float cos_val, sin_val;
                 if (i < rotary_dim_full / 2) {
-                    // Proportional RoPE still uses global_head_dim in the
-                    // exponent. partial_rotary_factor only determines how
-                    // many angles rotate; it does not shrink the exponent's
-                    // denominator to rotary_dim_full.
-                    float freq = 1.0f / powf(p->rope_theta_full,
-                                             (float)(2 * i) / p->global_head_dim);
+                    float freq = 1.0f / powf(p->rope_theta_full, (float)(2 * i) / p->global_head_dim);
                     float val = (float)pos * freq;
                     cos_val = cosf(val);
                     sin_val = sinf(val);
