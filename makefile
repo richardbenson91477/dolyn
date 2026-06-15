@@ -11,9 +11,11 @@ MODEL_PATH := /home/models/dolen_models
 MODEL_Q3_5 := "$(MODEL_PATH)/qwen3_5_1b"
 MODEL_Q3 := "$(MODEL_PATH)/qwen3_1b"
 MODEL_G4U := "$(MODEL_PATH)/gemma4_12b_a"
+MODEL_IG4_1 := "$(MODEL_PATH)/granite4_1_8b_a"
 TOKENIZER_Q3_5 := "$(MODEL_PATH)/qwen3_5_tokenizer.bin"
 TOKENIZER_Q3 := "$(MODEL_PATH)/qwen3_tokenizer.bin"
 TOKENIZER_G4U := "$(MODEL_PATH)/gemma4_12b_tokenizer.bin"
+TOKENIZER_IG4_1 := "$(MODEL_PATH)/granite4_1_tokenizer.bin"
 LIB_SRCS = ext/csafetensors.c ext/json.c
 LIB_INCS = ext/csafetensors.h ext/json.h
 BIN_Q3_5 = dolen_q3_5
@@ -28,9 +30,14 @@ BIN_G4U = dolen_g4u
 BIN_G4U_Q = dolen_g4u_quantize
 BIN_G4U_DBG = dolen_g4u_dbg
 BIN_G4U_Q_DBG = dolen_g4u_quantize_dbg
+BIN_IG4_1 = dolen_ig4_1
+BIN_IG4_1_Q = dolen_ig4_1_quantize
+BIN_IG4_1_DBG = dolen_ig4_1_dbg
+BIN_IG4_1_Q_DBG = dolen_ig4_1_quantize_dbg
 SEQN_Q3_5 := 1024
 SEQN_Q3 := 1024
 SEQN_G4U := 1024
+SEQN_IG4_1 := 1024
 SRC_Q3_5 = dolen_q3_5.c dolen_q3_5_common.c dolen_common.c
 INC_Q3_5 = dolen_q3_5_common.h dolen_common.h
 SRC_Q3_5_Q = dolen_q3_5_quantize.c dolen_q3_5_common.c dolen_quantize_common.c dolen_common.c
@@ -43,9 +50,13 @@ SRC_G4U = dolen_g4u.c dolen_g4u_common.c dolen_common.c
 INC_G4U = dolen_g4u_common.h dolen_common.h
 SRC_G4U_Q = dolen_g4u_quantize.c dolen_g4u_common.c dolen_quantize_common.c dolen_common.c
 INC_G4U_Q = dolen_g4u_common.h dolen_quantize_common.h dolen_common.h
-SRCS = $(SRC_Q3_5) $(SRC_Q3_5_Q) $(SRC_Q3) $(SRC_Q3_Q) $(SRC_G4U) $(SRC_G4U_Q)
-BINS = $(BIN_Q3_5) $(BIN_Q3_5_Q) $(BIN_Q3) $(BIN_Q3_Q) $(BIN_G4U) $(BIN_G4U_Q)
-BINS_DBG = $(BIN_Q3_5_DBG) $(BIN_Q3_5_Q_DBG) $(BIN_Q3_DBG) $(BIN_Q3_Q_DBG) $(BIN_G4U_DBG) $(BIN_G4U_Q_DBG)
+SRC_IG4_1 = dolen_ig4_1.c dolen_ig4_1_common.c dolen_common.c
+INC_IG4_1 = dolen_ig4_1_common.h dolen_common.h
+SRC_IG4_1_Q = dolen_ig4_1_quantize.c dolen_ig4_1_common.c dolen_quantize_common.c dolen_common.c
+INC_IG4_1_Q = dolen_ig4_1_common.h dolen_quantize_common.h dolen_common.h
+SRCS = $(SRC_Q3_5) $(SRC_Q3_5_Q) $(SRC_Q3) $(SRC_Q3_Q) $(SRC_G4U) $(SRC_G4U_Q) $(SRC_IG4_1) $(SRC_IG4_1_Q) 
+BINS = $(BIN_Q3_5) $(BIN_Q3_5_Q) $(BIN_Q3) $(BIN_Q3_Q) $(BIN_G4U) $(BIN_G4U_Q) $(BIN_IG4_1) $(BIN_IG4_1_Q)
+BINS_DBG = $(BIN_Q3_5_DBG) $(BIN_Q3_5_Q_DBG) $(BIN_Q3_DBG) $(BIN_Q3_Q_DBG) $(BIN_G4U_DBG) $(BIN_G4U_Q_DBG) $(BIN_IG4_1_DBG) $(BIN_IG4_1_Q_DBG) 
 
 
 all: strip $(BINS_DBG)
@@ -53,7 +64,7 @@ all: strip $(BINS_DBG)
 test: test_q3_5
 test_dbg: test_q3_5_dbg
 debug: debug_q3_5
-debug_q: debug_q35_q
+debug_q: debug_q3_5_q
 
 
 $(BIN_Q3_5): $(SRC_Q3_5) $(INC_Q3_5)
@@ -129,6 +140,31 @@ debug_g4u: $(BIN_G4U_DBG)
 
 debug_g4u_q: $(BIN_G4U_Q_DBG)
 	./dolen_q_run_gdb $(BIN_G4U_Q_DBG)
+
+
+$(BIN_IG4_1): $(SRC_IG4_1) $(INC_IG4_1)
+	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_IG4_1) -lm
+
+$(BIN_IG4_1_DBG): $(SRC_IG4_1) $(INC_IG4_1)
+	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_IG4_1) -lm
+
+$(BIN_IG4_1_Q): $(SRC_IG4_1_Q) $(LIB_SRCS) $(INC_IG4_1_Q) $(LIB_INCS)
+	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_IG4_1_Q) $(LIB_SRCS) -lm
+
+$(BIN_IG4_1_Q_DBG): $(SRC_IG4_1_Q) $(LIB_SRCS) $(INC_IG4_1_Q) $(LIB_INCS)
+	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_IG4_1_Q) $(LIB_SRCS) -lm
+
+test_ig4_1: $(BIN_IG4_1)
+	./$(BIN_IG4_1) -m $(MODEL_IG4_1) -tk $(TOKENIZER_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
+
+test_ig4_1_dbg: $(BIN_IG4_1_DBG)
+	./$(BIN_IG4_1_DBG) -m $(MODEL_IG4_1) -tk $(TOKENIZER_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
+
+debug_ig4_1: $(BIN_IG4_1_DBG)
+	./dolen_run_gdb $(BIN_IG4_1_DBG) $(MODEL_IG4_1) $(TOKENIZER_IG4_1) $(PROMPT) $(SYS_PROMPT) $(SEQN_IG4_1)
+
+debug_ig4_1_q: $(BIN_IG4_1_Q_DBG)
+	./dolen_q_run_gdb $(BIN_IG4_1_Q_DBG)
 
 
 strip: $(BINS)
