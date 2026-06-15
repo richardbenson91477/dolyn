@@ -64,9 +64,11 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     p->rope_theta_sliding = json_get_double(json_object_get(slide_rope, "rope_theta"), 10000.0);
 
     const char *rope_type = json_get_string(json_object_get(full_rope, "rope_type"), "proportional");
-    p->use_rope_freqs = (rope_type && strcmp(rope_type, "proportional") == 0) ? 1 : 0;
-    if (p->use_rope_freqs) {
-        log_msg(stderr, "INFO: Full attention uses proportional RoPE (will load learned freq factors)\n");
+    // In the Hugging Face Gemma 4 Unified checkpoint, proportional RoPE is
+    // derived from config and is not a learned safetensors parameter.
+    p->use_rope_freqs = 0;
+    if (rope_type && strcmp(rope_type, "proportional") == 0) {
+        log_msg(stderr, "INFO: Full attention uses config-derived proportional RoPE\n");
     }
 
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
@@ -153,15 +155,10 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 load_tensor_from_handle(&st, tname, w->rms_k_norm + w->norm_offsets[l], hd);
             }
             else if (strcmp(suffix, "self_attn.rope_freqs.weight") == 0) {
-                if (model->layer_types[l] && p->use_rope_freqs) {
-                    if (!w->rope_freqs_full) {
-                        float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
-                        if (f) {
-                            w->rope_freqs_full = f; 
-                            log_msg(stderr, "INFO: Loaded rope_freqs from layer %d (shared)\n", l);
-                        }
-                    }
-                }
+                // Some converted formats materialize RoPE factors, but the
+                // source safetensors model computes proportional RoPE from
+                // config. Do not treat these factors as raw inverse freqs.
+                continue;
             }
             else if (strcmp(suffix, "self_attn.q_proj.weight") == 0) {
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
@@ -174,20 +171,23 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
                 load_and_quantize_from_handle(&st, tname, &w->k_proj[l], kv_heads * hd, p->dim);
             }
             else if (strcmp(suffix, "self_attn.v_proj.weight") == 0) {
-                if (p->attention_k_eq_v) {
-                    log_msg(stderr, "INFO: Skipping v_proj.weight for layer %d (K=V shared per config)\n", l);
-                    w->v_proj[l] = w->k_proj[l];
+                int is_full = model->layer_types[l];
+                int use_alternative_attention = is_full && p->attention_k_eq_v;
+                if (use_alternative_attention) {
+                    log_msg(stderr, "INFO: Skipping v_proj.weight for full-attention layer %d (K=V)\n", l);
                 } else {
-                    int is_full = model->layer_types[l];
                     int hd = is_full ? p->global_head_dim : p->head_dim;
-                    load_and_quantize_from_handle(&st, tname, &w->v_proj[l], p->n_kv_heads * hd, p->dim);
+                    int kv_heads = p->n_kv_heads;
+                    load_and_quantize_from_handle(&st, tname, &w->v_proj[l], kv_heads * hd, p->dim);
                 }
             }
             else if (strcmp(suffix, "self_attn.o_proj.weight") == 0) {
                 int hd = model->layer_types[l] ? p->global_head_dim : p->head_dim;
                 load_and_quantize_from_handle(&st, tname, &w->o_proj[l], p->dim, p->n_heads * hd);
             }
-            else if (strcmp(suffix, "layer_scalar.weight") == 0) {
+            else if (strcmp(suffix, "layer_scalar") == 0 ||
+                     strcmp(suffix, "layer_scalar.weight") == 0 ||
+                     strcmp(suffix, "layer_output_scale.weight") == 0) {
                 float *f = extract_tensor_from_handle(&st, tname, NULL, 0);
                 if (f) {
                     w->layer_scalars[l] = f[0];
@@ -260,16 +260,35 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         process_gemma4u_safetensors_file(model, &idx, idx.unique_filenames[i]);
     }
 
+    for (int l = 0; l < p->n_layers; l++) {
+        int is_full = model->layer_types[l];
+        int use_alternative_attention = is_full && p->attention_k_eq_v;
+        int hd = is_full ? p->global_head_dim : p->head_dim;
+        int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
+
+        if (model->weights.q_proj[l].rows != p->n_heads * hd || model->weights.q_proj[l].cols != p->dim ||
+            model->weights.k_proj[l].rows != kv_heads * hd || model->weights.k_proj[l].cols != p->dim ||
+            model->weights.o_proj[l].rows != p->dim || model->weights.o_proj[l].cols != p->n_heads * hd ||
+            model->weights.gate_proj[l].rows != p->hidden_dim || model->weights.gate_proj[l].cols != p->dim ||
+            model->weights.up_proj[l].rows != p->hidden_dim || model->weights.up_proj[l].cols != p->dim ||
+            model->weights.down_proj[l].rows != p->dim || model->weights.down_proj[l].cols != p->hidden_dim) {
+            log_msg(stderr, "ERROR: Missing or incorrectly shaped weights in layer %d\n", l);
+            free_safetensors_index(&idx);
+            return -1;
+        }
+
+        if (!use_alternative_attention &&
+            (model->weights.v_proj[l].rows != kv_heads * hd || model->weights.v_proj[l].cols != p->dim)) {
+            log_msg(stderr, "ERROR: Missing sliding-attention v_proj in layer %d\n", l);
+            free_safetensors_index(&idx);
+            return -1;
+        }
+    }
+
     if (model->weights.embed_tokens.q == NULL) {
         log_msg(stderr, "ERROR: embed_tokens.weight was not found\n");
         free_safetensors_index(&idx);
         return -1;
-    }
-
-    if (p->use_rope_freqs && !model->weights.rope_freqs_full) {
-        log_msg(stderr, "WARNING: use_rope_freqs=1 but rope_freqs.weight not found in safetensors\n");
-        log_msg(stderr, "WARNING: Falling back to default RoPE (no learned freq factors)\n");
-        p->use_rope_freqs = 0;
     }
 
     log_msg(stderr, "INFO: Gemma4Unified weights loaded successfully\n");
@@ -294,7 +313,9 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
         exit(EXIT_FAILURE);
     }
     uint32_t magic = 0x55344D47;
-    uint32_t version = 3;
+    // Version 4 fixes sliding-attention V projection serialization and
+    // config-derived proportional RoPE.
+    uint32_t version = 4;
 
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);

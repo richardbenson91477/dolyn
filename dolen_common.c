@@ -294,13 +294,24 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
     }
 
     *tokens_n = 0;
+    char *input = text;
     if (bos_token > 0) {
         tokens[(*tokens_n)++] = bos_token;
+
+        // Do not encode a second BOS when callers pass a prompt beginning
+        // with the tokenizer's literal BOS piece (for Gemma 4, "<bos>").
+        const char *bos_piece = t->vocab[bos_token];
+        if (bos_piece) {
+            size_t bos_len = strlen(bos_piece);
+            if (bos_len > 0 && strncmp(input, bos_piece, bos_len) == 0) {
+                input += bos_len;
+            }
+        }
     }
 
-    char *segment = a_calloc(strlen(text) + 1);
+    char *segment = a_calloc(strlen(input) + 1);
 
-    char *pos = text;
+    char *pos = input;
     while (*pos != '\0') {
         int found_special = 0;
         for (int i = 0; i < t->n_special_tokens; i++) {

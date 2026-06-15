@@ -1,6 +1,7 @@
 #include "dolen_g4u_common.h"
 
 void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w) {
+    (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
     int max_kv_heads = p->n_kv_heads > p->n_global_kv_heads ? p->n_kv_heads : p->n_global_kv_heads;
     int max_kv_dim = max_kv_heads * max_head_dim;
@@ -45,7 +46,6 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
 
 
     int rotary_dim_full = (int)(p->rope_partial_factor * p->global_head_dim);
-    // REMOVED: float rope_attn_scale = 1.0f / sqrtf(p->rope_partial_factor);
 
     if (cache_stride_full > 0) {
         s->cos_cache_full = a_calloc((size_t)p->seq_len * cache_stride_full * sizeof(float));
@@ -55,13 +55,12 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
             for (int i = 0; i < cache_stride_full; i++) {
                 float cos_val, sin_val;
                 if (i < rotary_dim_full / 2) {
-                    float freq;
-                    if (p->use_rope_freqs && w->rope_freqs_full) {
-                        freq = w->rope_freqs_full[i];
-                    } else {
-                        freq = 1.0f / powf(p->rope_theta_full,
-                                           (float)(2 * i) / rotary_dim_full);
-                    }
+                    // Proportional RoPE still uses global_head_dim in the
+                    // exponent. partial_rotary_factor only determines how
+                    // many angles rotate; it does not shrink the exponent's
+                    // denominator to rotary_dim_full.
+                    float freq = 1.0f / powf(p->rope_theta_full,
+                                             (float)(2 * i) / p->global_head_dim);
                     float val = (float)pos * freq;
                     cos_val = cosf(val);
                     sin_val = sinf(val);

@@ -19,8 +19,8 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         fclose(f);
         return -1;
     }
-    if (version != 3) {
-        log_msg(stderr, "ERROR: Unsupported version %u (expected 3). RE-RUN QUANTIZER.\n", version);
+    if (version != 4) {
+        log_msg(stderr, "ERROR: Unsupported version %u (expected 4). RE-RUN QUANTIZER.\n", version);
         fclose(f);
         return -1;
     }
@@ -162,6 +162,15 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
     int max_kv_dim   = max_kv_heads * max_head_dim;
 
+    if (token < 0 || token >= p->vocab_size) {
+        log_msg(stderr, "ERROR: token %d is outside vocabulary [0, %d)\n", token, p->vocab_size);
+        exit(EXIT_FAILURE);
+    }
+    if (pos < 0 || pos >= p->seq_len) {
+        log_msg(stderr, "ERROR: position %d is outside KV cache [0, %d)\n", pos, p->seq_len);
+        exit(EXIT_FAILURE);
+    }
+
     dequantize_row(x, &w->embed_tokens, token);
     for (int i = 0; i < dim; i++) {
         x[i] *= embed_scale;
@@ -169,8 +178,9 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
     for (int l = 0; l < p->n_layers; l++) {
         int is_full = model->layer_types[l];
+        int use_alternative_attention = is_full && p->attention_k_eq_v;
         int head_dim = is_full ? p->global_head_dim : p->head_dim;
-        int kv_heads = (is_full && p->attention_k_eq_v) ? p->n_global_kv_heads : p->n_kv_heads;
+        int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
         int kv_dim = kv_heads * head_dim;
         int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
 
@@ -189,7 +199,9 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         
         matmul_qt(s->k_raw, s->xb, &w->k_proj[l]);
 
-        if (is_full && p->attention_k_eq_v) {
+        // Gemma 4's K=V alternative attention is only used by full-attention
+        // layers. Sliding layers always have a distinct v_proj.
+        if (use_alternative_attention) {
             memcpy(s->v, s->k_raw, kv_dim * sizeof(float));
         } else {
             matmul_qt(s->v, s->xb, &w->v_proj[l]);
@@ -202,15 +214,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
                 apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
 
-            // inside forward_gemma4u, after the per‑head q RoPE application
-            if (l == 5 && h == 0 && pos == 0 && is_full) {  // first full-attention layer
-                float *qh = s->q + 0 * head_dim;  // head 0
-                log_msg(stderr, "DEBUG: q0 after RoPE: %.4f %.4f %.4f\n", qh[0], qh[1], qh[2]);
-                // Also check the raw cos/sin that were applied
-                float *cos_row = cos_cache + pos * (head_dim / 2);
-                float *sin_row = sin_cache + pos * (head_dim / 2);
-                log_msg(stderr, "DEBUG: cos[0]=%.4f sin[0]=%.4f\n", cos_row[0], sin_row[0]);
-            }
         }
 
         for (int h = 0; h < kv_heads; h++) {
@@ -295,19 +298,6 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
 
     matmul_qt(s->logits, x, &w->embed_tokens);
-
-    // DEBUG: check raw logits
-    int max_i = 0;
-    float max_v = s->logits[0];
-    for (int i = 1; i < p->vocab_size && i < 20; i++) {
-        if (s->logits[i] > max_v) { max_v = s->logits[i]; max_i = i; }
-    }
-    log_msg(stderr, "\nDEBUG max token %d = %.4f\n", max_i, max_v);
-    log_msg(stderr, "DEBUG first 3 logits: ");
-    for (int i = 0; i < 3; i++) {
-        log_msg(stderr, "%.4f ", s->logits[i]);
-    }
-
 
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;
