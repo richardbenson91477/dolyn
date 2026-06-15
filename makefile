@@ -142,5 +142,5 @@ clean:
 
 
 wip: $(BIN_G4U)
-	./$(BIN_G4U) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p "<bos>The capitol of France is " -n 10 -t 0.0 -M generate -l "/scratch/wip_log.m4"
+	./$(BIN_G4U) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p "<bos>The capitol of France is " -n 10 -t 0.0 -M generate -l "/scratch/wip_log.prompt.md"
 
