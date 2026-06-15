@@ -1,6 +1,6 @@
 #include "dolen_g4u_common.h"
 
-void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w) {
+void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
     int max_kv_heads = p->n_kv_heads > p->n_global_kv_heads ? p->n_kv_heads : p->n_global_kv_heads;
@@ -99,7 +99,7 @@ void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w
     s->allocated = 1;
 }
 
-void free_state_gemma4u(state_gemma4u *s) {
+void free_state_g4u(state_g4u *s) {
     if (!s->allocated) {
         return;
     }
@@ -126,11 +126,11 @@ void free_state_gemma4u(state_gemma4u *s) {
     s->allocated = 0;
 }
 
-void free_gemma4u(Gemma4Unified *model) {
+void free_g4u(G4U *model) {
     if (!model) return;
     
-    config_gemma4u *p = &model->config;
-    weights_gemma4u *w = &model->weights;
+    config_g4u *p = &model->config;
+    weights_g4u *w = &model->weights;
 
     free(model->layer_types);
     free(w->norm_offsets);
@@ -177,6 +177,6 @@ void free_gemma4u(Gemma4Unified *model) {
     free(w->embed_tokens.q);
     free(w->embed_tokens.s);
 
-    memset(model, 0, sizeof(Gemma4Unified));
+    memset(model, 0, sizeof(G4U));
 }
 

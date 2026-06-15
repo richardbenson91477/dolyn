@@ -169,6 +169,7 @@ void free_qwen3_5(Qwen3_5 *model_qwen3_5) {
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
     free(w->rms_final_weight);
+
     if (!model_qwen3_5->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }

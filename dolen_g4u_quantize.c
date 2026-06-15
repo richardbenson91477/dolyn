@@ -1,8 +1,8 @@
 #include "dolen_g4u_common.h"
 #include "dolen_quantize_common.h"
 
-int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
-    config_gemma4u *p = &model->config;
+int load_config_g4u(G4U *model, const char *model_dir) {
+    config_g4u *p = &model->config;
     char config_path[4096];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
     FILE *f = fopen(config_path, "rb");
@@ -37,7 +37,7 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
         cfg = root;
     }
 
-    memset(p, 0, sizeof(config_gemma4u));
+    memset(p, 0, sizeof(config_g4u));
     p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
     p->hidden_dim = json_get_int(json_object_get(cfg, "intermediate_size"), 0);
     p->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 0);
@@ -89,13 +89,13 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     }
 
     json_free(root);
-    log_msg(stderr, "INFO: Gemma4Unified config loaded\n");
+    log_msg(stderr, "INFO: G4U config loaded\n");
     return 0;
 }
 
-static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_idx *idx, const char *filename) {
-    config_gemma4u *p = &model->config;
-    weights_gemma4u *w = &model->weights;
+static void process_g4u_safetensors_file(G4U *model, safetensors_idx *idx, const char *filename) {
+    config_g4u *p = &model->config;
+    weights_g4u *w = &model->weights;
     char filepath[4096];
     snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
     csafetensors_t st;
@@ -202,8 +202,8 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
     csafetensors_free(&st);
 }
 
-int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
-    config_gemma4u *p = &model->config;
+int load_g4u_from_safetensors(G4U *model, const char *model_dir) {
+    config_g4u *p = &model->config;
     safetensors_idx idx;
     if (load_safetensors_index(&idx, model_dir)) {
         log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
@@ -254,7 +254,7 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     }
 
     for (int i = 0; i < idx.n_unique_files; i++) {
-        process_gemma4u_safetensors_file(model, &idx, idx.unique_filenames[i]);
+        process_g4u_safetensors_file(model, &idx, idx.unique_filenames[i]);
     }
 
     for (int l = 0; l < p->n_layers; l++) {
@@ -289,22 +289,22 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         return -1;
     }
 
-    log_msg(stderr, "INFO: Gemma4Unified weights loaded successfully\n");
+    log_msg(stderr, "INFO: G4U weights loaded successfully\n");
     free_safetensors_index(&idx);
     return 0;
 }
 
-void build_gemma4u(Gemma4Unified *model, char *model_path) {
-    memset(model, 0, sizeof(Gemma4Unified));
-    if (load_config_gemma4u(model, model_path)) {
+void build_g4u(G4U *model, char *model_path) {
+    memset(model, 0, sizeof(G4U));
+    if (load_config_g4u(model, model_path)) {
         exit(EXIT_FAILURE);
     }
-    if (load_gemma4u_from_safetensors(model, model_path)) {
+    if (load_g4u_from_safetensors(model, model_path)) {
         exit(EXIT_FAILURE);
     }
 }
 
-void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
+void save_quantized_g4u(const char *filepath, G4U* model) {
     FILE *f = fopen(filepath, "wb");
     if (!f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
@@ -315,11 +315,11 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
 
     fwrite(&magic, sizeof(uint32_t), 1, f);
     fwrite(&version, sizeof(uint32_t), 1, f);
-    fwrite(&model->config, sizeof(config_gemma4u), 1, f);
+    fwrite(&model->config, sizeof(config_g4u), 1, f);
     fwrite(model->layer_types, sizeof(int), model->config.n_layers, f);
 
-    config_gemma4u *p = &model->config;
-    weights_gemma4u *w = &model->weights;
+    config_g4u *p = &model->config;
+    weights_g4u *w = &model->weights;
 
     write_qt(f, &w->embed_tokens);
     fwrite(w->rms_input_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
@@ -355,7 +355,7 @@ void save_quantized_gemma4u(const char *filepath, Gemma4Unified* model) {
     }
 
     fclose(f);
-    log_msg(stderr, "INFO: Quantized Gemma4Unified saved to %s\n", filepath);
+    log_msg(stderr, "INFO: Quantized G4U saved to %s\n", filepath);
 }
 
 int main(int argc, char *argv[]) {
@@ -370,10 +370,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    Gemma4Unified model;
-    build_gemma4u(&model, model_arg);
-    save_quantized_gemma4u(output_file, &model);
-    free_gemma4u(&model);
+    G4U model;
+    build_g4u(&model, model_arg);
+    save_quantized_g4u(output_file, &model);
+    free_g4u(&model);
     return 0;
 }
 

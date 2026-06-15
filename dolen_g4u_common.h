@@ -24,7 +24,7 @@ typedef struct {
     int attention_k_eq_v;
     int original_max_seq_len;
     int use_rope_freqs;
-} config_gemma4u;
+} config_g4u;
 
 typedef struct {
     qtensor embed_tokens;
@@ -45,7 +45,7 @@ typedef struct {
     qtensor *down_proj;
     float *layer_scalars;
     float *rope_freqs_full;
-} weights_gemma4u;
+} weights_g4u;
 
 typedef struct {
     float *x;
@@ -67,25 +67,25 @@ typedef struct {
     float *cos_cache_sliding;
     float *sin_cache_sliding;
     int allocated;
-} state_gemma4u;
+} state_g4u;
 
 typedef struct {
-    config_gemma4u config;
-    weights_gemma4u weights;
-    state_gemma4u state;
+    config_g4u config;
+    weights_g4u weights;
+    state_g4u state;
     int *layer_types;
-} Gemma4Unified;
+} G4U;
 
 
-void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w);
+void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w);
 
-void free_state_gemma4u(state_gemma4u *s);
+void free_state_g4u(state_g4u *s);
 
-void free_gemma4u(Gemma4Unified *model);
+void free_g4u(G4U *model);
 
-int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n_max);
+int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max);
 
-float *forward_gemma4u(Gemma4Unified *model, int token, int pos);
+float *forward_g4u(G4U *model, int token, int pos);
 
 
 #endif // DOLEN_G4U_COMMON_H

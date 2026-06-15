@@ -1,13 +1,13 @@
 #include "dolen_g4u_common.h"
 
-int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n_max) {
+int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (!f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
         return -1;
     }
 
-    memset(model, 0, sizeof(Gemma4Unified));
+    memset(model, 0, sizeof(G4U));
 
     uint32_t magic, version;
 
@@ -30,9 +30,9 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         return -1;
     }
 
-    config_gemma4u *p = &model->config;
+    config_g4u *p = &model->config;
 
-    if (fread(p, sizeof(config_gemma4u), 1, f) != 1) {
+    if (fread(p, sizeof(config_g4u), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read config\n");
         fclose(f);
         return -1;
@@ -50,7 +50,7 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
         return -1;
     }
 
-    weights_gemma4u *w = &model->weights;
+    weights_g4u *w = &model->weights;
     int total_norm_dim = 0;
     w->norm_offsets = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
     for (int i = 0; i < p->n_layers; i++) {
@@ -114,14 +114,14 @@ int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n
 
     fclose(f);
 
-    log_msg(stderr, "INFO: Quantized Gemma4Unified loaded from %s\n", filepath);
+    log_msg(stderr, "INFO: Quantized G4U loaded from %s\n", filepath);
 
-    alloc_state_gemma4u(&model->state, p, w);
+    alloc_state_g4u(&model->state, p, w);
 
     return 0;
 }
 
-static void rmsnorm_gemma4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
+static void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
     float ss = 0.0f;
 
     #pragma omp simd reduction(+:ss)
@@ -161,14 +161,14 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
     }
 }
 
-static inline float gemma_gelu(float x) {
+static inline float gelu_g4u(float x) {
     return 0.5f * x * (1.0f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x)));
 }
 
-float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
-    config_gemma4u *p = &model->config;
-    weights_gemma4u *w = &model->weights;
-    state_gemma4u *s = &model->state;
+float *forward_g4u(G4U *model, int token, int pos) {
+    config_g4u *p = &model->config;
+    weights_g4u *w = &model->weights;
+    state_g4u *s = &model->state;
     float *x = s->x;
     int dim = p->dim;
     float eps = p->rms_norm_eps;
@@ -213,7 +213,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         float *rms_q       = w->rms_q_norm + w->norm_offsets[l];
         float *rms_k       = w->rms_k_norm + w->norm_offsets[l];
 
-        rmsnorm_gemma4u(s->xb, x, rms_in, dim, eps, 1);
+        rmsnorm_g4u(s->xb, x, rms_in, dim, eps, 1);
 
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->q, &s->xq, &w->q_proj[l]);
@@ -228,7 +228,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
-            rmsnorm_gemma4u(qh, qh, rms_q, head_dim, eps, 1);
+            rmsnorm_g4u(qh, qh, rms_q, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
                 apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
@@ -238,7 +238,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
 
-            rmsnorm_gemma4u(kh, kh, rms_k, head_dim, eps, 1);
+            rmsnorm_g4u(kh, kh, rms_k, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
@@ -248,7 +248,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
         #pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
-            rmsnorm_gemma4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
+            rmsnorm_g4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
 
         long long loff = (long long)l * p->seq_len * max_kv_dim;
@@ -295,14 +295,14 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
         quantize_vec(&s->xq, s->hb, layer_attn_out_dim);
         matmul_qq(s->xb, &s->xq, &w->o_proj[l]);
-        rmsnorm_gemma4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
+        rmsnorm_g4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
 
         #pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
 
-        rmsnorm_gemma4u(s->xb, x, rms_pre_f, dim, eps, 1);
+        rmsnorm_g4u(s->xb, x, rms_pre_f, dim, eps, 1);
 
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
@@ -312,12 +312,12 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
 
         #pragma omp parallel for
         for (int i = 0; i < ffn_dim; i++) {
-            s->hb[i] = gemma_gelu(s->hb[i]) * s->hb2[i];
+            s->hb[i] = gelu_g4u(s->hb[i]) * s->hb2[i];
         }
         
         quantize_vec(&s->hq, s->hb, ffn_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
-        rmsnorm_gemma4u(s->xb, s->xb, rms_post_f, dim, eps, 1);
+        rmsnorm_g4u(s->xb, s->xb, rms_post_f, dim, eps, 1);
 
         #pragma omp simd
         for (int i = 0; i < dim; i++) {
@@ -333,7 +333,7 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
         }
     }
 
-    rmsnorm_gemma4u(x, x, w->rms_final_norm, dim, eps, 1);
+    rmsnorm_g4u(x, x, w->rms_final_norm, dim, eps, 1);
 
     quantize_vec(&s->xq, x, dim);
     matmul_qq(s->logits, &s->xq, &w->embed_tokens);
@@ -350,16 +350,16 @@ float *forward_gemma4u(Gemma4Unified *model, int token, int pos) {
     return s->logits;
 }
 
-static float *forward_gemma4u_wrap(void *model, int token, int pos) {
-    return forward_gemma4u((Gemma4Unified *)model, token, pos);
+static float *forward_g4u_wrap(void *model, int token, int pos) {
+    return forward_g4u((G4U *)model, token, pos);
 }
 
-static void free_gemma4u_wrap(void *model) {
-    free_gemma4u((Gemma4Unified *)model);
+static void free_g4u_wrap(void *model) {
+    free_g4u((G4U *)model);
     free(model);
 }
 
-static const chat_template GEMMA4U_CHAT_TEMPLATE = {
+static const chat_template CHAT_TEMPLATE_G4U = {
     .first_turn_and_system =
         "<|turn>system\n%s<turn|>\n"
         "<|turn>user\n%s<turn|>\n"
@@ -376,10 +376,10 @@ static const chat_template GEMMA4U_CHAT_TEMPLATE = {
         "<|channel>thought\n<channel|>",
 };
 
-static model_iface *init_gemma4u(const char *model_path, int seq_n_max) {
-    Gemma4Unified *model = a_calloc(1 * sizeof(Gemma4Unified));
-    if (load_quantized_gemma4u(model_path, model, seq_n_max)) {
-        free_gemma4u(model);
+static model_iface *init_g4u(const char *model_path, int seq_n_max) {
+    G4U *model = a_calloc(1 * sizeof(G4U));
+    if (load_quantized_g4u(model_path, model, seq_n_max)) {
+        free_g4u(model);
         free(model);
         return NULL;
     }
@@ -387,20 +387,20 @@ static model_iface *init_gemma4u(const char *model_path, int seq_n_max) {
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface) {
         .model = model,
-        .forward = forward_gemma4u_wrap,
-        .free_model = free_gemma4u_wrap,
+        .forward = forward_g4u_wrap,
+        .free_model = free_g4u_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 2,
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = &GEMMA4U_CHAT_TEMPLATE
+        .chat_template = &CHAT_TEMPLATE_G4U
     };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_gemma4u, "dolen_g4u");
+    return common_main(argc, argv, init_g4u, "dolen_g4u");
 }
 
