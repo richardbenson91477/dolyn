@@ -179,3 +179,4 @@ void free_gemma4u(Gemma4Unified *model) {
 
     memset(model, 0, sizeof(Gemma4Unified));
 }
+

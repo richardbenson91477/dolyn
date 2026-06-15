@@ -244,7 +244,7 @@ int compare_tokens(const void *a, const void *b) {
 int str_lookup(char *str, token_map *sorted_vocab, int vocab_size) {
     token_map tok = { .str = str };
     token_map *res = bsearch(&tok, sorted_vocab, vocab_size, sizeof(token_map), compare_tokens);
-    return res != NULL ? res->id : -1;
+    return res ? res->id : -1;
 }
 
 void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
@@ -253,10 +253,10 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
     }
     char *str_buf = a_calloc((t->max_token_length + 1) * sizeof(char));
     char *pos = text;
-    while (*pos != '\0') {
+    while (*pos) {
         int best_len = 0, best_id = -1;
-        for (int len = 1; (len <= t->max_token_length) && (pos[len-1] != '\0'); len++) {
-            if (((pos[len-1] & 0xC0) == 0x80) && ((len < t->max_token_length) && (pos[len] != '\0'))) {
+        for (int len = 1; (len <= t->max_token_length) && (pos[len-1]); len++) {
+            if (((pos[len-1] & 0xC0) == 0x80) && ((len < t->max_token_length) && (pos[len]))) {
                 continue;
             }
             strncpy(str_buf, pos, len);
@@ -310,7 +310,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
     char *segment = a_calloc(strlen(input) + 1);
 
     char *pos = input;
-    while (*pos != '\0') {
+    while (*pos) {
         int found_special = 0;
         for (int i = 0; i < t->n_special_tokens; i++) {
             size_t len = strlen(t->special_tokens[i].str);
@@ -324,7 +324,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
         if (! found_special) {
             size_t seg_len = 0;
             char *seg_start = pos;
-            while (*pos != '\0') {
+            while (*pos) {
                 int is_special_start = 0;
                 for (int i = 0; i < t->n_special_tokens; i++) {
                     if (strncmp(pos, t->special_tokens[i].str, strlen(t->special_tokens[i].str)) == 0) {
@@ -582,7 +582,7 @@ void log_msg(FILE *stream, const char *format, ...) {
 
         FILE *log_file = fopen(log_path, "a");
 
-        if (log_file != NULL) {
+        if (log_file) {
             vfprintf(log_file, format, args2);
             fclose(log_file);
         }
@@ -636,7 +636,7 @@ void *a_calloc(size_t size) {
     if (size == 0) return NULL;
 
     void *ptr = NULL;
-    if (posix_memalign(&ptr, 64, size) != 0) {
+    if (posix_memalign(&ptr, 64, size)) {
         return NULL;
     }
 
@@ -717,7 +717,7 @@ static char *render_chat_turn(const chat_template *tmpl, bool first_turn,
     const char *format = NULL;
     int len;
 
-    if (first_turn && system_prompt && system_prompt[0] != '\0') {
+    if (first_turn && system_prompt && system_prompt[0]) {
         format = tmpl->first_turn_and_system;
         len = snprintf(NULL, 0, format, system_prompt, prompt);
     } else {
@@ -736,7 +736,7 @@ static char *render_chat_turn(const chat_template *tmpl, bool first_turn,
         exit(EXIT_FAILURE);
     }
 
-    if (first_turn && system_prompt && system_prompt[0] != '\0') {
+    if (first_turn && system_prompt && system_prompt[0]) {
         snprintf(rendered, (size_t)len + 1, format, system_prompt, prompt);
     } else {
         snprintf(rendered, (size_t)len + 1, format, prompt);
@@ -786,7 +786,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 
     while (pos < steps_n_max) {
         if (user_turn) {
-            if (first_turn && (init_prompt != NULL)) {
+            if (first_turn && init_prompt) {
                 strncpy(prompt, init_prompt, prompt_n_max);
                 prompt[prompt_n_max] = '\0';
             }

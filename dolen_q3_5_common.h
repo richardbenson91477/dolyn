@@ -109,7 +109,9 @@ static token_map special_tokens_qwen3_5[] = {
 
 
 void alloc_state_qwen3_5(state_qwen3_5 *s, config_qwen3_5 *p);
+
 void free_state_qwen3_5(state_qwen3_5 *s);
+
 void free_qwen3_5(Qwen3_5 *model_qwen3_5);
 
 

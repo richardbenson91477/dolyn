@@ -75,7 +75,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     }
 
     JsonValue *weight_map = json_object_get(root, "weight_map");
-    if (!weight_map || weight_map->type != JSON_OBJECT) {
+    if ((! weight_map) || (weight_map->type != JSON_OBJECT)) {
         json_free(root);
         return -1;
     }
@@ -143,7 +143,8 @@ float *extract_tensor_from_handle(void *st_ptr, const char *name, float *dest, s
     }
 
     size_t num_elements = csafetensors_shape_size(tensor);
-    if (expected_size > 0 && (num_elements != expected_size)) {
+    if ((expected_size > 0)
+            && (num_elements != expected_size)) {
         log_msg(stderr, "ERROR: Tensor %s size mismatch: got %zu, expected %zu\n", name, num_elements, expected_size);
         if (!dest) {
             free(dest);

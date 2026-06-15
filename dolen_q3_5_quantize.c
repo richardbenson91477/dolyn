@@ -3,18 +3,18 @@
 
 
 static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
-    if (! layer_types || layer_types->type != JSON_ARRAY) {
+    if (! layer_types || (layer_types->type != JSON_ARRAY)) {
         return 0;
     }
     if (layer_idx >= (int)layer_types->data.array.count) {
         return 0;
     }
     JsonValue *lt = json_array_get(layer_types, layer_idx);
-    if (! lt || lt->type != JSON_STRING) {
+    if ((! lt) || (lt->type != JSON_STRING)) {
         return 0;
     }
     const char *type_str = lt->data.string;
-    if (strcmp(type_str, "linear_attention") == 0) {
+    if (! strcmp(type_str, "linear_attention")) {
         return 1;
     }
     return 0;
@@ -116,7 +116,7 @@ void load_qwen3_5_layer_types(Qwen3_5 *model_qwen3_5, const char *model_path) {
     fseek(f, 0, SEEK_SET);
 
     char *json_str = (char *)a_calloc(size + 1);
-    if ((! json_str) || fread(json_str, 1, size, f) != (size_t)size) {
+    if ((! json_str) || (fread(json_str, 1, size, f) != (size_t)size)) {
         if (json_str) {
             free(json_str);
         }
@@ -181,7 +181,7 @@ static void process_qwen3_5_safetensors_file(Qwen3_5 *model_qwen3_5, safetensors
     int attn_out_dim  = p->n_heads * head_size;
 
     for (size_t i = 0; i < idx->n_entries; i++) {
-        if (strcmp(idx->entries[i].filename, filename) != 0) {
+        if (strcmp(idx->entries[i].filename, filename)) {
             continue;
         }
 
@@ -291,7 +291,7 @@ int load_qwen3_5_from_safetensors(Qwen3_5 *model_qwen3_5, const char *model_dir)
     weights_qwen3_5 *w = &model_qwen3_5->weights;
     safetensors_idx idx;
 
-    if (load_safetensors_index(&idx, model_dir) != 0) {
+    if (load_safetensors_index(&idx, model_dir)) {
         log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
         return -1;
     }
@@ -366,7 +366,7 @@ int load_qwen3_5_from_safetensors(Qwen3_5 *model_qwen3_5, const char *model_dir)
 void build_qwen3_5(Qwen3_5 *model_qwen3_5, char *model_path) {
     memset(model_qwen3_5, 0, sizeof(Qwen3_5));
 
-    if (load_config_qwen3_5(model_path, &model_qwen3_5->config) != 0) {
+    if (load_config_qwen3_5(model_path, &model_qwen3_5->config)) {
         exit(EXIT_FAILURE);
     }
 
@@ -375,7 +375,7 @@ void build_qwen3_5(Qwen3_5 *model_qwen3_5, char *model_path) {
     model_qwen3_5->deltanet_layer_indices = a_calloc(model_qwen3_5->config.n_layer * sizeof(int));
     load_qwen3_5_layer_types(model_qwen3_5, model_path);
 
-    if (load_qwen3_5_from_safetensors(model_qwen3_5, model_path) != 0) {
+    if (load_qwen3_5_from_safetensors(model_qwen3_5, model_path)) {
         exit(EXIT_FAILURE);
     }
 }

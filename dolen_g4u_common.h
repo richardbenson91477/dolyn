@@ -76,11 +76,17 @@ typedef struct {
     int *layer_types;
 } Gemma4Unified;
 
+
 void alloc_state_gemma4u(state_gemma4u *s, config_gemma4u *p, weights_gemma4u *w);
+
 void free_state_gemma4u(state_gemma4u *s);
+
 void free_gemma4u(Gemma4Unified *model);
+
 int load_quantized_gemma4u(const char *filepath, Gemma4Unified *model, int seq_n_max);
+
 float *forward_gemma4u(Gemma4Unified *model, int token, int pos);
+
 
 #endif // DOLEN_G4U_COMMON_H
 

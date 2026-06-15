@@ -11,7 +11,8 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     memset(model_qwen3, 0, sizeof(Qwen3));
 
     uint32_t magic, version;
-    if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
+    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1)
+            || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
@@ -39,7 +40,7 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
 
     weights_qwen3 *w = &model_qwen3->weights;
 
-    if (seq_n_max != 0) {
+    if (seq_n_max) {
         p->seq_len = seq_n_max;
     }
     
@@ -58,31 +59,36 @@ int load_quantized_qwen3(const char *filepath, Qwen3 *model_qwen3, int seq_n_max
     
     read_qt(f, &w->token_embedding_table);
     
-    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
+    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layers * p->dim, f)
+            != (size_t)p->n_layers * p->dim) {
         log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
         fclose(f);
         return -1;
     }
     
-    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
+    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layers * p->dim, f)
+            != (size_t)p->n_layers * p->dim) {
         log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
         fclose(f);
         return -1;
     }
     
-    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
+    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f)
+            != (size_t)p->dim) {
         log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
         fclose(f);
         return -1;
     }
     
-    if (fread(w->q_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f) != (size_t)p->n_layers * p->head_dim) {
+    if (fread(w->q_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f)
+            != (size_t)p->n_layers * p->head_dim) {
         log_msg(stderr, "ERROR: Failed to read q_norm_weights\n");
         fclose(f);
         return -1;
     }
     
-    if (fread(w->k_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f) != (size_t)p->n_layers * p->head_dim) {
+    if (fread(w->k_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f)
+            != (size_t)p->n_layers * p->head_dim) {
         log_msg(stderr, "ERROR: Failed to read k_norm_weights\n");
         fclose(f);
         return -1;
@@ -166,7 +172,7 @@ float *forward_qwen3(Qwen3 *model_qwen3, int token, int pos) {
 
         int rotary_half = p->head_dim / 2;
 
-        if (rotary_half > 0 && s->cos_cache != NULL) {
+        if ((rotary_half > 0) && (s->cos_cache != NULL)) {
             float *cos_row = s->cos_cache + pos * rotary_half;
             float *sin_row = s->sin_cache + pos * rotary_half;
 
@@ -325,7 +331,7 @@ static const chat_template QWEN3_CHAT_TEMPLATE = {
 static model_iface *init_qwen3(const char *model_path, int seq_n_max) {
     Qwen3 *model = a_calloc(1 * sizeof(Qwen3));
 
-    if (load_quantized_qwen3(model_path, model, seq_n_max) != 0) {
+    if (load_quantized_qwen3(model_path, model, seq_n_max)) {
         free_qwen3(model);
         free(model);
         return NULL;
@@ -336,7 +342,7 @@ static model_iface *init_qwen3(const char *model_path, int seq_n_max) {
         .model = model,
         .forward = forward_qwen3_wrap,
         .free_model = free_qwen3_wrap,
-        .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
+        .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         // Qwen tokenizers have no BOS token and add_bos_token is false.
         .bos_token_id = 0,

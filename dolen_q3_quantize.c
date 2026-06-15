@@ -89,6 +89,7 @@ static void process_qwen3_safetensors_file(Qwen3 *model_qwen3, safetensors_idx *
     snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename);
 
     log_msg(stderr, "INFO: Loading shard: %s\n", filename);
+
     csafetensors_t st;
     if (csafetensors_load_from_file(filepath, &st) != CSAFETENSORS_SUCCESS) {
         log_msg(stderr, "ERROR: Failed to load %s\n", filepath);
@@ -100,7 +101,7 @@ static void process_qwen3_safetensors_file(Qwen3 *model_qwen3, safetensors_idx *
     int all_heads_dim = p->n_heads * head_size;
 
     for (size_t i = 0; i < idx->n_entries; i++) {
-        if (strcmp(idx->entries[i].filename, filename) != 0) {
+        if (strcmp(idx->entries[i].filename, filename)) {
             continue;
         }
 
@@ -172,7 +173,7 @@ int load_qwen3_from_safetensors(Qwen3 *model_qwen3, const char *model_dir) {
     weights_qwen3 *w = &model_qwen3->weights;
     safetensors_idx idx;
 
-    if (load_safetensors_index(&idx, model_dir) != 0) {
+    if (load_safetensors_index(&idx, model_dir)) {
         log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
         return -1;
     }
@@ -222,11 +223,11 @@ int load_qwen3_from_safetensors(Qwen3 *model_qwen3, const char *model_dir) {
 void build_qwen3(Qwen3 *model_qwen3, char *model_path) {
     memset(model_qwen3, 0, sizeof(Qwen3));
 
-    if (load_config_qwen3(model_path, &model_qwen3->config) != 0) {
+    if (load_config_qwen3(model_path, &model_qwen3->config)) {
         exit(EXIT_FAILURE);
     }
 
-    if (load_qwen3_from_safetensors(model_qwen3, model_path) != 0) {
+    if (load_qwen3_from_safetensors(model_qwen3, model_path)) {
         exit(EXIT_FAILURE);
     }
 }

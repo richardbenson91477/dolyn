@@ -15,7 +15,8 @@ int load_config_gemma4u(Gemma4Unified *model, const char *model_dir) {
     fseek(f, 0, SEEK_SET);
 
     char *json_str = (char *)a_calloc(size + 1);
-    if (!json_str || fread(json_str, 1, size, f) != (size_t)size) {
+    if ((! json_str)
+            || (fread(json_str, 1, size, f) != (size_t)size)) {
         free(json_str);
         fclose(f);
         return -1;
@@ -104,7 +105,7 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
     }
 
     for (size_t i = 0; i < idx->n_entries; i++) {
-        if (strcmp(idx->entries[i].filename, filename) != 0) {
+        if (strcmp(idx->entries[i].filename, filename)) {
             continue;
         }
         const char *tname = idx->entries[i].tensor_name;
@@ -204,7 +205,7 @@ static void process_gemma4u_safetensors_file(Gemma4Unified *model, safetensors_i
 int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
     config_gemma4u *p = &model->config;
     safetensors_idx idx;
-    if (load_safetensors_index(&idx, model_dir) != 0) {
+    if (load_safetensors_index(&idx, model_dir)) {
         log_msg(stderr, "ERROR: Could not find model.safetensors.index.json in %s\n", model_dir);
         return -1;
     }
@@ -262,8 +263,8 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
         int hd = is_full ? p->global_head_dim : p->head_dim;
         int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
 
-        if (model->weights.q_proj[l].rows != p->n_heads * hd || model->weights.q_proj[l].cols != p->dim ||
-            model->weights.k_proj[l].rows != kv_heads * hd || model->weights.k_proj[l].cols != p->dim ||
+        if (model->weights.q_proj[l].rows != (p->n_heads * hd) || model->weights.q_proj[l].cols != p->dim ||
+            model->weights.k_proj[l].rows != (kv_heads * hd) || model->weights.k_proj[l].cols != p->dim ||
             model->weights.o_proj[l].rows != p->dim || model->weights.o_proj[l].cols != p->n_heads * hd ||
             model->weights.gate_proj[l].rows != p->hidden_dim || model->weights.gate_proj[l].cols != p->dim ||
             model->weights.up_proj[l].rows != p->hidden_dim || model->weights.up_proj[l].cols != p->dim ||
@@ -273,8 +274,9 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
             return -1;
         }
 
-        if (!use_alternative_attention &&
-            (model->weights.v_proj[l].rows != kv_heads * hd || model->weights.v_proj[l].cols != p->dim)) {
+        if ((! use_alternative_attention) &&
+                ((model->weights.v_proj[l].rows != (kv_heads * hd))
+                || (model->weights.v_proj[l].cols != p->dim))) {
             log_msg(stderr, "ERROR: Missing sliding-attention v_proj in layer %d\n", l);
             free_safetensors_index(&idx);
             return -1;
@@ -294,10 +296,10 @@ int load_gemma4u_from_safetensors(Gemma4Unified *model, const char *model_dir) {
 
 void build_gemma4u(Gemma4Unified *model, char *model_path) {
     memset(model, 0, sizeof(Gemma4Unified));
-    if (load_config_gemma4u(model, model_path) != 0) {
+    if (load_config_gemma4u(model, model_path)) {
         exit(EXIT_FAILURE);
     }
-    if (load_gemma4u_from_safetensors(model, model_path) != 0) {
+    if (load_gemma4u_from_safetensors(model, model_path)) {
         exit(EXIT_FAILURE);
     }
 }

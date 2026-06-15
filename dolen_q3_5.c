@@ -11,7 +11,8 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     memset(model_qwen3_5, 0, sizeof(Qwen3_5));
     
     uint32_t magic, version;
-    if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
+    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1)
+            || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
@@ -38,7 +39,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
     config_qwen3_5 *p = &model_qwen3_5->config;
     weights_qwen3_5 *w = &model_qwen3_5->weights;
     
-    if (seq_n_max != 0) {
+    if (seq_n_max) {
         p->seq_len = seq_n_max;
     }
 
@@ -53,7 +54,8 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         return -1;
     }
     
-    if (fread(model_qwen3_5->layer_types, sizeof(int), (size_t)p->n_layer, f) != (size_t)p->n_layer) {
+    if (fread(model_qwen3_5->layer_types, sizeof(int), (size_t)p->n_layer, f)
+            != (size_t)p->n_layer) {
         log_msg(stderr, "ERROR: Failed to read layer_types from %s\n", filepath);
         fclose(f);
         return -1;
@@ -76,7 +78,8 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         fclose(f);
         return -1;
     }
-    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
+    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f)
+            != (size_t)p->n_layer * p->dim) {
         log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
         fclose(f);
         return -1;
@@ -109,12 +112,14 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         fclose(f);
         return -1;
     }
-    if (fread(w->q_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) != (size_t)p->n_full_attn_layers * head_size) {
+    if (fread(w->q_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f)
+            != (size_t)p->n_full_attn_layers * head_size) {
         log_msg(stderr, "ERROR: Failed to read q_norm\n");
         fclose(f);
         return -1;
     }
-    if (fread(w->k_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) != (size_t)p->n_full_attn_layers * head_size) {
+    if (fread(w->k_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) 
+            != (size_t)p->n_full_attn_layers * head_size) {
         log_msg(stderr, "ERROR: Failed to read k_norm\n");
         fclose(f);
         return -1;
@@ -132,6 +137,7 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
             fclose(f);
             return -1;
         }
+
         for (int i = 0; i < p->n_linear_attn_layers; i++) {
             read_qt(f, &w->in_proj_qkv[i]);
             read_qt(f, &w->in_proj_z[i]);
@@ -150,38 +156,38 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
             return -1;
         }
         
-        if (fread(w->in_proj_b, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f) != 
-            (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
+        if (fread(w->in_proj_b, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f)
+                != (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
             log_msg(stderr, "ERROR: Failed to read in_proj_b\n");
             fclose(f);
             return -1;
         }
-        if (fread(w->in_proj_a, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f) != 
-            (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
+        if (fread(w->in_proj_a, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f)
+                != (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
             log_msg(stderr, "ERROR: Failed to read in_proj_a\n");
             fclose(f);
             return -1;
         }
-        if (fread(w->conv1d_weight, sizeof(float), (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel, f) != 
-            (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel) {
+        if (fread(w->conv1d_weight, sizeof(float), (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel, f)
+                != (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel) {
             log_msg(stderr, "ERROR: Failed to read conv1d_weight\n");
             fclose(f);
             return -1;
         }
-        if (fread(w->dt_bias, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f) != 
-            (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
+        if (fread(w->dt_bias, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f)
+                != (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
             log_msg(stderr, "ERROR: Failed to read dt_bias\n");
             fclose(f);
             return -1;
         }
-        if (fread(w->A_log, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f) != 
-            (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
+        if (fread(w->A_log, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f)
+                != (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
             log_msg(stderr, "ERROR: Failed to read A_log\n");
             fclose(f);
             return -1;
         }
-        if (fread(w->linear_norm, sizeof(float), (size_t)p->n_linear_attn_layers * p->d_linear_v, f) != 
-            (size_t)p->n_linear_attn_layers * p->d_linear_v) {
+        if (fread(w->linear_norm, sizeof(float), (size_t)p->n_linear_attn_layers * p->d_linear_v, f)
+                != (size_t)p->n_linear_attn_layers * p->d_linear_v) {
             log_msg(stderr, "ERROR: Failed to read linear_norm\n");
             fclose(f);
             return -1;
@@ -204,7 +210,8 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         fclose(f);
         return -1;
     }
-    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
+    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f)
+            != (size_t)p->n_layer * p->dim) {
         log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
         fclose(f);
         return -1;
@@ -230,7 +237,8 @@ int load_quantized_qwen3_5(const char *filepath, Qwen3_5 *model_qwen3_5, int seq
         fclose(f);
         return -1;
     }
-    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
+    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f)
+            != (size_t)p->dim) {
         log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
         fclose(f);
         return -1;
@@ -340,7 +348,7 @@ void forward_qwen3_5_attention_layer(Qwen3_5 *model_qwen3_5, int l, int la, int 
 
     int rotary_partial = (int)((float)head_size * p->rope_partial_rotary_factor);
 
-    if (rotary_partial > 0 && s->cos_cache != NULL) {
+    if ((rotary_partial > 0) && s->cos_cache) {
         float *cos_row = s->cos_cache + pos * rotary_partial;
         float *sin_row = s->sin_cache + pos * rotary_partial;
 
@@ -638,7 +646,7 @@ static const chat_template QWEN3_5_CHAT_TEMPLATE = {
 static model_iface *init_qwen3_5(const char *model_path, int seq_n_max) {
     Qwen3_5 *model = a_calloc(1 * sizeof(Qwen3_5));
 
-    if (load_quantized_qwen3_5(model_path, model, seq_n_max) != 0) {
+    if (load_quantized_qwen3_5(model_path, model, seq_n_max)) {
         free_qwen3_5(model);
         free(model);
         return NULL;
