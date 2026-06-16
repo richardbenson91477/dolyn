@@ -45,6 +45,8 @@ void write_qt(FILE *f, qtensor *qt);
 
 // Math Utilities
 
+void rmsnorm(float *o, float *x, float *weight, int size, float eps);
+
 void softmax(float *x, int size);
 
 float silu(float x);

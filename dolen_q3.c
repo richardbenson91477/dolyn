@@ -132,22 +132,6 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     return 0;
 }
 
-void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
-    float ss = 0.0f;
-
-    #pragma omp simd reduction(+:ss)
-    for (int j = 0; j < size; j++) {
-        ss += x[j] * x[j];
-    }
-
-    ss = 1.0f / sqrtf((ss / size) + eps);
-
-    #pragma omp simd
-    for (int j = 0; j < size; j++) {
-        o[j] = weight[j] * (ss * x[j]);
-    }
-}
-
 float *forward_q3(Q3 *model_q3, int token, int pos) {
     config_q3 *p = &model_q3->config;
     weights_q3 *w = &model_q3->weights;
@@ -314,6 +298,24 @@ static void free_q3_wrap(void *model) {
     free(model);
 }
 
+static token_map SPECIAL_TOKENS_Q3[] = {
+    {"<|endoftext|\x3e", 151643},
+    {"<|im_start|\x3e", 151644},
+    {"<|im_end|\x3e", 151645},
+    {"<|object_ref_start|\x3e", 151646},
+    {"<|object_ref_end|\x3e", 151647},
+    {"<|box_start|\x3e", 151648},
+    {"<|box_end|\x3e", 151649},
+    {"<|quad_start|\x3e", 151650},
+    {"<|quad_end|\x3e", 151651},
+    {"<|vision_start|\x3e", 151652},
+    {"<|vision_end|\x3e", 151653},
+    {"<|vision_pad|\x3e", 151654},
+    {"<|image_pad|\x3e", 151655},
+    {"<|video_pad|\x3e", 151656},
+    {NULL, 0}
+};
+
 static const chat_template CHAT_TEMPLATE_Q3 = {
     .first_turn_and_system =
         "<|im_start|>system\n%s<|im_end|>\n"
@@ -348,7 +350,7 @@ static model_iface *init_q3(const char *model_path, int seq_n_max) {
         .bos_token_id = 0,
         .eos_token_id = 151645,
         .im_end_id = 151645,
-        .special_tokens = special_tokens_q3,
+        .special_tokens = SPECIAL_TOKENS_Q3,
         .chat_template = &CHAT_TEMPLATE_Q3,
     };
     return model_i;

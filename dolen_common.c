@@ -172,6 +172,21 @@ void write_qt(FILE *f, qtensor *qt) {
     fwrite(qt->s, sizeof(float), (size_t)qt->rows * num_groups, f);
 }
 
+void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
+    float ss = 0.0f;
+
+    #pragma omp simd reduction(+:ss)
+    for (int j = 0; j < size; j++) {
+        ss += x[j] * x[j];
+    }
+    ss = 1.0f / sqrtf((ss / size) + eps);
+
+    #pragma omp simd
+    for (int j = 0; j < size; j++) {
+        o[j] = weight[j] * (ss * x[j]);
+    }
+}
+
 void softmax(float *x, int size) {
     float max_val = x[0];
     #pragma omp simd reduction(max:max_val)

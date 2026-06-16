@@ -1,18 +1,99 @@
 #include "dolen_ig4_1_common.h"
 
-void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
-    float ss = 0.0f;
-
-    #pragma omp simd reduction(+:ss)
-    for (int j = 0; j < size; j++) {
-        ss += x[j] * x[j];
+int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max) {
+    FILE *f = fopen(filepath, "rb");
+    if (!f) {
+        log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
+        return -1;
     }
-    ss = 1.0f / sqrtf(ss / size + eps);
 
-    #pragma omp simd
-    for (int j = 0; j < size; j++) {
-        o[j] = weight[j] * (ss * x[j]);
+    memset(model_ig4_1, 0, sizeof(IG4_1));
+    
+    uint32_t magic, version;
+    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
+        log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
+        fclose(f); return -1;
     }
+    
+    if (magic != 0x31344749) { // 'IG4_1'
+        log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
+        fclose(f); return -1;
+    }
+    
+    if (version != 1) {
+        log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
+        fclose(f); return -1;
+    }
+    
+    if (fread(&model_ig4_1->config, sizeof(config_ig4_1), 1, f) != 1) {
+        log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
+        fclose(f); return -1;
+    }
+    
+    config_ig4_1 *p = &model_ig4_1->config;
+    weights_ig4_1 *w = &model_ig4_1->weights;
+
+    log_msg(stderr,
+            "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
+            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
+            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
+            p->dim, p->n_heads, p->n_kv_heads, p->d_head,
+            p->n_layer, p->seq_len, p->rope_theta, p->attention_multiplier,
+            p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
+
+    if (!(p->rope_theta > 1.0f)) {
+        log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", p->rope_theta);
+        fclose(f);
+        return -1;
+    }
+    
+    if (seq_n_max) {
+        p->seq_len = seq_n_max;
+    }
+
+    read_qt(f, &w->token_embedding_table);
+    
+    w->rms_att_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
+    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
+        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n"); fclose(f); return -1;
+    }
+    
+    w->wq = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    w->wk = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    w->wv = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    w->wo = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+
+    for (int i = 0; i < p->n_layer; i++) {
+        read_qt(f, &w->wq[i]); read_qt(f, &w->wk[i]); read_qt(f, &w->wv[i]); read_qt(f, &w->wo[i]);
+    }
+    
+    w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
+    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
+        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n"); fclose(f); return -1;
+    }
+    
+    w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    w->w3 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    for (int i = 0; i < p->n_layer; i++) {
+        read_qt(f, &w->w1[i]); read_qt(f, &w->w2[i]); read_qt(f, &w->w3[i]);
+    }
+    
+    w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
+    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
+        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n"); fclose(f); return -1;
+    }
+    
+    if (!p->tie_word_embeddings) {
+        read_qt(f, &w->wcls);
+    } else {
+        w->wcls = w->token_embedding_table;
+    }
+    
+    fclose(f);
+    log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
+    alloc_state_ig4_1(&(model_ig4_1->state), &(model_ig4_1->config));
+    return 0;
 }
 
 void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
@@ -198,102 +279,6 @@ static void free_ig4_1_wrap(void *model) {
     free(model);
 }
 
-int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max) {
-    FILE *f = fopen(filepath, "rb");
-    if (!f) {
-        log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
-        return -1;
-    }
-
-    memset(model_ig4_1, 0, sizeof(IG4_1));
-    
-    uint32_t magic, version;
-    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
-        log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
-        fclose(f); return -1;
-    }
-    
-    if (magic != 0x31344749) { // 'IG4_1'
-        log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
-        fclose(f); return -1;
-    }
-    
-    if (version != 1) {
-        log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
-        fclose(f); return -1;
-    }
-    
-    if (fread(&model_ig4_1->config, sizeof(config_ig4_1), 1, f) != 1) {
-        log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
-        fclose(f); return -1;
-    }
-    
-    config_ig4_1 *p = &model_ig4_1->config;
-    weights_ig4_1 *w = &model_ig4_1->weights;
-
-    log_msg(stderr,
-            "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
-            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
-            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
-            p->dim, p->n_heads, p->n_kv_heads, p->d_head,
-            p->n_layer, p->seq_len, p->rope_theta, p->attention_multiplier,
-            p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
-
-    if (!(p->rope_theta > 1.0f)) {
-        log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", p->rope_theta);
-        fclose(f);
-        return -1;
-    }
-    
-    if (seq_n_max) {
-        p->seq_len = seq_n_max;
-    }
-
-    read_qt(f, &w->token_embedding_table);
-    
-    w->rms_att_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
-    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n"); fclose(f); return -1;
-    }
-    
-    w->wq = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->wk = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->wv = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->wo = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-
-    for (int i = 0; i < p->n_layer; i++) {
-        read_qt(f, &w->wq[i]); read_qt(f, &w->wk[i]); read_qt(f, &w->wv[i]); read_qt(f, &w->wo[i]);
-    }
-    
-    w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
-    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n"); fclose(f); return -1;
-    }
-    
-    w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    w->w3 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    for (int i = 0; i < p->n_layer; i++) {
-        read_qt(f, &w->w1[i]); read_qt(f, &w->w2[i]); read_qt(f, &w->w3[i]);
-    }
-    
-    w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
-    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n"); fclose(f); return -1;
-    }
-    
-    if (!p->tie_word_embeddings) {
-        read_qt(f, &w->wcls);
-    } else {
-        w->wcls = w->token_embedding_table;
-    }
-    
-    fclose(f);
-    log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
-    alloc_state_ig4_1(&(model_ig4_1->state), &(model_ig4_1->config));
-    return 0;
-}
-
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
     .first_turn_and_system =
         "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n"
@@ -309,10 +294,10 @@ static const chat_template CHAT_TEMPLATE_IG4_1 = {
 };
 
 static token_map SPECIAL_TOKENS_IG4_1[] = {
-    { .str = "<|end_of_text|>",  .id = 100257 },
-    { .str = "<|start_of_role|>", .id = 100264 },
-    { .str = "<|end_of_role|>",   .id = 100265 },
-    { .str = NULL,                  .id = 0 },
+    {"<|end_of_text|>", 100257},
+    {"<|start_of_role|>", 100264},
+    {"<|end_of_role|>", 100265},
+    {NULL, 0},
 };
 
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {

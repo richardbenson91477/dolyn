@@ -266,7 +266,6 @@ void rmsnorm_gemma(float *o, float *x, float *weight, int size, float eps) {
     for (int j = 0; j < size; j++) {
         ss += x[j] * x[j];
     }
-
     ss = 1.0f / sqrtf(ss / size + eps);
 
     #pragma omp simd
@@ -643,6 +642,24 @@ static const chat_template CHAT_TEMPLATE_Q3_5 = {
         "<think>\n\n</think>\n\n",
 };
 
+static token_map SPECIAL_TOKENS_Q3_5[] = {
+    {"<|endoftext|\x3e", 248044},
+    {"<|im_start|\x3e", 248045},
+    {"<|im_end|\x3e", 248046},
+    {"<|object_ref_start|\x3e", 248047},
+    {"<|object_ref_end|\x3e", 248048},
+    {"<|box_start|\x3e", 248049},
+    {"<|box_end|\x3e", 248050},
+    {"<|quad_start|\x3e", 248051},
+    {"<|quad_end|\x3e", 248052},
+    {"<|vision_start|\x3e", 248053},
+    {"<|vision_end|\x3e", 248054},
+    {"<|vision_pad|\x3e", 248055},
+    {"<|image_pad|\x3e", 248056},
+    {"<|video_pad|\x3e", 248057},
+    {NULL, 0}
+};
+
 static model_iface *init_q3_5(const char *model_path, int seq_n_max) {
     Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
 
@@ -662,7 +679,7 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max) {
         .bos_token_id = 0,
         .eos_token_id = 248046,
         .im_end_id = 248046,
-        .special_tokens = special_tokens_q3_5,
+        .special_tokens = SPECIAL_TOKENS_Q3_5,
         .chat_template = &CHAT_TEMPLATE_Q3_5,
     };
     return model_i;

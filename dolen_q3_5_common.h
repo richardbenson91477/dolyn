@@ -89,25 +89,6 @@ typedef struct {
     int *deltanet_layer_indices;
 } Q3_5;
 
-static token_map special_tokens_q3_5[] = {
-    {"<|endoftext|\x3e", 248044},
-    {"<|im_start|\x3e", 248045},
-    {"<|im_end|\x3e", 248046},
-    {"<|object_ref_start|\x3e", 248047},
-    {"<|object_ref_end|\x3e", 248048},
-    {"<|box_start|\x3e", 248049},
-    {"<|box_end|\x3e", 248050},
-    {"<|quad_start|\x3e", 248051},
-    {"<|quad_end|\x3e", 248052},
-    {"<|vision_start|\x3e", 248053},
-    {"<|vision_end|\x3e", 248054},
-    {"<|vision_pad|\x3e", 248055},
-    {"<|image_pad|\x3e", 248056},
-    {"<|video_pad|\x3e", 248057},
-    {NULL, 0}
-};
-
-
 void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p);
 
 void free_state_q3_5(state_q3_5 *s);

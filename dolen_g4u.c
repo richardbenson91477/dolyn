@@ -121,7 +121,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     return 0;
 }
 
-static void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
+void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
     float ss = 0.0f;
 
     #pragma omp simd reduction(+:ss)

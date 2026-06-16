@@ -60,24 +60,6 @@ typedef struct {
     state_q3 state;
 } Q3;
 
-static token_map special_tokens_q3[] = {
-    {"<|endoftext|\x3e", 151643},
-    {"<|im_start|\x3e", 151644},
-    {"<|im_end|\x3e", 151645},
-    {"<|object_ref_start|\x3e", 151646},
-    {"<|object_ref_end|\x3e", 151647},
-    {"<|box_start|\x3e", 151648},
-    {"<|box_end|\x3e", 151649},
-    {"<|quad_start|\x3e", 151650},
-    {"<|quad_end|\x3e", 151651},
-    {"<|vision_start|\x3e", 151652},
-    {"<|vision_end|\x3e", 151653},
-    {"<|vision_pad|\x3e", 151654},
-    {"<|image_pad|\x3e", 151655},
-    {"<|video_pad|\x3e", 151656},
-    {NULL, 0}
-};
-
 
 void alloc_state_q3(state_q3 *s, config_q3 *p);
 
