@@ -714,50 +714,43 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 }
 
 static const chat_template CHAT_TEMPLATE_CHATML = {
-    .first_turn_and_system =
-        "<|im_start|>system\n%s<|im_end|>\n"
+    .system =
+        "<|im_start|>system\n%s<|im_end|>\n",
+    .main =
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n",
-    .first_turn =
-        "<|im_start|>user\n%s<|im_end|>\n"
-        "<|im_start|>assistant\n",
-    .next_turn =
-        "<|im_end|>\n"
-        "<|im_start|>user\n%s<|im_end|>\n"
-        "<|im_start|>assistant\n",
+    .end_turn =
+        "<|im_end|>\n",
 };
 
-static char *render_chat_turn(const chat_template *tmpl, bool first_turn,
+static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn,
         const char *system_prompt, const char *prompt, int *rendered_len) {
     const char *format = NULL;
-    int len;
+    int len1, len2;
 
     if (first_turn && system_prompt && system_prompt[0]) {
-        format = tmpl->first_turn_and_system;
-        len = snprintf(NULL, 0, format, system_prompt, prompt);
+        len1 = snprintf(NULL, 0, chat_tmpl->system, system_prompt);
+        len2 = snprintf(NULL, 0, chat_tmpl->main, prompt);
     } else {
-        format = first_turn ? tmpl->first_turn : tmpl->next_turn;
-        len = snprintf(NULL, 0, format, prompt);
+        len1 = snprintf(NULL, 0, chat_tmpl->end_turn);
+        len2 = snprintf(NULL, 0, chat_tmpl->main, prompt);
     }
 
-    if (!format || len < 0) {
-        log_msg(stderr, "ERROR: Invalid chat template\n");
-        exit(EXIT_FAILURE);
-    }
-
-    char *rendered = a_calloc((size_t)len + 1);
-    if (!rendered) {
+    char *rendered = a_calloc(len1 + len2 + 1);
+    if (! rendered) {
         log_msg(stderr, "ERROR: Failed to allocate rendered chat prompt\n");
         exit(EXIT_FAILURE);
     }
 
     if (first_turn && system_prompt && system_prompt[0]) {
-        snprintf(rendered, (size_t)len + 1, format, system_prompt, prompt);
+        snprintf(rendered, len2, chat_tmpl->system, system_prompt);
+        snprintf(rendered + len1, len2, chat_tmpl->main, prompt);
     } else {
-        snprintf(rendered, (size_t)len + 1, format, prompt);
+        snprintf(rendered, len1, chat_tmpl->end_turn);
+        snprintf(rendered + len1, len2, chat_tmpl->main, prompt);
     }
 
-    *rendered_len = len;
+    *rendered_len = len1 + len2;
     return rendered;
 }
 
@@ -775,11 +768,12 @@ static bool is_chat_stop_token(const model_iface *model_i, int token) {
 void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
         char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max,
         bool _debug) {
-    const chat_template *tmpl = model_i->chat_template;
-    if (!tmpl) {
-        tmpl = &CHAT_TEMPLATE_CHATML;
+
+    const chat_template *chat_tmpl = model_i->chat_template;
+    if (! chat_tmpl) {
+        chat_tmpl = &CHAT_TEMPLATE_CHATML;
     }
-    if (!tmpl->first_turn_and_system || !tmpl->first_turn || !tmpl->next_turn) {
+    if ((! chat_tmpl->system) || (! chat_tmpl->main) || (! chat_tmpl->end_turn)) {
         log_msg(stderr, "ERROR: Model supplied an incomplete chat template\n");
         exit(EXIT_FAILURE);
     }
@@ -813,7 +807,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
                 continue;
             }
 
-            rendered_prompt = render_chat_turn(tmpl, first_turn,
+            rendered_prompt = render_chat_turn(chat_tmpl, first_turn,
                     system_prompt, prompt, &rendered_len);
 
             if (prompt_tokens) {
@@ -888,14 +882,15 @@ void error_usage(const char *prog_name) {
     log_msg(stderr, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
     log_msg(stderr, " -M  | --mode <str>:          generate|chat, default: chat\n");
     log_msg(stderr, " -sp | --system_prompt <str>: system prompt, default: none\n");
-    log_msg(stderr, " -d  | --debug <int>:         enable debug output, default: 0\n");
+    log_msg(stderr, " -d  | --debug:               enable debug output, default: disabled\n");
     log_msg(stderr, " -l  | --log <str>:           path to append all I/O to, default: none\n");
     log_msg(stderr, " -h  | --help:                print this help and exit\n");
+    log_msg(stderr, " -th | --think:               enable think-mode chat template, default: disabled\n");
 
     exit(EXIT_FAILURE);
 }
 
-int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, int), const char *prog_name) {
+int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, int, bool), const char *prog_name) {
     char *model_path = NULL;
     float temperature = TEMP_DEFAULT;
     int topk = TOP_K_DEFAULT;
@@ -909,15 +904,26 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     char *mode = "chat";
     char *system_prompt = NULL;
     bool _debug = false;
+    bool _think = false;
 
 
-    for (int i = 1; i < argc; i += 2) {
+    for (int i = 1; i < argc;) {
         if (argv[i][0] != '-') {
             error_usage(prog_name);
         }
 
         if ((! strcmp(argv[i], "-h")) || (! strcmp(argv[i], "--help"))) {
             error_usage(prog_name);
+        }
+        else if ((! strcmp(argv[i], "-th")) || (! strcmp(argv[i], "--think"))) {
+            _think = true;
+            i += 1;
+            continue;
+        }
+        else if ((! strcmp(argv[i], "-d")) || (! strcmp(argv[i], "--debug"))) {
+            _debug = true;
+            i += 1;
+            continue;
         }
 
         if ((i + 1) >= argc) {
@@ -963,15 +969,14 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
             system_prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(system_prompt, argv[i + 1]);
         }
-        else if ((! strcmp(argv[i], "-d")) || (! strcmp(argv[i], "--debug"))) {
-            _debug = atoi(argv[i + 1]);
-        }
         else if ((! strcmp(argv[i], "-l")) || (! strcmp(argv[i], "--log"))) {
             log_path = argv[i + 1];
         }
         else {
             error_usage(prog_name);
         }
+
+        i += 2;
     }
 
     if (! model_path) {
@@ -990,7 +995,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
             prompt = NULL;
         }
         FILE *pf = fopen(prompt_file, "r");
-        if (!pf) {
+        if (! pf) {
             log_msg(stderr, "ERROR: Couldn't open prompt file %s\n", prompt_file);
             exit(EXIT_FAILURE);
         }
@@ -1005,7 +1010,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         }
         
         prompt = (char *)a_calloc(f_len + 1);
-        if (!prompt) {
+        if (! prompt) {
             log_msg(stderr, "ERROR: Memory allocation failed for prompt file\n");
             fclose(pf);
             exit(EXIT_FAILURE);
@@ -1016,7 +1021,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         fclose(pf);
     }
 
-    model_iface *model_i = init_fn(model_path, seq_n_max);
+    model_iface *model_i = init_fn(model_path, seq_n_max, _think);
     if (! model_i) {
         exit(EXIT_FAILURE);
     }

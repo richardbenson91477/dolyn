@@ -23,7 +23,7 @@ top_k=40
 prompt_n=1024
 
 
-./"dolen_${model_type}" \
+$dolen_path/"dolen_${model_type}" \
     --model "${model}" \
     --tokenizer "${tokenizer}" \
     --prompt "${prompt}" \

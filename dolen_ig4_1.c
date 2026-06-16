@@ -280,17 +280,13 @@ static void free_ig4_1_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    .first_turn_and_system =
-        "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n"
+    .system =
+        "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n",
+    .main =
         "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
         "<|start_of_role|>assistant<|end_of_role|>",
-    .first_turn =
-        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
-        "<|start_of_role|>assistant<|end_of_role|>",
-    .next_turn =
-        "<|end_of_text|>\n"
-        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
-        "<|start_of_role|>assistant<|end_of_role|>",
+    .end_turn =
+        "<|end_of_text|>\n",
 };
 
 static token_map SPECIAL_TOKENS_IG4_1[] = {
@@ -300,8 +296,12 @@ static token_map SPECIAL_TOKENS_IG4_1[] = {
     {NULL, 0},
 };
 
-static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
+static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _think) {
     IG4_1 *model = a_calloc(1 * sizeof(IG4_1));
+
+    if (_think) {
+        log_msg(stderr, "WARNING: Think mode requested but not supported.\n");
+    }
 
     if (load_quantized_ig4_1(model_path, model, seq_n_max)) {
         free_ig4_1(model);

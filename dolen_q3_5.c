@@ -626,20 +626,25 @@ static void free_q3_5_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_Q3_5 = {
-    .first_turn_and_system =
-        "<|im_start|>system\n%s<|im_end|>\n"
+    .system =
+        "<|im_start|>system\n%s<|im_end|>\n",
+    .main =
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n"
         "<think>\n\n</think>\n\n",
-    .first_turn =
+    .end_turn =
+        "<|im_end|>\n",
+};
+
+static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
+    .system =
+        "<|im_start|>system\n%s<|im_end|>\n",
+    .main =
         "<|im_start|>user\n%s<|im_end|>\n"
         "<|im_start|>assistant\n"
-        "<think>\n\n</think>\n\n",
-    .next_turn =
-        "<|im_end|>\n"
-        "<|im_start|>user\n%s<|im_end|>\n"
-        "<|im_start|>assistant\n"
-        "<think>\n\n</think>\n\n",
+        "<think>",
+    .end_turn =
+        "<|im_end|>\n",
 };
 
 static token_map SPECIAL_TOKENS_Q3_5[] = {
@@ -660,7 +665,7 @@ static token_map SPECIAL_TOKENS_Q3_5[] = {
     {NULL, 0}
 };
 
-static model_iface *init_q3_5(const char *model_path, int seq_n_max) {
+static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think) {
     Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
 
     if (load_quantized_q3_5(model_path, model, seq_n_max)) {
@@ -680,7 +685,7 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max) {
         .eos_token_id = 248046,
         .im_end_id = 248046,
         .special_tokens = SPECIAL_TOKENS_Q3_5,
-        .chat_template = &CHAT_TEMPLATE_Q3_5,
+        .chat_template = _think ? &CHAT_TEMPLATE_THINK_Q3_5 : &CHAT_TEMPLATE_Q3_5,
     };
     return model_i;
 }

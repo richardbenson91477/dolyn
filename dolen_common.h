@@ -149,9 +149,9 @@ void *a_calloc(size_t size);
 #define TOP_K_DEFAULT 40
 
 typedef struct {
-    const char *first_turn_and_system;
-    const char *first_turn;
-    const char *next_turn;
+    const char *system;
+    const char *main;
+    const char *end_turn;
 } chat_template;
 
 typedef struct {
@@ -184,7 +184,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 void error_usage(const char *prog_name);
 
 int common_main(int argc, char *argv[],
-        model_iface *(*init_fn)(const char *model_path, int seq_n_max),
+        model_iface *(*init_fn)(const char *model_path, int seq_n_max, bool _think),
         const char *prog_name);
 
 

@@ -360,23 +360,27 @@ static void free_g4u_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_G4U = {
-    .first_turn_and_system =
-        "<|turn>system\n%s<turn|>\n"
+    .system =
+        "<|turn>system\n%s<turn|>\n",
+    .main =
         "<|turn>user\n%s<turn|>\n"
         "<|turn>model\n"
         "<|channel>thought\n<channel|>",
-    .first_turn =
-        "<|turn>user\n%s<turn|>\n"
-        "<|turn>model\n"
-        "<|channel>thought\n<channel|>",
-    .next_turn =
-        "<turn|>\n"
-        "<|turn>user\n%s<turn|>\n"
-        "<|turn>model\n"
-        "<|channel>thought\n<channel|>",
+    .end_turn =
+        "<turn|>\n",
 };
 
-static model_iface *init_g4u(const char *model_path, int seq_n_max) {
+static const chat_template CHAT_TEMPLATE_THINK_G4U = {
+    .system =
+        "<|turn>system\n<|think|>%s<turn|>\n",
+    .main =
+        "<|turn>user\n%s<turn|>\n"
+        "<|turn>model\n",
+    .end_turn =
+        "<turn|>\n",
+};
+
+static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think) {
     G4U *model = a_calloc(1 * sizeof(G4U));
     if (load_quantized_g4u(model_path, model, seq_n_max)) {
         free_g4u(model);
@@ -395,7 +399,7 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max) {
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = &CHAT_TEMPLATE_G4U
+        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U
     };
     return model_i;
 }
