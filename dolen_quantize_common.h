@@ -1,10 +1,14 @@
 #ifndef DOLEN_Q_COMMON_H
 #define DOLEN_Q_COMMON_H
 
-#include "dolen_common.h"
+#include <errno.h>
+#include <limits.h>
+#include <sys/types.h>
 
 #include "ext/csafetensors.h"
 #include "ext/json.h"
+
+#include "dolen_common.h"
 
 #ifndef DOLEN_QUANTIZE_CHUNK_BYTES
 #define DOLEN_QUANTIZE_CHUNK_BYTES (16u * 1024u * 1024u)

@@ -1,9 +1,5 @@
 #include "dolen_quantize_common.h"
 
-#include <errno.h>
-#include <limits.h>
-#include <sys/types.h>
-
 static int checked_mul_size(size_t a, size_t b, size_t *out) {
     if (a != 0 && b > SIZE_MAX / a) {
         return -1;
@@ -105,7 +101,7 @@ static weightmap_entry *find_index_entry(
 }
 
 static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
-    char filepath[4096];
+    char filepath[PATH_MAX];
     if (snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename)
             >= (int)sizeof(filepath)) {
         log_msg(stderr, "ERROR: Safetensors path is too long\n");
@@ -277,7 +273,7 @@ void quantize_group(qtensor *qt, const float *weights, int rows, int cols) {
 int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     memset(idx, 0, sizeof(*idx));
 
-    char index_path[4096];
+    char index_path[PATH_MAX];
     if (snprintf(index_path, sizeof(index_path),
             "%s/model.safetensors.index.json", model_dir) >= (int)sizeof(index_path)) {
         return -1;
@@ -459,7 +455,7 @@ static int open_entry_source(quantize_ctx *ctx, const weightmap_entry *entry) {
         ctx->source_filename = NULL;
     }
 
-    char filepath[4096];
+    char filepath[PATH_MAX];
     if (snprintf(filepath, sizeof(filepath), "%s/%s",
             ctx->index.model_dir, entry->filename) >= (int)sizeof(filepath)) {
         return -1;

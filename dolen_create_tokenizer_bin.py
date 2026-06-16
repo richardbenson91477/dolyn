@@ -4,6 +4,7 @@ import struct
 import json
 from transformers import AutoTokenizer
 
+
 def create_tokenizer(model_dir: str, out_path: str = None) -> str:
     if out_path is None:
         out_path = os.path.join(model_dir, "tokenizer.bin")

@@ -343,3 +343,4 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max) {
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
+

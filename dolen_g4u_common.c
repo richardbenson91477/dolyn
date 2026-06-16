@@ -103,6 +103,7 @@ void free_state_g4u(state_g4u *s) {
     if (!s->allocated) {
         return;
     }
+
     free(s->x);
     free(s->xb);
     free(s->hb);
@@ -123,6 +124,7 @@ void free_state_g4u(state_g4u *s) {
     free(s->sin_cache_full);
     free(s->cos_cache_sliding);
     free(s->sin_cache_sliding);
+
     s->allocated = 0;
 }
 

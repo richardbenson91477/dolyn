@@ -1,8 +1,9 @@
 #include "dolen_ig4_1_common.h"
 #include "dolen_quantize_common.h"
 
+
 int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
-    char config_path[4096];
+    char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
 
     FILE *f = fopen(config_path, "rb");

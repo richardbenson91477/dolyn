@@ -21,7 +21,7 @@ static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
 }
 
 int load_config_q3_5(const char *model_dir, config_q3_5 *config) {
-    char config_path[4096];
+    char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
 
     FILE *f = fopen(config_path, "rb");
@@ -102,7 +102,7 @@ int load_config_q3_5(const char *model_dir, config_q3_5 *config) {
 }
 
 void load_q3_5_layer_types(Q3_5 *model_q3_5, const char *model_path) {
-    char config_path[4096];
+    char config_path[PATH_MAX];
 
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_path);
 

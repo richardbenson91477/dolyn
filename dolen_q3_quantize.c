@@ -16,7 +16,7 @@ static float get_json_float_val(JsonValue *v, float def) {
 }
 
 int load_config_q3(const char *model_dir, config_q3 *config) {
-    char config_path[4096];
+    char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
 
     FILE *f = fopen(config_path, "rb");

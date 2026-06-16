@@ -1,9 +1,11 @@
 #include "dolen_g4u_common.h"
 #include "dolen_quantize_common.h"
 
+
 int load_config_g4u(G4U *model, const char *model_dir) {
     config_g4u *p = &model->config;
-    char config_path[4096];
+
+    char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
     FILE *f = fopen(config_path, "rb");
     if (!f) {
