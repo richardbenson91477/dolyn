@@ -743,11 +743,11 @@ static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn,
     }
 
     if (first_turn && system_prompt && system_prompt[0]) {
-        snprintf(rendered, len2, chat_tmpl->system, system_prompt);
-        snprintf(rendered + len1, len2, chat_tmpl->main, prompt);
+        snprintf(rendered, len1 + 1, chat_tmpl->system, system_prompt);
+        snprintf(rendered + len1, len2 + 1, chat_tmpl->main, prompt);
     } else {
-        snprintf(rendered, len1, chat_tmpl->end_turn);
-        snprintf(rendered + len1, len2, chat_tmpl->main, prompt);
+        snprintf(rendered, len1 + 1, chat_tmpl->end_turn);
+        snprintf(rendered + len1, len2 + 1, chat_tmpl->main, prompt);
     }
 
     *rendered_len = len1 + len2;
