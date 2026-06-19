@@ -129,7 +129,9 @@ void free_state_g4u(state_g4u *s) {
 }
 
 void free_g4u(G4U *model) {
-    if (!model) return;
+    if (!model) {
+        return;
+    }
     
     config_g4u *p = &model->config;
     weights_g4u *w = &model->weights;

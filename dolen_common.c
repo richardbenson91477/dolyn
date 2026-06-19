@@ -75,7 +75,9 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
         float wmax = 0.0f;
         for (int i = start; i < end; i++) {
             float v = fabsf(x[i]);
-            if (v > wmax) wmax = v;
+            if (v > wmax) {
+                wmax = v;
+            }
         }
         float scale = wmax < 1e-9f ? 1e-9f : wmax / 127.0f;
         xq->s[g] = scale;
@@ -648,7 +650,9 @@ void read_msg(char *buf, size_t buf_len) {
 }
 
 void *a_calloc(size_t size) {
-    if (size == 0) return NULL;
+    if (size == 0) {
+        return NULL;
+    }
 
     void *ptr = NULL;
     if (posix_memalign(&ptr, 64, size)) {
