@@ -49,18 +49,18 @@ static uint64_t read_le64(const uint8_t bytes[8]) {
 
 static size_t dtype_size(st_dtype dtype) {
     switch (dtype) {
-        case ST_DTYPE_F16:
-        case ST_DTYPE_BF16:
-            return sizeof(uint16_t);
-        case ST_DTYPE_F32:
-            return sizeof(float);
-        default:
-            return 0;
+    case ST_DTYPE_F16:
+    case ST_DTYPE_BF16:
+        return sizeof(uint16_t);
+    case ST_DTYPE_F32:
+        return sizeof(float);
+    default:
+        return 0;
     }
 }
 
 static st_dtype parse_dtype(const char *dtype) {
-    if (!dtype) {
+    if (! dtype) {
         return ST_DTYPE_UNSUPPORTED;
     }
     if (strcmp(dtype, "F16") == 0) {
@@ -76,7 +76,7 @@ static st_dtype parse_dtype(const char *dtype) {
 }
 
 static int json_u64(JsonValue *value, uint64_t *out) {
-    if (!value || value->type != JSON_NUMBER || value->data.number < 0.0) {
+    if (! value || value->type != JSON_NUMBER || value->data.number < 0.0) {
         return -1;
     }
     double d = value->data.number;
@@ -88,12 +88,10 @@ static int json_u64(JsonValue *value, uint64_t *out) {
     return 0;
 }
 
-static weightmap_entry *find_index_entry(
-        safetensors_idx *idx, const char *filename, const char *tensor_name) {
+static weightmap_entry *find_index_entry(safetensors_idx *idx, const char *filename, const char *tensor_name) {
     for (size_t i = 0; i < idx->n_entries; i++) {
         weightmap_entry *entry = &idx->entries[i];
-        if (strcmp(entry->filename, filename) == 0 &&
-                strcmp(entry->tensor_name, tensor_name) == 0) {
+        if (strcmp(entry->filename, filename) == 0 && strcmp(entry->tensor_name, tensor_name) == 0) {
             return entry;
         }
     }
@@ -102,14 +100,13 @@ static weightmap_entry *find_index_entry(
 
 static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
     char filepath[PATH_MAX];
-    if (snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename)
-            >= (int)sizeof(filepath)) {
+    if (snprintf(filepath, sizeof(filepath), "%s/%s", idx->model_dir, filename) >= (int)sizeof(filepath)) {
         log_msg(stderr, "ERROR: Safetensors path is too long\n");
         return -1;
     }
 
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Could not open %s\n", filepath);
         return -1;
     }
@@ -129,7 +126,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
     }
     size_t header_len = (size_t)header_len_u64;
     char *header = (char *)a_calloc(header_len + 1);
-    if (!header || fread(header, 1, header_len, f) != header_len) {
+    if (! header || fread(header, 1, header_len, f) != header_len) {
         log_msg(stderr, "ERROR: Could not read safetensors header from %s\n", filepath);
         free(header);
         fclose(f);
@@ -138,10 +135,10 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
     fclose(f);
     header[header_len] = '\0';
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(header, header_len, error, sizeof(error));
     free(header);
-    if (!root || root->type != JSON_OBJECT) {
+    if (! root || root->type != JSON_OBJECT) {
         log_msg(stderr, "ERROR: Invalid safetensors header in %s: %s\n", filepath, error);
         json_free(root);
         return -1;
@@ -160,7 +157,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
         }
 
         weightmap_entry *entry = find_index_entry(idx, filename, pair->key);
-        if (!entry) {
+        if (! entry) {
             continue;
         }
 
@@ -168,10 +165,8 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
         JsonValue *dtype_json = json_object_get(tensor, "dtype");
         JsonValue *shape = json_object_get(tensor, "shape");
         JsonValue *offsets = json_object_get(tensor, "data_offsets");
-        if (!dtype_json || dtype_json->type != JSON_STRING ||
-                !shape || shape->type != JSON_ARRAY ||
-                !offsets || offsets->type != JSON_ARRAY ||
-                offsets->data.array.count != 2) {
+        if (! dtype_json || dtype_json->type != JSON_STRING || ! shape || shape->type != JSON_ARRAY || ! offsets ||
+                offsets->type != JSON_ARRAY || offsets->data.array.count != 2) {
             log_msg(stderr, "ERROR: Invalid metadata for tensor %s\n", pair->key);
             json_free(root);
             return -1;
@@ -180,8 +175,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
         uint64_t elements = 1;
         for (size_t d = 0; d < shape->data.array.count; d++) {
             uint64_t dim;
-            if (json_u64(json_array_get(shape, d), &dim) ||
-                    (dim != 0 && elements > UINT64_MAX / dim)) {
+            if (json_u64(json_array_get(shape, d), &dim) || (dim != 0 && elements > UINT64_MAX / dim)) {
                 log_msg(stderr, "ERROR: Invalid shape for tensor %s\n", pair->key);
                 json_free(root);
                 return -1;
@@ -190,8 +184,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
         }
 
         uint64_t begin, end;
-        if (json_u64(json_array_get(offsets, 0), &begin) ||
-                json_u64(json_array_get(offsets, 1), &end) || end < begin) {
+        if (json_u64(json_array_get(offsets, 0), &begin) || json_u64(json_array_get(offsets, 1), &end) || end < begin) {
             log_msg(stderr, "ERROR: Invalid data offsets for tensor %s\n", pair->key);
             json_free(root);
             return -1;
@@ -207,9 +200,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
         entry->metadata_ready = 1;
 
         size_t item_size = dtype_size(entry->dtype);
-        if (item_size != 0 &&
-                (elements > UINT64_MAX / item_size ||
-                 elements * item_size != entry->data_nbytes)) {
+        if (item_size != 0 && (elements > UINT64_MAX / item_size || elements * item_size != entry->data_nbytes)) {
             log_msg(stderr, "ERROR: Byte size mismatch for tensor %s\n", pair->key);
             json_free(root);
             return -1;
@@ -220,8 +211,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
     return 0;
 }
 
-static void quantize_group_into(int8_t *q, float *s,
-        const float *weights, int rows, int cols) {
+static void quantize_group_into(int8_t *q, float *s, const float *weights, int rows, int cols) {
     int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     for (int i = 0; i < rows; i++) {
         const float *row = weights + (size_t)i * cols;
@@ -263,7 +253,7 @@ void quantize_group(qtensor *qt, const float *weights, int rows, int cols) {
 
     qt->q = (int8_t *)a_calloc((size_t)rows * cols * sizeof(int8_t));
     qt->s = (float *)a_calloc((size_t)rows * num_groups * sizeof(float));
-    if ((rows > 0 && cols > 0) && (!qt->q || !qt->s)) {
+    if ((rows > 0 && cols > 0) && (! qt->q || ! qt->s)) {
         log_msg(stderr, "ERROR: Quantization allocation failed\n");
         exit(EXIT_FAILURE);
     }
@@ -274,13 +264,13 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     memset(idx, 0, sizeof(*idx));
 
     char index_path[PATH_MAX];
-    if (snprintf(index_path, sizeof(index_path),
-            "%s/model.safetensors.index.json", model_dir) >= (int)sizeof(index_path)) {
+    if (snprintf(index_path, sizeof(index_path), "%s/model.safetensors.index.json", model_dir) >=
+            (int)sizeof(index_path)) {
         return -1;
     }
 
     FILE *f = fopen(index_path, "rb");
-    if (!f) {
+    if (! f) {
         return -1;
     }
 
@@ -296,7 +286,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
 
     size_t size = (size_t)file_size;
     char *json_str = (char *)a_calloc(size + 1);
-    if (!json_str || fread(json_str, 1, size, f) != size) {
+    if (! json_str || fread(json_str, 1, size, f) != size) {
         free(json_str);
         fclose(f);
         return -1;
@@ -304,15 +294,15 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     fclose(f);
     json_str[size] = '\0';
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
-    if (!root) {
+    if (! root) {
         return -1;
     }
 
     JsonValue *weight_map = json_object_get(root, "weight_map");
-    if (!weight_map || weight_map->type != JSON_OBJECT) {
+    if (! weight_map || weight_map->type != JSON_OBJECT) {
         json_free(root);
         return -1;
     }
@@ -320,7 +310,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     idx->n_entries = weight_map->data.object.count;
     idx->entries = (weightmap_entry *)a_calloc(idx->n_entries * sizeof(weightmap_entry));
     idx->model_dir = strdup(model_dir);
-    if (!idx->entries || !idx->model_dir) {
+    if (! idx->entries || ! idx->model_dir) {
         json_free(root);
         free_safetensors_index(idx);
         return -1;
@@ -328,7 +318,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
 
     for (size_t i = 0; i < idx->n_entries; i++) {
         JsonPair *pair = &weight_map->data.object.pairs[i];
-        if (!pair->value || pair->value->type != JSON_STRING) {
+        if (! pair->value || pair->value->type != JSON_STRING) {
             json_free(root);
             free_safetensors_index(idx);
             return -1;
@@ -336,7 +326,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
 
         idx->entries[i].tensor_name = strdup(pair->key);
         idx->entries[i].filename = strdup(pair->value->data.string);
-        if (!idx->entries[i].tensor_name || !idx->entries[i].filename) {
+        if (! idx->entries[i].tensor_name || ! idx->entries[i].filename) {
             json_free(root);
             free_safetensors_index(idx);
             return -1;
@@ -349,17 +339,16 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
                 break;
             }
         }
-        if (!found) {
-            char **files = (char **)realloc(idx->unique_filenames,
-                    (size_t)(idx->n_unique_files + 1) * sizeof(char *));
-            if (!files) {
+        if (! found) {
+            char **files = (char **)realloc(idx->unique_filenames, (size_t)(idx->n_unique_files + 1) * sizeof(char *));
+            if (! files) {
                 json_free(root);
                 free_safetensors_index(idx);
                 return -1;
             }
             idx->unique_filenames = files;
             idx->unique_filenames[idx->n_unique_files] = strdup(pair->value->data.string);
-            if (!idx->unique_filenames[idx->n_unique_files]) {
+            if (! idx->unique_filenames[idx->n_unique_files]) {
                 json_free(root);
                 free_safetensors_index(idx);
                 return -1;
@@ -386,7 +375,7 @@ int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
 }
 
 void free_safetensors_index(safetensors_idx *idx) {
-    if (!idx) {
+    if (! idx) {
         return;
     }
     for (size_t i = 0; i < idx->n_entries; i++) {
@@ -409,7 +398,7 @@ int quantize_ctx_open(quantize_ctx *ctx, const char *model_dir) {
 }
 
 void quantize_ctx_close(quantize_ctx *ctx) {
-    if (!ctx) {
+    if (! ctx) {
         return;
     }
     if (ctx->source) {
@@ -428,12 +417,11 @@ const weightmap_entry *quantize_find_tensor(const quantize_ctx *ctx, const char 
     return NULL;
 }
 
-const weightmap_entry *quantize_find_last_tensor(
-        const quantize_ctx *ctx, const char *const *names, size_t n_names) {
+const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *ctx, const char *const *names, size_t n_names) {
     const weightmap_entry *best = NULL;
     for (size_t n = 0; n < n_names; n++) {
         const weightmap_entry *entry = quantize_find_tensor(ctx, names[n]);
-        if (entry && (!best || entry->processing_rank > best->processing_rank)) {
+        if (entry && (! best || entry->processing_rank > best->processing_rank)) {
             best = entry;
         }
     }
@@ -441,11 +429,10 @@ const weightmap_entry *quantize_find_last_tensor(
 }
 
 static int open_entry_source(quantize_ctx *ctx, const weightmap_entry *entry) {
-    if (!entry || !entry->metadata_ready) {
+    if (! entry || ! entry->metadata_ready) {
         return -1;
     }
-    if (ctx->source && ctx->source_filename &&
-            strcmp(ctx->source_filename, entry->filename) == 0) {
+    if (ctx->source && ctx->source_filename && strcmp(ctx->source_filename, entry->filename) == 0) {
         return 0;
     }
 
@@ -456,12 +443,11 @@ static int open_entry_source(quantize_ctx *ctx, const weightmap_entry *entry) {
     }
 
     char filepath[PATH_MAX];
-    if (snprintf(filepath, sizeof(filepath), "%s/%s",
-            ctx->index.model_dir, entry->filename) >= (int)sizeof(filepath)) {
+    if (snprintf(filepath, sizeof(filepath), "%s/%s", ctx->index.model_dir, entry->filename) >= (int)sizeof(filepath)) {
         return -1;
     }
     ctx->source = fopen(filepath, "rb");
-    if (!ctx->source) {
+    if (! ctx->source) {
         log_msg(stderr, "ERROR: Could not open %s\n", filepath);
         return -1;
     }
@@ -469,28 +455,25 @@ static int open_entry_source(quantize_ctx *ctx, const weightmap_entry *entry) {
     return 0;
 }
 
-static int validate_entry(const weightmap_entry *entry,
-        const char *name, size_t expected_elements) {
-    if (!entry) {
+static int validate_entry(const weightmap_entry *entry, const char *name, size_t expected_elements) {
+    if (! entry) {
         log_msg(stderr, "ERROR: Missing tensor %s\n", name ? name : "(unknown)");
         return -1;
     }
-    if (!entry->metadata_ready || dtype_size(entry->dtype) == 0) {
-        log_msg(stderr, "ERROR: Unsupported or missing dtype for tensor %s\n",
-                entry->tensor_name);
+    if (! entry->metadata_ready || dtype_size(entry->dtype) == 0) {
+        log_msg(stderr, "ERROR: Unsupported or missing dtype for tensor %s\n", entry->tensor_name);
         return -1;
     }
     if (entry->num_elements != expected_elements) {
-        log_msg(stderr, "ERROR: Tensor %s size mismatch: got %llu, expected %zu\n",
-                entry->tensor_name,
+        log_msg(stderr, "ERROR: Tensor %s size mismatch: got %llu, expected %zu\n", entry->tensor_name,
                 (unsigned long long)entry->num_elements, expected_elements);
         return -1;
     }
     return 0;
 }
 
-static int read_f32_range(quantize_ctx *ctx, const weightmap_entry *entry,
-        uint64_t first_element, size_t elements, void *raw, float *f32) {
+static int read_f32_range(quantize_ctx *ctx, const weightmap_entry *entry, uint64_t first_element, size_t elements,
+        void *raw, float *f32) {
     size_t item_size = dtype_size(entry->dtype);
     uint64_t byte_offset;
     if (first_element > UINT64_MAX / item_size ||
@@ -522,10 +505,8 @@ static int read_f32_range(quantize_ctx *ctx, const weightmap_entry *entry,
     return 0;
 }
 
-int quantize_write_f32_entry(quantize_ctx *ctx, FILE *out,
-        const weightmap_entry *entry, size_t expected_elements) {
-    if (validate_entry(entry, entry ? entry->tensor_name : NULL, expected_elements) ||
-            open_entry_source(ctx, entry)) {
+int quantize_write_f32_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry, size_t expected_elements) {
+    if (validate_entry(entry, entry ? entry->tensor_name : NULL, expected_elements) || open_entry_source(ctx, entry)) {
         return -1;
     }
 
@@ -545,7 +526,7 @@ int quantize_write_f32_entry(quantize_ctx *ctx, FILE *out,
     }
     void *raw = a_calloc(raw_bytes);
     float *f32 = (float *)a_calloc(chunk_elements * sizeof(float));
-    if ((expected_elements > 0) && (!raw || !f32)) {
+    if ((expected_elements > 0) && (! raw || ! f32)) {
         free(raw);
         free(f32);
         return -1;
@@ -556,8 +537,7 @@ int quantize_write_f32_entry(quantize_ctx *ctx, FILE *out,
         if (n > chunk_elements) {
             n = chunk_elements;
         }
-        if (read_f32_range(ctx, entry, done, n, raw, f32) ||
-                quantize_write_bytes(out, f32, sizeof(float), n)) {
+        if (read_f32_range(ctx, entry, done, n, raw, f32) || quantize_write_bytes(out, f32, sizeof(float), n)) {
             free(raw);
             free(f32);
             return -1;
@@ -570,10 +550,8 @@ int quantize_write_f32_entry(quantize_ctx *ctx, FILE *out,
     return 0;
 }
 
-int quantize_write_f32_tensor(quantize_ctx *ctx, FILE *out,
-        const char *name, size_t expected_elements) {
-    return quantize_write_f32_entry(ctx, out,
-            quantize_find_tensor(ctx, name), expected_elements);
+int quantize_write_f32_tensor(quantize_ctx *ctx, FILE *out, const char *name, size_t expected_elements) {
+    return quantize_write_f32_entry(ctx, out, quantize_find_tensor(ctx, name), expected_elements);
 }
 
 int quantize_write_f32_zeros(FILE *out, size_t elements) {
@@ -585,7 +563,7 @@ int quantize_write_f32_zeros(FILE *out, size_t elements) {
         n = elements;
     }
     float *zeros = (float *)a_calloc(n * sizeof(float));
-    if (elements > 0 && !zeros) {
+    if (elements > 0 && ! zeros) {
         return -1;
     }
     while (elements > 0) {
@@ -600,10 +578,9 @@ int quantize_write_f32_zeros(FILE *out, size_t elements) {
     return 0;
 }
 
-int quantize_write_f32_or_zeros(quantize_ctx *ctx, FILE *out,
-        const char *name, size_t expected_elements) {
+int quantize_write_f32_or_zeros(quantize_ctx *ctx, FILE *out, const char *name, size_t expected_elements) {
     const weightmap_entry *entry = quantize_find_tensor(ctx, name);
-    if (!entry) {
+    if (! entry) {
         return quantize_write_f32_zeros(out, expected_elements);
     }
     return quantize_write_f32_entry(ctx, out, entry, expected_elements);
@@ -611,12 +588,11 @@ int quantize_write_f32_or_zeros(quantize_ctx *ctx, FILE *out,
 
 int quantize_write_empty_qtensor(FILE *out) {
     int zero = 0;
-    return quantize_write_bytes(out, &zero, sizeof(zero), 1) ||
-           quantize_write_bytes(out, &zero, sizeof(zero), 1) ? -1 : 0;
+    return quantize_write_bytes(out, &zero, sizeof(zero), 1) || quantize_write_bytes(out, &zero, sizeof(zero), 1) ? -1
+                                                                                                                  : 0;
 }
 
-int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
-        const weightmap_entry *entry, int rows, int cols) {
+int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry, int rows, int cols) {
     if (rows <= 0 || cols <= 0) {
         log_msg(stderr, "ERROR: Invalid quantized tensor shape %d x %d\n", rows, cols);
         return -1;
@@ -633,8 +609,7 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
     uint64_t q_bytes = (uint64_t)rows * (uint64_t)cols;
     uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);
 
-    if (quantize_write_bytes(out, &rows, sizeof(rows), 1) ||
-            quantize_write_bytes(out, &cols, sizeof(cols), 1)) {
+    if (quantize_write_bytes(out, &rows, sizeof(rows), 1) || quantize_write_bytes(out, &cols, sizeof(cols), 1)) {
         return -1;
     }
 
@@ -644,8 +619,7 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
     }
     uint64_t q_offset = (uint64_t)current;
     uint64_t s_offset, end_offset;
-    if (checked_add_u64(q_offset, q_bytes, &s_offset) ||
-            checked_add_u64(s_offset, s_bytes, &end_offset)) {
+    if (checked_add_u64(q_offset, q_bytes, &s_offset) || checked_add_u64(s_offset, s_bytes, &end_offset)) {
         return -1;
     }
 
@@ -656,8 +630,8 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
     }
 
     size_t item_size = dtype_size(entry->dtype);
-    size_t row_work_bytes = (size_t)cols * (item_size + sizeof(float) + sizeof(int8_t)) +
-            (size_t)num_groups * sizeof(float);
+    size_t row_work_bytes =
+            (size_t)cols * (item_size + sizeof(float) + sizeof(int8_t)) + (size_t)num_groups * sizeof(float);
     size_t rows_per_chunk = row_work_bytes ? ctx->chunk_bytes / row_work_bytes : 1;
     if (rows_per_chunk == 0) {
         rows_per_chunk = 1;
@@ -679,7 +653,7 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
     float *f32 = (float *)a_calloc(max_elements * sizeof(float));
     int8_t *q = (int8_t *)a_calloc(max_elements * sizeof(int8_t));
     float *s = (float *)a_calloc(rows_per_chunk * (size_t)num_groups * sizeof(float));
-    if (!raw || !f32 || !q || !s) {
+    if (! raw || ! f32 || ! q || ! s) {
         free(raw);
         free(f32);
         free(q);
@@ -694,9 +668,11 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
         }
         size_t chunk_elements = (size_t)chunk_rows * cols;
 
-        if (read_f32_range(ctx, entry, (uint64_t)row * cols,
-                    chunk_elements, raw, f32)) {
-            free(raw); free(f32); free(q); free(s);
+        if (read_f32_range(ctx, entry, (uint64_t)row * cols, chunk_elements, raw, f32)) {
+            free(raw);
+            free(f32);
+            free(q);
+            free(s);
             return -1;
         }
         quantize_group_into(q, s, f32, chunk_rows, cols);
@@ -705,7 +681,10 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
                 quantize_write_bytes(out, q, sizeof(int8_t), chunk_elements) ||
                 seek_abs(out, s_offset + (uint64_t)row * num_groups * sizeof(float)) ||
                 quantize_write_bytes(out, s, sizeof(float), (size_t)chunk_rows * num_groups)) {
-            free(raw); free(f32); free(q); free(s);
+            free(raw);
+            free(f32);
+            free(q);
+            free(s);
             return -1;
         }
         row += chunk_rows;
@@ -718,27 +697,23 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
     return seek_abs(out, end_offset);
 }
 
-int quantize_write_qtensor(quantize_ctx *ctx, FILE *out,
-        const char *name, int rows, int cols) {
-    return quantize_write_qtensor_entry(ctx, out,
-            quantize_find_tensor(ctx, name), rows, cols);
+int quantize_write_qtensor(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols) {
+    return quantize_write_qtensor_entry(ctx, out, quantize_find_tensor(ctx, name), rows, cols);
 }
 
-int quantize_write_qtensor_or_empty(quantize_ctx *ctx, FILE *out,
-        const char *name, int rows, int cols) {
+int quantize_write_qtensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols) {
     const weightmap_entry *entry = quantize_find_tensor(ctx, name);
-    if (!entry) {
+    if (! entry) {
         return quantize_write_empty_qtensor(out);
     }
     return quantize_write_qtensor_entry(ctx, out, entry, rows, cols);
 }
 
-int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out,
-        const char *const *names, size_t n_names, float default_value) {
+int quantize_write_scalar_or_default(
+        quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names, float default_value) {
     const weightmap_entry *entry = quantize_find_last_tensor(ctx, names, n_names);
-    if (!entry) {
+    if (! entry) {
         return quantize_write_bytes(out, &default_value, sizeof(default_value), 1);
     }
     return quantize_write_f32_entry(ctx, out, entry, 1);
 }
-

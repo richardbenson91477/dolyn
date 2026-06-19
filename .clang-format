@@ -1,0 +1,58 @@
+# Based on LLVM, but heavily customized to match your C style
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: Latest
+
+# --- Indentation & Wrapping ---
+UseTab: Never
+IndentWidth: 4
+ContinuationIndentWidth: 8
+IndentCaseLabels: false
+AlignAfterOpenBracket: DontAlign
+
+# --- Column Limit ---
+# Set to 120 to accommodate long function signatures like common_main
+ColumnLimit: 120
+
+# --- Braces & Blocks ---
+BreakBeforeBraces: Attach
+Cpp11BracedListStyle: false  # Keeps spaces inside { .str = str }
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: None
+AllowShortLoopsOnASingleLine: false
+
+# --- Pointers & References ---
+DerivePointerAlignment: false
+PointerAlignment: Right      # e.g., char *log_path
+
+# --- Spacing ---
+SpaceAfterCStyleCast: false  # e.g., (int8_t)roundf(...)
+SpaceAfterLogicalNot: true   # e.g., if (! file)
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements # Space after if/for/while, but not after func names
+SpaceInEmptyBlock: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# --- Alignment ---
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+
+# --- Bin Packing ---
+BinPackArguments: true
+BinPackParameters: true
+
+# --- Includes ---
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# --- Empty Lines ---
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false

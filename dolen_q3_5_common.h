@@ -95,6 +95,4 @@ void free_state_q3_5(state_q3_5 *s);
 
 void free_q3_5(Q3_5 *model_q3_5);
 
-
-#endif //DOLEN_Q3_5_COMMON_H
-
+#endif // DOLEN_Q3_5_COMMON_H

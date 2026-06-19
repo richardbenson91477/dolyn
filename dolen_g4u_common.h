@@ -76,7 +76,6 @@ typedef struct {
     int *layer_types;
 } G4U;
 
-
 void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w);
 
 void free_state_g4u(state_g4u *s);
@@ -87,6 +86,4 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max);
 
 float *forward_g4u(G4U *model, int token, int pos);
 
-
 #endif // DOLEN_G4U_COMMON_H
-

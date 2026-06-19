@@ -1,7 +1,6 @@
 #include "dolen_q3_5_common.h"
 #include "dolen_quantize_common.h"
 
-
 static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
     if (! layer_types || (layer_types->type != JSON_ARRAY)) {
         return 0;
@@ -47,7 +46,7 @@ int load_config_q3_5(const char *model_dir, config_q3_5 *config) {
     json_str[size] = '\0';
     fclose(f);
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
     if (! root) {
@@ -110,7 +109,7 @@ void load_q3_5_layer_types(Q3_5 *model_q3_5, const char *model_path) {
     if (! f) {
         return;
     }
-    
+
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -125,20 +124,20 @@ void load_q3_5_layer_types(Q3_5 *model_q3_5, const char *model_path) {
     }
     json_str[size] = '\0';
     fclose(f);
-    
-    char error[256] = {0};
+
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
     if (! root) {
         return;
     }
-    
+
     JsonValue *cfg = json_object_get(root, "text_config");
     if (! cfg) {
         cfg = root;
     }
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
-    
+
     int la = 0, ld = 0;
     for (int i = 0; i < model_q3_5->config.n_layer; i++) {
         model_q3_5->layer_types[i] = get_layer_type(i, layer_types_json);
@@ -151,11 +150,9 @@ void load_q3_5_layer_types(Q3_5 *model_q3_5, const char *model_path) {
     json_free(root);
 }
 
-static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer,
-        const char *suffix, size_t elements) {
+static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer, const char *suffix, size_t elements) {
     char name[256];
-    snprintf(name, sizeof(name),
-            "model.language_model.layers.%d.%s", layer, suffix);
+    snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, suffix);
     if (quantize_write_f32_or_zeros(ctx, out, name, elements)) {
         log_msg(stderr, "ERROR: Failed writing %s\n", name);
         return -1;
@@ -163,11 +160,9 @@ static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer,
     return 0;
 }
 
-static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer,
-        const char *suffix, int rows, int cols) {
+static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols) {
     char name[256];
-    snprintf(name, sizeof(name),
-            "model.language_model.layers.%d.%s", layer, suffix);
+    snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, suffix);
     if (quantize_write_qtensor_or_empty(ctx, out, name, rows, cols)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
@@ -186,7 +181,7 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     model.layer_types = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     model.attn_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     model.deltanet_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
-    if (!model.layer_types || !model.attn_layer_indices || !model.deltanet_layer_indices) {
+    if (! model.layer_types || ! model.attn_layer_indices || ! model.deltanet_layer_indices) {
         free(model.layer_types);
         free(model.attn_layer_indices);
         free(model.deltanet_layer_indices);
@@ -204,7 +199,7 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     }
 
     FILE *out = fopen(output_file, "wb");
-    if (!out) {
+    if (! out) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
         quantize_ctx_close(&ctx);
         free(model.layer_types);
@@ -225,19 +220,17 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     int attn_out_dim = p->n_heads * head_size;
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
-            quantize_write_bytes(out, &version, sizeof(version), 1) ||
-            quantize_write_bytes(out, p, sizeof(*p), 1) ||
+            quantize_write_bytes(out, &version, sizeof(version), 1) || quantize_write_bytes(out, p, sizeof(*p), 1) ||
             quantize_write_bytes(out, model.layer_types, sizeof(int), p->n_layer) ||
-            quantize_write_qtensor(&ctx, out,
-                "model.language_model.embed_tokens.weight",
-                p->vocab_size, p->dim)) {
+            quantize_write_qtensor(&ctx, out, "model.language_model.embed_tokens.weight", p->vocab_size, p->dim)) {
         failed = 1;
         goto cleanup;
     }
 
     for (int l = 0; l < p->n_layer; l++) {
         if (write_layer_f32(&ctx, out, l, "input_layernorm.weight", p->dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
@@ -245,30 +238,25 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
         if (model.layer_types[l] != 0) {
             continue;
         }
-        if (write_layer_qt(&ctx, out, l, "self_attn.q_proj.weight",
-                    q_dim, p->dim) ||
-                write_layer_qt(&ctx, out, l, "self_attn.k_proj.weight",
-                    kv_dim, p->dim) ||
-                write_layer_qt(&ctx, out, l, "self_attn.v_proj.weight",
-                    kv_dim, p->dim) ||
-                write_layer_qt(&ctx, out, l, "self_attn.o_proj.weight",
-                    p->dim, attn_out_dim)) {
-            failed = 1; goto cleanup;
+        if (write_layer_qt(&ctx, out, l, "self_attn.q_proj.weight", q_dim, p->dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.k_proj.weight", kv_dim, p->dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.v_proj.weight", kv_dim, p->dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.o_proj.weight", p->dim, attn_out_dim)) {
+            failed = 1;
+            goto cleanup;
         }
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (model.layer_types[l] == 0 &&
-                write_layer_f32(&ctx, out, l,
-                    "self_attn.q_norm.weight", head_size)) {
-            failed = 1; goto cleanup;
+        if (model.layer_types[l] == 0 && write_layer_f32(&ctx, out, l, "self_attn.q_norm.weight", head_size)) {
+            failed = 1;
+            goto cleanup;
         }
     }
     for (int l = 0; l < p->n_layer; l++) {
-        if (model.layer_types[l] == 0 &&
-                write_layer_f32(&ctx, out, l,
-                    "self_attn.k_norm.weight", head_size)) {
-            failed = 1; goto cleanup;
+        if (model.layer_types[l] == 0 && write_layer_f32(&ctx, out, l, "self_attn.k_norm.weight", head_size)) {
+            failed = 1;
+            goto cleanup;
         }
     }
 
@@ -277,94 +265,83 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
             if (model.layer_types[l] != 1) {
                 continue;
             }
-            if (write_layer_qt(&ctx, out, l,
-                        "linear_attn.in_proj_qkv.weight", conv_dim, p->dim) ||
-                    write_layer_qt(&ctx, out, l,
-                        "linear_attn.in_proj_z.weight", value_dim, p->dim)) {
-                failed = 1; goto cleanup;
+            if (write_layer_qt(&ctx, out, l, "linear_attn.in_proj_qkv.weight", conv_dim, p->dim) ||
+                    write_layer_qt(&ctx, out, l, "linear_attn.in_proj_z.weight", value_dim, p->dim)) {
+                failed = 1;
+                goto cleanup;
+            }
+        }
+        for (int l = 0; l < p->n_layer; l++) {
+            if (model.layer_types[l] == 1 && write_layer_f32(&ctx, out, l, "linear_attn.in_proj_b.weight",
+                                                     (size_t)p->n_linear_v_heads * p->dim)) {
+                failed = 1;
+                goto cleanup;
+            }
+        }
+        for (int l = 0; l < p->n_layer; l++) {
+            if (model.layer_types[l] == 1 && write_layer_f32(&ctx, out, l, "linear_attn.in_proj_a.weight",
+                                                     (size_t)p->n_linear_v_heads * p->dim)) {
+                failed = 1;
+                goto cleanup;
+            }
+        }
+        for (int l = 0; l < p->n_layer; l++) {
+            if (model.layer_types[l] == 1 && write_layer_f32(&ctx, out, l, "linear_attn.conv1d.weight",
+                                                     (size_t)conv_dim * p->linear_conv_kernel)) {
+                failed = 1;
+                goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if (model.layer_types[l] == 1 &&
-                    write_layer_f32(&ctx, out, l,
-                        "linear_attn.in_proj_b.weight",
-                        (size_t)p->n_linear_v_heads * p->dim)) {
-                failed = 1; goto cleanup;
+                    write_layer_f32(&ctx, out, l, "linear_attn.dt_bias", p->n_linear_v_heads)) {
+                failed = 1;
+                goto cleanup;
+            }
+        }
+        for (int l = 0; l < p->n_layer; l++) {
+            if (model.layer_types[l] == 1 && write_layer_f32(&ctx, out, l, "linear_attn.A_log", p->n_linear_v_heads)) {
+                failed = 1;
+                goto cleanup;
+            }
+        }
+        for (int l = 0; l < p->n_layer; l++) {
+            if (model.layer_types[l] == 1 && write_layer_f32(&ctx, out, l, "linear_attn.norm.weight", p->d_linear_v)) {
+                failed = 1;
+                goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if (model.layer_types[l] == 1 &&
-                    write_layer_f32(&ctx, out, l,
-                        "linear_attn.in_proj_a.weight",
-                        (size_t)p->n_linear_v_heads * p->dim)) {
-                failed = 1; goto cleanup;
-            }
-        }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_f32(&ctx, out, l,
-                        "linear_attn.conv1d.weight",
-                        (size_t)conv_dim * p->linear_conv_kernel)) {
-                failed = 1; goto cleanup;
-            }
-        }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_f32(&ctx, out, l,
-                        "linear_attn.dt_bias", p->n_linear_v_heads)) {
-                failed = 1; goto cleanup;
-            }
-        }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_f32(&ctx, out, l,
-                        "linear_attn.A_log", p->n_linear_v_heads)) {
-                failed = 1; goto cleanup;
-            }
-        }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_f32(&ctx, out, l,
-                        "linear_attn.norm.weight", p->d_linear_v)) {
-                failed = 1; goto cleanup;
-            }
-        }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_qt(&ctx, out, l,
-                        "linear_attn.out_proj.weight", p->dim, value_dim)) {
-                failed = 1; goto cleanup;
+                    write_layer_qt(&ctx, out, l, "linear_attn.out_proj.weight", p->dim, value_dim)) {
+                failed = 1;
+                goto cleanup;
             }
         }
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_f32(&ctx, out, l,
-                    "post_attention_layernorm.weight", p->dim)) {
-            failed = 1; goto cleanup;
+        if (write_layer_f32(&ctx, out, l, "post_attention_layernorm.weight", p->dim)) {
+            failed = 1;
+            goto cleanup;
         }
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_qt(&ctx, out, l, "mlp.gate_proj.weight",
-                    p->n_mlp, p->dim) ||
-                write_layer_qt(&ctx, out, l, "mlp.down_proj.weight",
-                    p->dim, p->n_mlp) ||
-                write_layer_qt(&ctx, out, l, "mlp.up_proj.weight",
-                    p->n_mlp, p->dim)) {
-            failed = 1; goto cleanup;
+        if (write_layer_qt(&ctx, out, l, "mlp.gate_proj.weight", p->n_mlp, p->dim) ||
+                write_layer_qt(&ctx, out, l, "mlp.down_proj.weight", p->dim, p->n_mlp) ||
+                write_layer_qt(&ctx, out, l, "mlp.up_proj.weight", p->n_mlp, p->dim)) {
+            failed = 1;
+            goto cleanup;
         }
     }
 
-    if (quantize_write_f32_or_zeros(&ctx, out,
-                "model.language_model.norm.weight", p->dim)) {
+    if (quantize_write_f32_or_zeros(&ctx, out, "model.language_model.norm.weight", p->dim)) {
         failed = 1;
         goto cleanup;
     }
 
-    if (!p->tie_word_embeddings &&
-            quantize_write_qtensor(&ctx, out, "lm_head.weight",
-                p->vocab_size, p->dim)) {
+    if (! p->tie_word_embeddings && quantize_write_qtensor(&ctx, out, "lm_head.weight", p->vocab_size, p->dim)) {
         failed = 1;
         goto cleanup;
     }
@@ -394,4 +371,3 @@ int main(int argc, char *argv[]) {
     }
     return quantize_q3_5_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

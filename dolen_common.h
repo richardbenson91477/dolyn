@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-
 // Quantized Tensor
 
 #define GROUP_SIZE 64 // Group Size
@@ -24,7 +23,6 @@ typedef struct {
     int rows;
     int cols;
 } qtensor;
-
 
 void dequantize_row(float *output, const qtensor *qt, int row_idx);
 
@@ -42,7 +40,6 @@ void read_qt(FILE *f, qtensor *qt);
 
 void write_qt(FILE *f, qtensor *qt);
 
-
 // Math Utilities
 
 void rmsnorm(float *o, float *x, float *weight, int size, float eps);
@@ -59,14 +56,12 @@ void l2norm(float *x, int size);
 
 float matmul_scalar(float *x, float *w, int n);
 
-
 // Tokenizer
 
 typedef struct {
     char *str;
     int id;
 } token_map;
-
 
 typedef struct {
     char **vocab;
@@ -77,7 +72,6 @@ typedef struct {
     token_map *special_tokens;
     int n_special_tokens;
 } Tokenizer;
-
 
 int compare_tokens(const void *a, const void *b);
 
@@ -92,7 +86,6 @@ char *decode(Tokenizer *t, int token, bool debug);
 void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_map *special_tokens);
 
 void free_tokenizer(Tokenizer *t);
-
 
 // Sampler
 
@@ -110,7 +103,6 @@ typedef struct {
     unsigned long long rng_state;
 } Sampler;
 
-
 int sample_argmax(float *probs, int n);
 
 unsigned int random_u32(unsigned long long *state);
@@ -125,8 +117,8 @@ int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, 
 
 int sample(Sampler *sampler, float *logits);
 
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed);
-
+void build_sampler(
+        Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed);
 
 // I/O Utilities
 
@@ -139,7 +131,6 @@ void log_msg(FILE *stream, const char *format, ...);
 void read_msg(char *buf, size_t buf_len);
 
 void *a_calloc(size_t size);
-
 
 // Common Model Interface
 
@@ -159,7 +150,7 @@ typedef struct {
 
     float *(*forward)(void *model, int token, int pos);
 
-    void  (*free_model)(void *model);
+    void (*free_model)(void *model);
 
     int seq_n_max;
 
@@ -174,19 +165,14 @@ typedef struct {
 
 } model_iface;
 
+void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *prompt, int steps_n_max);
 
-void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
-        char *prompt, int steps_n_max);
-
-void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
-        char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max, bool _debug);
+void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *system_prompt, char *init_prompt,
+        int prompt_n_max, int steps_n_max, bool _debug);
 
 void error_usage(const char *prog_name);
 
-int common_main(int argc, char *argv[],
-        model_iface *(*init_fn)(const char *model_path, int seq_n_max, bool _think),
+int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *model_path, int seq_n_max, bool _think),
         const char *prog_name);
 
-
 #endif // DOLEN_COMMON_H
-

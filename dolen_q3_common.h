@@ -60,13 +60,10 @@ typedef struct {
     state_q3 state;
 } Q3;
 
-
 void alloc_state_q3(state_q3 *s, config_q3 *p);
 
 void free_state_q3(state_q3 *s);
 
 void free_q3(Q3 *t);
 
-
-#endif //DOLEN_Q3_COMMON_H
-
+#endif // DOLEN_Q3_COMMON_H

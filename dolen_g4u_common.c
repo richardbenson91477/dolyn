@@ -44,7 +44,6 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
-
     int rotary_dim_full = (int)(p->rope_partial_factor * p->global_head_dim);
 
     if (cache_stride_full > 0) {
@@ -69,7 +68,6 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
         }
     }
 
-
     if (cache_stride_sliding > 0) {
         s->cos_cache_sliding = a_calloc((size_t)p->seq_len * cache_stride_sliding * sizeof(float));
         s->sin_cache_sliding = a_calloc((size_t)p->seq_len * cache_stride_sliding * sizeof(float));
@@ -86,13 +84,13 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
         s->sin_cache_sliding = NULL;
     }
 
-    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->k_raw || !s->v ||
-            !s->att || !s->logits || !s->key_cache || !s->value_cache ||
-            !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
+    if (! s->x || ! s->xb || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->k_raw || ! s->v || ! s->att ||
+            ! s->logits || ! s->key_cache || ! s->value_cache || ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
-    if (p->seq_len > 1 && (!s->cos_cache_full || !s->sin_cache_full || !s->cos_cache_sliding || !s->sin_cache_sliding)) {
+    if (p->seq_len > 1 &&
+            (! s->cos_cache_full || ! s->sin_cache_full || ! s->cos_cache_sliding || ! s->sin_cache_sliding)) {
         log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -100,7 +98,7 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
 }
 
 void free_state_g4u(state_g4u *s) {
-    if (!s->allocated) {
+    if (! s->allocated) {
         return;
     }
 
@@ -129,10 +127,10 @@ void free_state_g4u(state_g4u *s) {
 }
 
 void free_g4u(G4U *model) {
-    if (!model) {
+    if (! model) {
         return;
     }
-    
+
     config_g4u *p = &model->config;
     weights_g4u *w = &model->weights;
 
@@ -151,15 +149,15 @@ void free_g4u(G4U *model) {
     for (int i = 0; i < p->n_layers; i++) {
         free(w->q_proj[i].q);
         free(w->q_proj[i].s);
-        
+
         free(w->k_proj[i].q);
         free(w->k_proj[i].s);
-        
+
         if (w->v_proj[i].q != w->k_proj[i].q) {
             free(w->v_proj[i].q);
             free(w->v_proj[i].s);
         }
-        
+
         free(w->o_proj[i].q);
         free(w->o_proj[i].s);
         free(w->gate_proj[i].q);
@@ -183,4 +181,3 @@ void free_g4u(G4U *model) {
 
     memset(model, 0, sizeof(G4U));
 }
-

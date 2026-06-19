@@ -2,34 +2,38 @@
 
 int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
 
     memset(model_ig4_1, 0, sizeof(IG4_1));
-    
+
     uint32_t magic, version;
     if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
-        fclose(f); return -1;
+        fclose(f);
+        return -1;
     }
-    
+
     if (magic != 0x31344749) { // 'IG4_1'
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
-        fclose(f); return -1;
+        fclose(f);
+        return -1;
     }
-    
+
     if (version != 1) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
-        fclose(f); return -1;
+        fclose(f);
+        return -1;
     }
-    
+
     if (fread(&model_ig4_1->config, sizeof(config_ig4_1), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", filepath);
-        fclose(f); return -1;
+        fclose(f);
+        return -1;
     }
-    
+
     config_ig4_1 *p = &model_ig4_1->config;
     weights_ig4_1 *w = &model_ig4_1->weights;
 
@@ -37,59 +41,69 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
             "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
             "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
             "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
-            p->dim, p->n_heads, p->n_kv_heads, p->d_head,
-            p->n_layer, p->seq_len, p->rope_theta, p->attention_multiplier,
-            p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
+            p->dim, p->n_heads, p->n_kv_heads, p->d_head, p->n_layer, p->seq_len, p->rope_theta,
+            p->attention_multiplier, p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
 
-    if (!(p->rope_theta > 1.0f)) {
+    if (! (p->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", p->rope_theta);
         fclose(f);
         return -1;
     }
-    
+
     if (seq_n_max) {
         p->seq_len = seq_n_max;
     }
 
     read_qt(f, &w->token_embedding_table);
-    
+
     w->rms_att_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
     if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n"); fclose(f); return -1;
+        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
+        fclose(f);
+        return -1;
     }
-    
+
     w->wq = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->wk = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->wv = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->wo = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
 
     for (int i = 0; i < p->n_layer; i++) {
-        read_qt(f, &w->wq[i]); read_qt(f, &w->wk[i]); read_qt(f, &w->wv[i]); read_qt(f, &w->wo[i]);
+        read_qt(f, &w->wq[i]);
+        read_qt(f, &w->wk[i]);
+        read_qt(f, &w->wv[i]);
+        read_qt(f, &w->wo[i]);
     }
-    
+
     w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
     if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n"); fclose(f); return -1;
+        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
+        fclose(f);
+        return -1;
     }
-    
+
     w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     for (int i = 0; i < p->n_layer; i++) {
-        read_qt(f, &w->w1[i]); read_qt(f, &w->w2[i]); read_qt(f, &w->w3[i]);
+        read_qt(f, &w->w1[i]);
+        read_qt(f, &w->w2[i]);
+        read_qt(f, &w->w3[i]);
     }
-    
+
     w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
     if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n"); fclose(f); return -1;
+        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
+        fclose(f);
+        return -1;
     }
-    
-    if (!p->tie_word_embeddings) {
+
+    if (! p->tie_word_embeddings) {
         read_qt(f, &w->wcls);
     } else {
         w->wcls = w->token_embedding_table;
     }
-    
+
     fclose(f);
     log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
     alloc_state_ig4_1(&(model_ig4_1->state), &(model_ig4_1->config));
@@ -125,7 +139,7 @@ void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
         float *cos_row = s->cos_cache + pos * rotary_dim;
         float *sin_row = s->sin_cache + pos * rotary_dim;
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * head_size;
             for (int i = 0; i < rotary_dim / 2; i++) {
@@ -136,7 +150,7 @@ void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
             }
         }
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < p->n_kv_heads; h++) {
             float *k = s->k + h * head_size;
             for (int i = 0; i < rotary_dim / 2; i++) {
@@ -156,7 +170,7 @@ void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
         attn_scale = 1.0f / sqrtf((float)head_size);
     }
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int h = 0; h < p->n_heads; h++) {
         float *q = s->q + h * head_size;
         float *att = s->att + h * p->seq_len;
@@ -165,7 +179,7 @@ void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
             float *k = s->key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float score = 0.0f;
 
-            #pragma omp simd reduction(+:score)
+#pragma omp simd reduction(+ : score)
             for (int i = 0; i < head_size; i++) {
                 score += q[i] * k[i];
             }
@@ -181,7 +195,7 @@ void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
             float *v = s->value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float a = att[t];
 
-            #pragma omp simd
+#pragma omp simd
             for (int i = 0; i < head_size; i++) {
                 xb[i] += a * v[i];
             }
@@ -190,7 +204,7 @@ void forward_ig4_1_attention_layer(IG4_1 *model_ig4_1, int l, int pos) {
 
     quantize_vec(&s->xq, s->xb, attn_out_dim);
     matmul_qq(s->xb2, &s->xq, &w->wo[l]);
-    
+
     float res_mult = p->residual_multiplier;
     for (int i = 0; i < dim; i++) {
         x[i] += s->xb2[i] * res_mult;
@@ -213,7 +227,7 @@ void forward_ig4_1_mlp_layer(IG4_1 *model_ig4_1, int l) {
     matmul_qq(s->hb, &s->xq, &w->w1[l]);
     matmul_qq(s->hb2, &s->xq, &w->w3[l]);
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < hidden_dim; i++) {
         float val = s->hb[i];
         val *= (1.0f / (1.0f + expf(-val)));
@@ -223,7 +237,7 @@ void forward_ig4_1_mlp_layer(IG4_1 *model_ig4_1, int l) {
 
     quantize_vec(&s->hq, s->hb, hidden_dim);
     matmul_qq(s->xb, &s->hq, &w->w2[l]);
-    
+
     float res_mult = p->residual_multiplier;
     for (int i = 0; i < dim; i++) {
         x[i] += s->xb[i] * res_mult;
@@ -238,10 +252,10 @@ float *forward_ig4_1(IG4_1 *model_ig4_1, int token, int pos) {
     int dim = p->dim;
 
     dequantize_row(x, &w->token_embedding_table, token);
-    
+
     float emb_mult = p->embedding_multiplier;
     if (emb_mult != 1.0f) {
-        #pragma omp simd
+#pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] *= emb_mult;
         }
@@ -261,7 +275,7 @@ float *forward_ig4_1(IG4_1 *model_ig4_1, int token, int pos) {
 
     float logit_scale = p->logits_scaling;
     if (logit_scale != 0.0f && logit_scale != 1.0f) {
-        #pragma omp simd
+#pragma omp simd
         for (int i = 0; i < p->vocab_size; i++) {
             s->logits[i] /= logit_scale;
         }
@@ -280,20 +294,17 @@ static void free_ig4_1_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    .system =
-        "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n",
-    .main =
-        "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
-        "<|start_of_role|>assistant<|end_of_role|>",
-    .end_turn =
-        "<|end_of_text|>\n",
+    .system = "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n",
+    .main = "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
+            "<|start_of_role|>assistant<|end_of_role|>",
+    .end_turn = "<|end_of_text|>\n",
 };
 
 static token_map SPECIAL_TOKENS_IG4_1[] = {
-    {"<|end_of_text|>", 100257},
-    {"<|start_of_role|>", 100264},
-    {"<|end_of_role|>", 100265},
-    {NULL, 0},
+    { "<|end_of_text|>", 100257 },
+    { "<|start_of_role|>", 100264 },
+    { "<|end_of_role|>", 100265 },
+    { NULL, 0 },
 };
 
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _think) {
@@ -310,8 +321,7 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
     }
 
     model_iface *model_i = a_calloc(sizeof(model_iface));
-    *model_i = (model_iface) {
-        .model = model,
+    *model_i = (model_iface){ .model = model,
         .forward = forward_ig4_1_wrap,
         .free_model = free_ig4_1_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
@@ -320,12 +330,10 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
         .eos_token_id = 100257,
         .im_end_id = 100257,
         .special_tokens = SPECIAL_TOKENS_IG4_1,
-        .chat_template = &CHAT_TEMPLATE_IG4_1 
-    };
+        .chat_template = &CHAT_TEMPLATE_IG4_1 };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
-

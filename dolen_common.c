@@ -1,9 +1,7 @@
 #include "dolen_common.h"
 #include <stdarg.h>
 
-
 char *log_path = NULL;
-
 
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
     if (row_idx >= qt->rows || row_idx < 0) {
@@ -34,16 +32,16 @@ void matmul_qt(float *restrict output, const float *restrict input, const qtenso
     int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     int full_groups = cols / GROUP_SIZE;
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (int i = 0; i < rows; i++) {
         float sum = 0.0f;
         const int8_t *row_q = qt->q + (size_t)i * cols;
-        const float  *row_s = qt->s + (size_t)i * num_groups;
+        const float *row_s = qt->s + (size_t)i * num_groups;
 
         for (int g = 0; g < full_groups; g++) {
             float group_sum = 0.0f;
             const int offset = g * GROUP_SIZE;
-            #pragma omp simd reduction(+:group_sum)
+#pragma omp simd reduction(+ : group_sum)
             for (int j = 0; j < GROUP_SIZE; j++) {
                 group_sum += input[offset + j] * (float)row_q[offset + j];
             }
@@ -53,7 +51,7 @@ void matmul_qt(float *restrict output, const float *restrict input, const qtenso
         int rem_start = full_groups * GROUP_SIZE;
         if (rem_start < cols) {
             float group_sum = 0.0f;
-            #pragma omp simd reduction(+:group_sum)
+#pragma omp simd reduction(+ : group_sum)
             for (int j = rem_start; j < cols; j++) {
                 group_sum += input[j] * (float)row_q[j];
             }
@@ -67,8 +65,8 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
     int num_groups = (n + GROUP_SIZE - 1) / GROUP_SIZE;
     xq->rows = 1;
     xq->cols = n;
-    
-    #pragma omp parallel for schedule(static) if(num_groups > 32)
+
+#pragma omp parallel for schedule(static) if (num_groups > 32)
     for (int g = 0; g < num_groups; g++) {
         int start = g * GROUP_SIZE;
         int end = start + GROUP_SIZE < n ? start + GROUP_SIZE : n;
@@ -94,7 +92,7 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
     int n_groups = (n + GROUP_SIZE - 1) / GROUP_SIZE;
     int full_groups = n / GROUP_SIZE;
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (int i = 0; i < d; i++) {
         float val = 0.0f;
         const int8_t *w_row = w->q + (size_t)i * n;
@@ -104,7 +102,7 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
             int32_t acc = 0;
             const int offset = g * GROUP_SIZE;
 
-            #pragma omp simd reduction(+:acc)
+#pragma omp simd reduction(+ : acc)
             for (int k = 0; k < GROUP_SIZE; k++) {
                 acc += (int32_t)x->q[offset + k] * (int32_t)w_row[offset + k];
             }
@@ -114,7 +112,7 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
         int rem_start = full_groups * GROUP_SIZE;
         if (rem_start < n) {
             int32_t acc = 0;
-            #pragma omp simd reduction(+:acc)
+#pragma omp simd reduction(+ : acc)
             for (int k = rem_start; k < n; k++) {
                 acc += (int32_t)x->q[k] * (int32_t)w_row[k];
             }
@@ -177,13 +175,13 @@ void write_qt(FILE *f, qtensor *qt) {
 void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
     float ss = 0.0f;
 
-    #pragma omp simd reduction(+:ss)
+#pragma omp simd reduction(+ : ss)
     for (int j = 0; j < size; j++) {
         ss += x[j] * x[j];
     }
     ss = 1.0f / sqrtf((ss / size) + eps);
 
-    #pragma omp simd
+#pragma omp simd
     for (int j = 0; j < size; j++) {
         o[j] = weight[j] * (ss * x[j]);
     }
@@ -191,13 +189,13 @@ void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
 
 void softmax(float *x, int size) {
     float max_val = x[0];
-    #pragma omp simd reduction(max:max_val)
+#pragma omp simd reduction(max : max_val)
     for (int i = 1; i < size; i++) {
         max_val = fmaxf(max_val, x[i]);
     }
 
     float sum = 0.0f;
-    #pragma omp simd reduction(+:sum)
+#pragma omp simd reduction(+ : sum)
     for (int i = 0; i < size; i++) {
         x[i] = expf(x[i] - max_val);
         sum += x[i];
@@ -213,7 +211,7 @@ void softmax(float *x, int size) {
 
     float inv_sum = 1.0f / sum;
 
-    #pragma omp simd
+#pragma omp simd
     for (int i = 0; i < size; i++) {
         x[i] *= inv_sum;
     }
@@ -233,12 +231,12 @@ float softplus(float x) {
 
 void l2norm(float *x, int size) {
     float ss = 0.0f;
-    #pragma omp simd reduction(+:ss)
+#pragma omp simd reduction(+ : ss)
     for (int i = 0; i < size; i++) {
         ss += x[i] * x[i];
     }
     ss = 1.0f / sqrtf(ss + 1e-6f);
-    #pragma omp simd
+#pragma omp simd
     for (int i = 0; i < size; i++) {
         x[i] *= ss;
     }
@@ -247,7 +245,7 @@ void l2norm(float *x, int size) {
 float matmul_scalar(float *x, float *w, int n) {
     float val = 0.0f;
 
-    #pragma omp simd reduction(+:val)
+#pragma omp simd reduction(+ : val)
     for (int i = 0; i < n; i++) {
         val += w[i] * x[i];
     }
@@ -272,8 +270,8 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
     char *pos = text;
     while (*pos) {
         int best_len = 0, best_id = -1;
-        for (int len = 1; (len <= t->max_token_length) && (pos[len-1]); len++) {
-            if (((pos[len-1] & 0xC0) == 0x80) && ((len < t->max_token_length) && (pos[len]))) {
+        for (int len = 1; (len <= t->max_token_length) && (pos[len - 1]); len++) {
+            if (((pos[len - 1] & 0xC0) == 0x80) && ((len < t->max_token_length) && (pos[len]))) {
                 continue;
             }
             strncpy(str_buf, pos, len);
@@ -285,9 +283,9 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
             }
         }
         if (best_id != -1) {
-            tokens[(*tokens_n)++] = best_id; pos += best_len;
-        }
-        else {
+            tokens[(*tokens_n)++] = best_id;
+            pos += best_len;
+        } else {
             tokens[(*tokens_n)++] = (unsigned char)*pos + 3;
             pos++;
         }
@@ -382,7 +380,7 @@ char *decode(Tokenizer *t, int token, bool _debug) {
 
     if (_debug) {
         log_msg(stdout, "\nDEBUG: token: %u piece:", token);
-        for (int c = 0; c < strlen(piece); c ++) {
+        for (int c = 0; c < strlen(piece); c++) {
             log_msg(stdout, "<%x>", (unsigned char)(piece[c]));
         }
     }
@@ -486,8 +484,8 @@ int sample_mult(float *probs, int n, float coin) {
 }
 
 int compare_prob(const void *a, const void *b) {
-    ProbIndex *a_ = (ProbIndex *) a;
-    ProbIndex *b_ = (ProbIndex *) b;
+    ProbIndex *a_ = (ProbIndex *)a;
+    ProbIndex *b_ = (ProbIndex *)b;
 
     if (a_->prob > b_->prob) {
         return -1;
@@ -550,7 +548,7 @@ int sample(Sampler *sampler, float *logits) {
     if (sampler->temperature == 0.0f) {
         next = sample_argmax(logits, sampler->vocab_size);
     } else {
-        #pragma omp parallel for if (sampler->vocab_size > 4096)
+#pragma omp parallel for if (sampler->vocab_size > 4096)
         for (int q = 0; q < sampler->vocab_size; q++) {
             logits[q] /= sampler->temperature;
         }
@@ -560,15 +558,15 @@ int sample(Sampler *sampler, float *logits) {
         float coin = random_f32(&sampler->rng_state);
         if (sampler->topp <= 0 || sampler->topp >= 1) {
             next = sample_mult(logits, sampler->vocab_size, coin);
-        }
-        else {
+        } else {
             next = sample_top(logits, sampler->vocab_size, sampler->topk, sampler->topp, sampler->probindex, coin);
         }
     }
     return next;
 }
 
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed) {
+void build_sampler(
+        Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed) {
     sampler->vocab_size = vocab_size;
     sampler->temperature = temperature;
     sampler->topk = topk;
@@ -602,8 +600,7 @@ void log_msg(FILE *stream, const char *format, ...) {
         if (log_file) {
             vfprintf(log_file, format, args2);
             fclose(log_file);
-        }
-        else {
+        } else {
             fprintf(stderr, "ERROR: can't open log file\n");
             exit(EXIT_FAILURE);
         }
@@ -623,10 +620,10 @@ void read_msg(char *buf, size_t buf_len) {
     if (buf_len == 0) {
         return;
     }
- 
+
     char *p = buf;
     size_t rem = buf_len;
-  
+
     while (rem > 1) {
         if (fgets(p, rem, stdin) == NULL) {
             break;
@@ -636,7 +633,7 @@ void read_msg(char *buf, size_t buf_len) {
         if (len < 2) {
             break;
         }
- 
+
         if ((p[len - 2] == '\\') && (p[len - 1] == '\n')) {
             p[len - 2] = '\n';
             p += len - 1;
@@ -711,24 +708,21 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 
     if (pos > 1) {
         long end = time_in_ms();
-        log_msg(stderr, "INFO: %f tokens per second.\n", (pos-1) / (double)(end-start)*1000);
+        log_msg(stderr, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end - start) * 1000);
     }
 
     free(prompt_tokens);
 }
 
 static const chat_template CHAT_TEMPLATE_CHATML = {
-    .system =
-        "<|im_start|>system\n%s<|im_end|>\n",
-    .main =
-        "<|im_start|>user\n%s<|im_end|>\n"
-        "<|im_start|>assistant\n",
-    .end_turn =
-        "<|im_end|>\n",
+    .system = "<|im_start|>system\n%s<|im_end|>\n",
+    .main = "<|im_start|>user\n%s<|im_end|>\n"
+            "<|im_start|>assistant\n",
+    .end_turn = "<|im_end|>\n",
 };
 
-static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn,
-        const char *system_prompt, const char *prompt, int *rendered_len) {
+static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn, const char *system_prompt,
+        const char *prompt, int *rendered_len) {
     const char *format = NULL;
     int len1, len2;
 
@@ -769,10 +763,8 @@ static bool is_chat_stop_token(const model_iface *model_i, int token) {
     return token == 2;
 }
 
-void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
-        char *system_prompt, char *init_prompt, int prompt_n_max, int steps_n_max,
-        bool _debug) {
-
+void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *system_prompt, char *init_prompt,
+        int prompt_n_max, int steps_n_max, bool _debug) {
     const chat_template *chat_tmpl = model_i->chat_template;
     if (! chat_tmpl) {
         chat_tmpl = &CHAT_TEMPLATE_CHATML;
@@ -802,8 +794,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
             if (first_turn && init_prompt) {
                 strncpy(prompt, init_prompt, prompt_n_max);
                 prompt[prompt_n_max] = '\0';
-            }
-            else {
+            } else {
                 log_msg(stdout, "In: ");
                 read_msg(prompt, prompt_n_max);
             }
@@ -811,8 +802,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
                 continue;
             }
 
-            rendered_prompt = render_chat_turn(chat_tmpl, first_turn,
-                    system_prompt, prompt, &rendered_len);
+            rendered_prompt = render_chat_turn(chat_tmpl, first_turn, system_prompt, prompt, &rendered_len);
 
             if (prompt_tokens) {
                 free(prompt_tokens);
@@ -821,8 +811,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
             prompt_tokens = (int *)a_calloc(((size_t)rendered_len * 4 + 3) * sizeof(int));
 
             int bos_token = first_turn ? model_i->bos_token_id : 0;
-            encode(tokenizer, rendered_prompt, bos_token, 0,
-                    prompt_tokens, &prompt_tokens_n);
+            encode(tokenizer, rendered_prompt, bos_token, 0, prompt_tokens, &prompt_tokens_n);
 
             free(rendered_prompt);
             rendered_prompt = NULL;
@@ -838,8 +827,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler,
 
         if (user_idx < prompt_tokens_n) {
             token = prompt_tokens[user_idx++];
-        }
-        else {
+        } else {
             token = next;
         }
 
@@ -910,7 +898,6 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     bool _debug = false;
     bool _think = false;
 
-
     for (int i = 1; i < argc;) {
         if (argv[i][0] != '-') {
             error_usage(prog_name);
@@ -918,13 +905,11 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
         if ((! strcmp(argv[i], "-h")) || (! strcmp(argv[i], "--help"))) {
             error_usage(prog_name);
-        }
-        else if ((! strcmp(argv[i], "-th")) || (! strcmp(argv[i], "--think"))) {
+        } else if ((! strcmp(argv[i], "-th")) || (! strcmp(argv[i], "--think"))) {
             _think = true;
             i += 1;
             continue;
-        }
-        else if ((! strcmp(argv[i], "-d")) || (! strcmp(argv[i], "--debug"))) {
+        } else if ((! strcmp(argv[i], "-d")) || (! strcmp(argv[i], "--debug"))) {
             _debug = true;
             i += 1;
             continue;
@@ -934,49 +919,35 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
             error_usage(prog_name);
         }
 
-
         if ((! strcmp(argv[i], "-m")) || (! strcmp(argv[i], "--model"))) {
             model_path = argv[i + 1];
-        }
-        else if ((! strcmp(argv[i], "-t")) || (! strcmp(argv[i], "--temp"))) {
+        } else if ((! strcmp(argv[i], "-t")) || (! strcmp(argv[i], "--temp"))) {
             temperature = atof(argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-k")) || (! strcmp(argv[i], "--top_k"))) {
+        } else if ((! strcmp(argv[i], "-k")) || (! strcmp(argv[i], "--top_k"))) {
             topk = atoi(argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-tp")) || (! strcmp(argv[i], "--top_p"))) {
+        } else if ((! strcmp(argv[i], "-tp")) || (! strcmp(argv[i], "--top_p"))) {
             topp = atof(argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-s")) || (! strcmp(argv[i], "--seed"))) {
+        } else if ((! strcmp(argv[i], "-s")) || (! strcmp(argv[i], "--seed"))) {
             rng_seed = atoi(argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-n")) || (! strcmp(argv[i], "--seq_n"))) {
+        } else if ((! strcmp(argv[i], "-n")) || (! strcmp(argv[i], "--seq_n"))) {
             seq_n_max = atoi(argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-pn")) || (! strcmp(argv[i], "--prompt_n"))) {
+        } else if ((! strcmp(argv[i], "-pn")) || (! strcmp(argv[i], "--prompt_n"))) {
             prompt_n_max = atoi(argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-p")) || (! strcmp(argv[i], "--prompt"))) {
+        } else if ((! strcmp(argv[i], "-p")) || (! strcmp(argv[i], "--prompt"))) {
             prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(prompt, argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-pf")) || (! strcmp(argv[i], "--prompt_file"))) {
+        } else if ((! strcmp(argv[i], "-pf")) || (! strcmp(argv[i], "--prompt_file"))) {
             prompt_file = argv[i + 1];
-        }
-        else if ((! strcmp(argv[i], "-tk")) || (! strcmp(argv[i], "--tokenizer"))) {
+        } else if ((! strcmp(argv[i], "-tk")) || (! strcmp(argv[i], "--tokenizer"))) {
             tokenizer_path = argv[i + 1];
-        }
-        else if ((! strcmp(argv[i], "-M")) || (! strcmp(argv[i], "--mode"))) {
+        } else if ((! strcmp(argv[i], "-M")) || (! strcmp(argv[i], "--mode"))) {
             mode = argv[i + 1];
-        }
-        else if ((! strcmp(argv[i], "-sp")) || (! strcmp(argv[i], "--system_prompt"))) {
+        } else if ((! strcmp(argv[i], "-sp")) || (! strcmp(argv[i], "--system_prompt"))) {
             system_prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(system_prompt, argv[i + 1]);
-        }
-        else if ((! strcmp(argv[i], "-l")) || (! strcmp(argv[i], "--log"))) {
+        } else if ((! strcmp(argv[i], "-l")) || (! strcmp(argv[i], "--log"))) {
             log_path = argv[i + 1];
-        }
-        else {
+        } else {
             error_usage(prog_name);
         }
 
@@ -1006,20 +977,20 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         fseek(pf, 0, SEEK_END);
         long f_len = ftell(pf);
         fseek(pf, 0, SEEK_SET);
-        
+
         if (f_len < 0) {
             log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", prompt_file);
             fclose(pf);
             exit(EXIT_FAILURE);
         }
-        
+
         prompt = (char *)a_calloc(f_len + 1);
         if (! prompt) {
             log_msg(stderr, "ERROR: Memory allocation failed for prompt file\n");
             fclose(pf);
             exit(EXIT_FAILURE);
         }
-        
+
         size_t read_bytes = fread(prompt, 1, f_len, pf);
         prompt[read_bytes] = '\0';
         fclose(pf);
@@ -1038,11 +1009,9 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
     if (! memcmp(mode, "generate", strlen("generate") + 1)) {
         generate_common(model_i, &tokenizer, &sampler, prompt, model_i->seq_n_max);
-    }
-    else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
+    } else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
         chat_common(model_i, &tokenizer, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, _debug);
-    }
-    else {
+    } else {
         log_msg(stderr, "ERROR: Unknown mode: %s\n", mode);
         error_usage(prog_name);
     }
@@ -1056,4 +1025,3 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
     return 0;
 }
-

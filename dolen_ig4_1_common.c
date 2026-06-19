@@ -53,9 +53,8 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
         }
     }
 
-    if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
-            !s->att || !s->logits || !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s ||
-            !s->key_cache || !s->value_cache) {
+    if (! s->x || ! s->xb || ! s->xb2 || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
+            ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s || ! s->key_cache || ! s->value_cache) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -64,7 +63,7 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
 }
 
 void free_state_ig4_1(state_ig4_1 *s) {
-    if (!s->allocated) {
+    if (! s->allocated) {
         return;
     }
 
@@ -105,7 +104,7 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
     free(w->rms_final_weight);
-    if (!model_ig4_1->config.tie_word_embeddings) {
+    if (! model_ig4_1->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 
@@ -113,4 +112,3 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
         free_state_ig4_1(&model_ig4_1->state);
     }
 }
-

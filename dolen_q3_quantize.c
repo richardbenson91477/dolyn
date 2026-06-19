@@ -1,7 +1,6 @@
 #include "dolen_q3_common.h"
 #include "dolen_quantize_common.h"
 
-
 static float get_json_float_val(JsonValue *v, float def) {
     if (! v) {
         return def;
@@ -42,7 +41,7 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     json_str[size] = '\0';
     fclose(f);
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
     if (! root) {
@@ -81,8 +80,7 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     return 0;
 }
 
-static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer,
-        const char *suffix, size_t elements) {
+static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer, const char *suffix, size_t elements) {
     char name[256];
     snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
     if (quantize_write_f32_or_zeros(ctx, out, name, elements)) {
@@ -92,8 +90,7 @@ static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer,
     return 0;
 }
 
-static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer,
-        const char *suffix, int rows, int cols) {
+static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols) {
     char name[256];
     snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
     if (quantize_write_qtensor_or_empty(ctx, out, name, rows, cols)) {
@@ -116,7 +113,7 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     }
 
     FILE *out = fopen(output_file, "wb");
-    if (!out) {
+    if (! out) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
         quantize_ctx_close(&ctx);
         return -1;
@@ -132,61 +129,54 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(out, &version, sizeof(version), 1) ||
             quantize_write_bytes(out, &config, sizeof(config), 1) ||
-            quantize_write_qtensor(&ctx, out, "model.embed_tokens.weight",
-                    config.vocab_size, config.dim)) {
+            quantize_write_qtensor(&ctx, out, "model.embed_tokens.weight", config.vocab_size, config.dim)) {
         failed = 1;
         goto cleanup;
     }
 
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_f32(&ctx, out, l, "input_layernorm.weight", config.dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
     for (int l = 0; l < config.n_layers; l++) {
-        if (write_layer_f32(&ctx, out, l,
-                    "post_attention_layernorm.weight", config.dim)) {
-            failed = 1; goto cleanup;
+        if (write_layer_f32(&ctx, out, l, "post_attention_layernorm.weight", config.dim)) {
+            failed = 1;
+            goto cleanup;
         }
     }
-    if (quantize_write_f32_or_zeros(&ctx, out,
-                "model.norm.weight", config.dim)) {
+    if (quantize_write_f32_or_zeros(&ctx, out, "model.norm.weight", config.dim)) {
         failed = 1;
         goto cleanup;
     }
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_f32(&ctx, out, l, "self_attn.q_norm.weight", head_size)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_f32(&ctx, out, l, "self_attn.k_norm.weight", head_size)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
-    if (!config.shared_classifier &&
-            quantize_write_qtensor(&ctx, out, "lm_head.weight",
-                config.vocab_size, config.dim)) {
+    if (! config.shared_classifier &&
+            quantize_write_qtensor(&ctx, out, "lm_head.weight", config.vocab_size, config.dim)) {
         failed = 1;
         goto cleanup;
     }
 
     for (int l = 0; l < config.n_layers; l++) {
-        if (write_layer_qt(&ctx, out, l, "self_attn.q_proj.weight",
-                    all_heads_dim, config.dim) ||
-                write_layer_qt(&ctx, out, l, "self_attn.k_proj.weight",
-                    kv_dim, config.dim) ||
-                write_layer_qt(&ctx, out, l, "self_attn.v_proj.weight",
-                    kv_dim, config.dim) ||
-                write_layer_qt(&ctx, out, l, "self_attn.o_proj.weight",
-                    config.dim, all_heads_dim) ||
-                write_layer_qt(&ctx, out, l, "mlp.gate_proj.weight",
-                    config.hidden_dim, config.dim) ||
-                write_layer_qt(&ctx, out, l, "mlp.down_proj.weight",
-                    config.dim, config.hidden_dim) ||
-                write_layer_qt(&ctx, out, l, "mlp.up_proj.weight",
-                    config.hidden_dim, config.dim)) {
+        if (write_layer_qt(&ctx, out, l, "self_attn.q_proj.weight", all_heads_dim, config.dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.k_proj.weight", kv_dim, config.dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.v_proj.weight", kv_dim, config.dim) ||
+                write_layer_qt(&ctx, out, l, "self_attn.o_proj.weight", config.dim, all_heads_dim) ||
+                write_layer_qt(&ctx, out, l, "mlp.gate_proj.weight", config.hidden_dim, config.dim) ||
+                write_layer_qt(&ctx, out, l, "mlp.down_proj.weight", config.dim, config.hidden_dim) ||
+                write_layer_qt(&ctx, out, l, "mlp.up_proj.weight", config.hidden_dim, config.dim)) {
             failed = 1;
             goto cleanup;
         }
@@ -214,4 +204,3 @@ int main(int argc, char *argv[]) {
     }
     return quantize_q3_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

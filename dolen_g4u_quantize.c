@@ -1,14 +1,13 @@
 #include "dolen_g4u_common.h"
 #include "dolen_quantize_common.h"
 
-
 int load_config_g4u(G4U *model, const char *model_dir) {
     config_g4u *p = &model->config;
 
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
     FILE *f = fopen(config_path, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
@@ -17,8 +16,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     fseek(f, 0, SEEK_SET);
 
     char *json_str = (char *)a_calloc(size + 1);
-    if ((! json_str)
-            || (fread(json_str, 1, size, f) != (size_t)size)) {
+    if ((! json_str) || (fread(json_str, 1, size, f) != (size_t)size)) {
         free(json_str);
         fclose(f);
         return -1;
@@ -26,16 +24,16 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     json_str[size] = '\0';
     fclose(f);
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
-    if (!root) {
+    if (! root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error);
         return -1;
     }
 
     JsonValue *cfg = json_object_get(root, "text_config");
-    if (!cfg) {
+    if (! cfg) {
         cfg = root;
     }
 
@@ -46,7 +44,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     p->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 0);
     p->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), 0);
     p->n_global_kv_heads = json_get_int(json_object_get(cfg, "num_global_key_value_heads"), p->n_kv_heads);
-    
+
     p->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 0);
     p->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
     p->head_dim = json_get_int(json_object_get(cfg, "head_dim"), 0);
@@ -95,8 +93,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     return 0;
 }
 
-static int write_named_f32(quantize_ctx *ctx, FILE *out,
-        const char *name, size_t elements) {
+static int write_named_f32(quantize_ctx *ctx, FILE *out, const char *name, size_t elements) {
     if (quantize_write_f32_or_zeros(ctx, out, name, elements)) {
         log_msg(stderr, "ERROR: Failed writing %s\n", name);
         return -1;
@@ -104,8 +101,7 @@ static int write_named_f32(quantize_ctx *ctx, FILE *out,
     return 0;
 }
 
-static int write_named_qt(quantize_ctx *ctx, FILE *out,
-        const char *name, int rows, int cols) {
+static int write_named_qt(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols) {
     if (quantize_write_qtensor(ctx, out, name, rows, cols)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
@@ -128,7 +124,7 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     }
 
     FILE *out = fopen(output_file, "wb");
-    if (!out) {
+    if (! out) {
         log_msg(stderr, "ERROR: Failed to open %s\n", output_file);
         quantize_ctx_close(&ctx);
         free(model.layer_types);
@@ -141,20 +137,15 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     int failed = 0;
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
-            quantize_write_bytes(out, &version, sizeof(version), 1) ||
-            quantize_write_bytes(out, p, sizeof(*p), 1) ||
+            quantize_write_bytes(out, &version, sizeof(version), 1) || quantize_write_bytes(out, p, sizeof(*p), 1) ||
             quantize_write_bytes(out, model.layer_types, sizeof(int), p->n_layers)) {
         failed = 1;
         goto cleanup;
     }
 
-    const char *embed_names[2] = {
-        "model.language_model.embed_tokens.weight",
-        "lm_head.weight"
-    };
+    const char *embed_names[2] = { "model.language_model.embed_tokens.weight", "lm_head.weight" };
     size_t n_embed_names = p->tie_word_embeddings ? 1 : 2;
-    const weightmap_entry *embed = quantize_find_last_tensor(
-            &ctx, embed_names, n_embed_names);
+    const weightmap_entry *embed = quantize_find_last_tensor(&ctx, embed_names, n_embed_names);
     if (quantize_write_qtensor_entry(&ctx, out, embed, p->vocab_size, p->dim)) {
         log_msg(stderr, "ERROR: Failed quantizing embedding/classifier weights\n");
         failed = 1;
@@ -163,39 +154,50 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
 
     char name[256];
     for (int l = 0; l < p->n_layers; l++) {
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.input_layernorm.weight", l);
-        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.input_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) {
+            failed = 1;
+            goto cleanup;
+        }
     }
     for (int l = 0; l < p->n_layers; l++) {
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.post_attention_layernorm.weight", l);
-        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.post_attention_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) {
+            failed = 1;
+            goto cleanup;
+        }
     }
     for (int l = 0; l < p->n_layers; l++) {
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.pre_feedforward_layernorm.weight", l);
-        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.pre_feedforward_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) {
+            failed = 1;
+            goto cleanup;
+        }
     }
     for (int l = 0; l < p->n_layers; l++) {
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.post_feedforward_layernorm.weight", l);
-        if (write_named_f32(&ctx, out, name, p->dim)) { failed = 1; goto cleanup; }
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.post_feedforward_layernorm.weight", l);
+        if (write_named_f32(&ctx, out, name, p->dim)) {
+            failed = 1;
+            goto cleanup;
+        }
     }
     for (int l = 0; l < p->n_layers; l++) {
         int hd = model.layer_types[l] ? p->global_head_dim : p->head_dim;
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.self_attn.q_norm.weight", l);
-        if (write_named_f32(&ctx, out, name, hd)) { failed = 1; goto cleanup; }
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.self_attn.q_norm.weight", l);
+        if (write_named_f32(&ctx, out, name, hd)) {
+            failed = 1;
+            goto cleanup;
+        }
     }
     for (int l = 0; l < p->n_layers; l++) {
         int hd = model.layer_types[l] ? p->global_head_dim : p->head_dim;
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.self_attn.k_norm.weight", l);
-        if (write_named_f32(&ctx, out, name, hd)) { failed = 1; goto cleanup; }
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.self_attn.k_norm.weight", l);
+        if (write_named_f32(&ctx, out, name, hd)) {
+            failed = 1;
+            goto cleanup;
+        }
     }
-    if (write_named_f32(&ctx, out,
-            "model.language_model.norm.weight", p->dim)) {
+    if (write_named_f32(&ctx, out, "model.language_model.norm.weight", p->dim)) {
         failed = 1;
         goto cleanup;
     }
@@ -204,72 +206,69 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
         int is_full = model.layer_types[l];
         int use_alternative_attention = is_full && p->attention_k_eq_v;
         int hd = is_full ? p->global_head_dim : p->head_dim;
-        int kv_heads = use_alternative_attention ?
-                p->n_global_kv_heads : p->n_kv_heads;
+        int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
 
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.self_attn.q_proj.weight", l);
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.self_attn.q_proj.weight", l);
         if (write_named_qt(&ctx, out, name, p->n_heads * hd, p->dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.self_attn.k_proj.weight", l);
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.self_attn.k_proj.weight", l);
         if (write_named_qt(&ctx, out, name, kv_heads * hd, p->dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
 
         if (use_alternative_attention) {
             if (quantize_write_empty_qtensor(out)) {
-                failed = 1; goto cleanup;
+                failed = 1;
+                goto cleanup;
             }
         } else {
-            snprintf(name, sizeof(name),
-                    "model.language_model.layers.%d.self_attn.v_proj.weight", l);
+            snprintf(name, sizeof(name), "model.language_model.layers.%d.self_attn.v_proj.weight", l);
             if (write_named_qt(&ctx, out, name, kv_heads * hd, p->dim)) {
-                failed = 1; goto cleanup;
+                failed = 1;
+                goto cleanup;
             }
         }
 
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.self_attn.o_proj.weight", l);
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.self_attn.o_proj.weight", l);
         if (write_named_qt(&ctx, out, name, p->dim, p->n_heads * hd)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.mlp.gate_proj.weight", l);
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.mlp.gate_proj.weight", l);
         if (write_named_qt(&ctx, out, name, p->hidden_dim, p->dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.mlp.up_proj.weight", l);
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.mlp.up_proj.weight", l);
         if (write_named_qt(&ctx, out, name, p->hidden_dim, p->dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
-        snprintf(name, sizeof(name),
-                "model.language_model.layers.%d.mlp.down_proj.weight", l);
+        snprintf(name, sizeof(name), "model.language_model.layers.%d.mlp.down_proj.weight", l);
         if (write_named_qt(&ctx, out, name, p->dim, p->hidden_dim)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
     for (int l = 0; l < p->n_layers; l++) {
         char scalar0[256], scalar1[256], scalar2[256];
-        snprintf(scalar0, sizeof(scalar0),
-                "model.language_model.layers.%d.layer_scalar", l);
-        snprintf(scalar1, sizeof(scalar1),
-                "model.language_model.layers.%d.layer_scalar.weight", l);
-        snprintf(scalar2, sizeof(scalar2),
-                "model.language_model.layers.%d.layer_output_scale.weight", l);
+        snprintf(scalar0, sizeof(scalar0), "model.language_model.layers.%d.layer_scalar", l);
+        snprintf(scalar1, sizeof(scalar1), "model.language_model.layers.%d.layer_scalar.weight", l);
+        snprintf(scalar2, sizeof(scalar2), "model.language_model.layers.%d.layer_output_scale.weight", l);
         const char *names[] = { scalar0, scalar1, scalar2 };
         if (quantize_write_scalar_or_default(&ctx, out, names, 3, 1.0f)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
     if (p->use_rope_freqs) {
-        if (write_named_f32(&ctx, out,
-                "model.language_model.layers.0.self_attn.rope_freqs.weight",
-                p->global_head_dim / 2)) {
+        if (write_named_f32(
+                    &ctx, out, "model.language_model.layers.0.self_attn.rope_freqs.weight", p->global_head_dim / 2)) {
             failed = 1;
             goto cleanup;
         }
@@ -298,4 +297,3 @@ int main(int argc, char *argv[]) {
     }
     return quantize_g4u_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

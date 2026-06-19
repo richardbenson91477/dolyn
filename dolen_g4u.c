@@ -2,7 +2,7 @@
 
 int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
         return -1;
     }
@@ -11,8 +11,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 
     uint32_t magic, version;
 
-    if (fread(&magic, sizeof(uint32_t), 1, f) != 1
-            || fread(&version, sizeof(uint32_t), 1, f) != 1) {
+    if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read header\n");
         fclose(f);
         return -1;
@@ -43,8 +42,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     }
 
     model->layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
-    if (fread(model->layer_types, sizeof(int), (size_t)p->n_layers, f)
-            != (size_t)p->n_layers) {
+    if (fread(model->layer_types, sizeof(int), (size_t)p->n_layers, f) != (size_t)p->n_layers) {
         log_msg(stderr, "ERROR: Failed to read layer_types\n");
         fclose(f);
         return -1;
@@ -66,7 +64,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     w->rms_k_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
     w->rms_final_norm = (float *)a_calloc((size_t)p->dim * sizeof(float));
 
-    if (!w->rms_input_layernorm || !w->rms_final_norm || !w->rms_q_norm) {
+    if (! w->rms_input_layernorm || ! w->rms_final_norm || ! w->rms_q_norm) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(f);
         return -1;
@@ -124,19 +122,19 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
     float ss = 0.0f;
 
-    #pragma omp simd reduction(+:ss)
+#pragma omp simd reduction(+ : ss)
     for (int j = 0; j < size; j++) {
         ss += x[j] * x[j];
     }
     ss = 1.0f / sqrtf(ss / size + eps);
 
     if (with_scale && weight) {
-        #pragma omp simd
+#pragma omp simd
         for (int j = 0; j < size; j++) {
             o[j] = x[j] * ss * weight[j];
         }
     } else {
-        #pragma omp simd
+#pragma omp simd
         for (int j = 0; j < size; j++) {
             o[j] = x[j] * ss;
         }
@@ -175,7 +173,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
     float embed_scale = sqrtf((float)dim);
     int max_head_dim = p->global_head_dim > p->head_dim ? p->global_head_dim : p->head_dim;
     int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
-    int max_kv_dim   = max_kv_heads * max_head_dim;
+    int max_kv_dim = max_kv_heads * max_head_dim;
 
     if (token < 0 || token >= p->vocab_size) {
         log_msg(stderr, "ERROR: token %d is outside vocabulary [0, %d)\n", token, p->vocab_size);
@@ -189,7 +187,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
     dequantize_row(x, &w->embed_tokens, token);
 
-    #pragma omp simd
+#pragma omp simd
     for (int i = 0; i < dim; i++) {
         x[i] *= embed_scale;
     }
@@ -203,15 +201,15 @@ float *forward_g4u(G4U *model, int token, int pos) {
         int rotary_dim = is_full ? (int)(p->rope_partial_factor * p->global_head_dim) : p->head_dim;
         float *cos_cache = is_full ? s->cos_cache_full : s->cos_cache_sliding;
         float *sin_cache = is_full ? s->sin_cache_full : s->sin_cache_sliding;
-        
+
         int layer_attn_out_dim = p->n_heads * head_dim;
 
-        float *rms_in      = w->rms_input_layernorm + l * dim;
-        float *rms_post_a  = w->rms_post_attn_layernorm + l * dim;
-        float *rms_pre_f   = w->rms_pre_ffn_layernorm + l * dim;
-        float *rms_post_f  = w->rms_post_ffn_layernorm + l * dim;
-        float *rms_q       = w->rms_q_norm + w->norm_offsets[l];
-        float *rms_k       = w->rms_k_norm + w->norm_offsets[l];
+        float *rms_in = w->rms_input_layernorm + l * dim;
+        float *rms_post_a = w->rms_post_attn_layernorm + l * dim;
+        float *rms_pre_f = w->rms_pre_ffn_layernorm + l * dim;
+        float *rms_post_f = w->rms_post_ffn_layernorm + l * dim;
+        float *rms_q = w->rms_q_norm + w->norm_offsets[l];
+        float *rms_k = w->rms_k_norm + w->norm_offsets[l];
 
         rmsnorm_g4u(s->xb, x, rms_in, dim, eps, 1);
 
@@ -225,7 +223,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
             matmul_qq(s->v, &s->xq, &w->v_proj[l]);
         }
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
             rmsnorm_g4u(qh, qh, rms_q, head_dim, eps, 1);
@@ -234,7 +232,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
             }
         }
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
 
@@ -246,7 +244,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         memcpy(s->k, s->k_raw, kv_dim * sizeof(float));
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
             rmsnorm_g4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
@@ -257,12 +255,12 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         int start_t = is_full ? 0 : fmax(0, pos - p->sliding_window + 1);
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *q = s->q + h * head_dim;
             float *att = s->att + h * p->seq_len;
             int kv_head = h / (p->n_heads / kv_heads);
-            
+
             for (int t = 0; t < start_t; t++) {
                 att[t] = -1e9f;
             }
@@ -272,21 +270,21 @@ float *forward_g4u(G4U *model, int token, int pos) {
                 float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float score = 0.0f;
 
-                #pragma omp simd reduction(+:score)
+#pragma omp simd reduction(+ : score)
                 for (int i = 0; i < head_dim; i++) {
                     score += q[i] * k[i];
                 }
                 att[t] = score * attn_scale;
             }
             softmax(att, pos + 1);
-            
+
             float *out = s->hb + h * head_dim;
             memset(out, 0, head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
                 float *v = s->value_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
                 float a = att[t];
 
-                #pragma omp simd
+#pragma omp simd
                 for (int i = 0; i < head_dim; i++) {
                     out[i] += a * v[i];
                 }
@@ -297,7 +295,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
         matmul_qq(s->xb, &s->xq, &w->o_proj[l]);
         rmsnorm_g4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
 
-        #pragma omp simd
+#pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
@@ -310,23 +308,23 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         int ffn_dim = w->gate_proj[l].rows;
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < ffn_dim; i++) {
             s->hb[i] = gelu_g4u(s->hb[i]) * s->hb2[i];
         }
-        
+
         quantize_vec(&s->hq, s->hb, ffn_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
         rmsnorm_g4u(s->xb, s->xb, rms_post_f, dim, eps, 1);
 
-        #pragma omp simd
+#pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
 
         if (w->layer_scalars[l] != 1.0f) {
             float scale = w->layer_scalars[l];
-            #pragma omp simd
+#pragma omp simd
             for (int i = 0; i < dim; i++) {
                 x[i] *= scale;
             }
@@ -337,12 +335,12 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
     quantize_vec(&s->xq, x, dim);
     matmul_qq(s->logits, &s->xq, &w->embed_tokens);
-    
+
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;
         float inv = 1.0f / cap;
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < p->vocab_size; i++) {
             s->logits[i] = tanhf(s->logits[i] * inv) * cap;
         }
@@ -360,24 +358,18 @@ static void free_g4u_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_G4U = {
-    .system =
-        "<|turn>system\n%s<turn|>\n",
-    .main =
-        "<|turn>user\n%s<turn|>\n"
-        "<|turn>model\n"
-        "<|channel>thought\n<channel|>",
-    .end_turn =
-        "<turn|>\n",
+    .system = "<|turn>system\n%s<turn|>\n",
+    .main = "<|turn>user\n%s<turn|>\n"
+            "<|turn>model\n"
+            "<|channel>thought\n<channel|>",
+    .end_turn = "<turn|>\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_G4U = {
-    .system =
-        "<|turn>system\n<|think|>%s<turn|>\n",
-    .main =
-        "<|turn>user\n%s<turn|>\n"
-        "<|turn>model\n",
-    .end_turn =
-        "<turn|>\n",
+    .system = "<|turn>system\n<|think|>%s<turn|>\n",
+    .main = "<|turn>user\n%s<turn|>\n"
+            "<|turn>model\n",
+    .end_turn = "<turn|>\n",
 };
 
 static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think) {
@@ -389,8 +381,7 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
     }
 
     model_iface *model_i = a_calloc(sizeof(model_iface));
-    *model_i = (model_iface) {
-        .model = model,
+    *model_i = (model_iface){ .model = model,
         .forward = forward_g4u_wrap,
         .free_model = free_g4u_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
@@ -399,12 +390,10 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U
-    };
+        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_g4u, "dolen_g4u");
 }
-

@@ -1,6 +1,5 @@
 #include "dolen_q3_5_common.h"
 
-
 void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
@@ -8,8 +7,8 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int hidden_dim = p->n_mlp;
     int q_dim = p->n_heads * head_size * 2;
     int attn_dim = p->n_heads * head_size;
-    size_t n_kv_layers = (size_t) p->n_full_attn_layers;
-    size_t n_linear_layers = (size_t) p->n_linear_attn_layers;
+    size_t n_kv_layers = (size_t)p->n_full_attn_layers;
+    size_t n_linear_layers = (size_t)p->n_linear_attn_layers;
     int value_dim = p->n_linear_v_heads * p->d_linear_v;
 
     int max_act_dim = dim;
@@ -76,7 +75,7 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
         float theta = p->rope_theta;
         for (int pos = 0; pos < p->seq_len; pos++) {
             for (int i = 0; i < rotary_partial; i++) {
-                float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_partial); 
+                float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_partial);
                 float val = pos * freq;
                 s->cos_cache[pos * rotary_partial + i] = cosf(val);
                 s->sin_cache[pos * rotary_partial + i] = sinf(val);
@@ -87,12 +86,12 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
         s->sin_cache = NULL;
     }
 
-    if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q || !s->k || !s->v ||
-            !s->att || !s->logits || !s->gate || !s->xq.q || !s->xq.s || !s->hq.q || !s->hq.s) {
+    if (! s->x || ! s->xb || ! s->xb2 || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
+            ! s->gate || ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
-    if (n_kv_layers > 0 && (!s->key_cache || !s->value_cache)) {
+    if (n_kv_layers > 0 && (! s->key_cache || ! s->value_cache)) {
         log_msg(stderr, "ERROR: alloc failed for KV cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -170,7 +169,7 @@ void free_q3_5(Q3_5 *model_q3_5) {
     free_qt_array(w->w3, n_layer);
     free(w->rms_final_weight);
 
-    if (!model_q3_5->config.tie_word_embeddings) {
+    if (! model_q3_5->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 
@@ -182,4 +181,3 @@ void free_q3_5(Q3_5 *model_q3_5) {
         free_state_q3_5(&model_q3_5->state);
     }
 }
-
