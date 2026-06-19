@@ -1,0 +1,13 @@
+#!/bin/sh
+
+dolen_run_system_prompt_default=""
+dolen_run_mode_default="generate"
+dolen_run_seq_n_default=512
+dolen_run_log_default="/tmp/dolen_gen.log"
+dolen_run_seed_default=85
+dolen_run_temp_default="0.2"
+dolen_run_top_p_default="0.95"
+dolen_run_top_k_default=40
+dolen_run_prompt_n_default=1024
+dolen_run_threads_n_default=11
+

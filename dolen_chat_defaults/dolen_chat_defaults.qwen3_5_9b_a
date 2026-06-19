@@ -1,9 +1,0 @@
-#!/bin/sh
-
-. "${dolen_path}/dolen_chat_defaults/dolen_chat_defaults.shared"
-
-. "${dolen_path}/dolen_chat_defaults/dolen_chat_defaults.q3_5"
-
-
-dolen_chat_model_default="/home/models/dolen_models/qwen3_5_9b_a"
-

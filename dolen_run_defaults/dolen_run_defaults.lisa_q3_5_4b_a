@@ -1,0 +1,9 @@
+#!/bin/sh
+
+. "${dolen_path}/dolen_run_defaults/dolen_run_defaults.chat"
+
+. "${dolen_path}/dolen_run_defaults/dolen_run_defaults.q3_5"
+
+
+dolen_run_model_default="${dolen_model_path}/lisa_q3_5_4b_a"
+

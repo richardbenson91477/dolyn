@@ -86,10 +86,10 @@ test_q3_5_dbg: $(BIN_Q3_5_DBG)
 	./$(BIN_Q3_5_DBG) -m $(MODEL_Q3_5) -tk $(TOKENIZER_Q3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3_5)
 
 debug_q3_5: $(BIN_Q3_5_DBG)
-	./dolen_run_gdb $(BIN_Q3_5_DBG) $(MODEL_Q3_5) $(TOKENIZER_Q3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3_5)
+	./dolen_gdb $(BIN_Q3_5_DBG) $(MODEL_Q3_5) $(TOKENIZER_Q3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3_5)
 
 debug_q3_5_q: $(BIN_Q3_5_Q_DBG)
-	./dolen_q_run_gdb $(BIN_Q3_5_Q_DBG)
+	./dolen_gdb_q $(BIN_Q3_5_Q_DBG)
 
 
 $(BIN_Q3): $(SRC_Q3) $(INC_Q3)
@@ -111,10 +111,10 @@ test_q3_dbg: $(BIN_Q3_DBG)
 	./$(BIN_Q3_DBG) -m $(MODEL_Q3) -tk $(TOKENIZER_Q3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3)
 
 debug_q3: $(BIN_Q3_DBG)
-	./dolen_run_gdb $(BIN_Q3_DBG) $(MODEL_Q3) $(TOKENIZER_Q3) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3)
+	./dolen_gdb $(BIN_Q3_DBG) $(MODEL_Q3) $(TOKENIZER_Q3) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3)
 
 debug_q3_q: $(BIN_Q3_Q_DBG)
-	./dolen_q_run_gdb $(BIN_Q3_Q_DBG)
+	./dolen_gdb_q $(BIN_Q3_Q_DBG)
 
 
 $(BIN_G4U): $(SRC_G4U) $(INC_G4U)
@@ -136,10 +136,10 @@ test_g4u_dbg: $(BIN_G4U_DBG)
 	./$(BIN_G4U_DBG) -m $(MODEL_G4U) -tk $(TOKENIZER_G4U) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_G4U)
 
 debug_g4u: $(BIN_G4U_DBG)
-	./dolen_run_gdb $(BIN_G4U_DBG) $(MODEL_G4U) $(TOKENIZER_G4U) $(PROMPT) $(SYS_PROMPT) $(SEQN_G4U)
+	./dolen_gdb $(BIN_G4U_DBG) $(MODEL_G4U) $(TOKENIZER_G4U) $(PROMPT) $(SYS_PROMPT) $(SEQN_G4U)
 
 debug_g4u_q: $(BIN_G4U_Q_DBG)
-	./dolen_q_run_gdb $(BIN_G4U_Q_DBG)
+	./dolen_gdb_q $(BIN_G4U_Q_DBG)
 
 
 $(BIN_IG4_1): $(SRC_IG4_1) $(INC_IG4_1)
@@ -161,10 +161,10 @@ test_ig4_1_dbg: $(BIN_IG4_1_DBG)
 	./$(BIN_IG4_1_DBG) -m $(MODEL_IG4_1) -tk $(TOKENIZER_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
 
 debug_ig4_1: $(BIN_IG4_1_DBG)
-	./dolen_run_gdb $(BIN_IG4_1_DBG) $(MODEL_IG4_1) $(TOKENIZER_IG4_1) $(PROMPT) $(SYS_PROMPT) $(SEQN_IG4_1)
+	./dolen_gdb $(BIN_IG4_1_DBG) $(MODEL_IG4_1) $(TOKENIZER_IG4_1) $(PROMPT) $(SYS_PROMPT) $(SEQN_IG4_1)
 
 debug_ig4_1_q: $(BIN_IG4_1_Q_DBG)
-	./dolen_q_run_gdb $(BIN_IG4_1_Q_DBG)
+	./dolen_gdb_q $(BIN_IG4_1_Q_DBG)
 
 
 strip: $(BINS)
