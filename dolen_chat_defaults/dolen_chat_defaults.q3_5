@@ -1,0 +1,8 @@
+#!/bin/sh
+
+. "${dolen_path}/dolen_chat_defaults/dolen_chat_defaults.shared"
+
+
+dolen_chat_bin_default="${dolen_path}/dolen_q3_5"
+dolen_chat_tokenizer_default="/home/models/dolen_models/tokenizer_q3_5.bin"
+

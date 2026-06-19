@@ -1,39 +1,31 @@
 #!/bin/sh
-export OMP_NUM_THREADS=11
+. "$dolen_path/envarg.sh"
+
+_bin_name="dolen_chat"
+_prefix="${_bin_name}"
+_defaults_base="${dolen_path}/${_bin_name}_defaults/${_bin_name}_defaults"
+_suffixes="bin model tokenizer system_prompt mode seq_n log seed temp top_p top_k prompt_n threads_n"
+
+envarg_parse "$_bin_name" "$_prefix" "$_defaults_base" "$_suffixes" "$@" &&\
+  shift $envarg_parse_shift_count
+
+
+export OMP_NUM_THREADS="${dolen_chat_threads_n}"
 export OMP_PLACES="cores"
 export OMP_PROC_BIND="close"
 
-model_type="q3_5"
-[ "$1" ] && {
-    model_type="$1"
-    shift
-    }
 
-model_path="/home/models/dolen_models"
-model="${model_path}/model_${model_type}"
-tokenizer="${model_path}/tokenizer_${model_type}.bin"
-system_prompt="You are a helpful assistant."
-mode="chat"
-seq_n=8192
-log="/scratch/dolen_chat.log"
-seed=85
-temp="0.2"
-top_p="0.95"
-top_k=40
-prompt_n=32768
-
-
-$dolen_path/"dolen_${model_type}" \
-    --model "${model}" \
-    --tokenizer "${tokenizer}" \
-    --system_prompt "${system_prompt}" \
-    --prompt_n "${prompt_n}" \
-    --mode "${mode}" \
-    --seq_n "${seq_n}" \
-    --log "${log}" \
-    --seed "${seed}" \
-    --temp "${temp}" \
-    --top_p "${top_p}" \
-    --top_k "${top_k}" \
+"${dolen_chat_bin}" \
+    --model "${dolen_chat_model}" \
+    --tokenizer "${dolen_chat_tokenizer}" \
+    --system_prompt "${dolen_chat_system_prompt}" \
+    --prompt_n "${dolen_chat_prompt_n}" \
+    --mode "${dolen_chat_mode}" \
+    --seq_n "${dolen_chat_seq_n}" \
+    --log "${dolen_chat_log}" \
+    --seed "${dolen_chat_seed}" \
+    --temp "${dolen_chat_temp}" \
+    --top_p "${dolen_chat_top_p}" \
+    --top_k "${dolen_chat_top_k}" \
     "$@"
 
