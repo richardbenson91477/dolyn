@@ -12,8 +12,8 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
 
     int xq_size = all_heads_dim > p->dim ? all_heads_dim : p->dim;
 
-    int xq_num_groups = (xq_size + GS - 1) / GS;
-    int hq_num_groups = (p->hidden_dim + GS - 1) / GS;
+    int xq_num_groups = (xq_size + GROUP_SIZE - 1) / GROUP_SIZE;
+    int hq_num_groups = (p->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
 
     s->xq.q = a_calloc((size_t)xq_size * sizeof(int8_t));
     s->xq.s = a_calloc((size_t)xq_num_groups * sizeof(float));

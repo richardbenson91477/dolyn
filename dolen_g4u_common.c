@@ -32,13 +32,13 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     s->key_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
     s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
 
-    int num_groups_xq = (max_act_dim + GS - 1) / GS;
+    int num_groups_xq = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     s->xq.q = a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->xq.s = a_calloc((size_t)num_groups_xq * sizeof(float));
     s->xq.rows = 1;
     s->xq.cols = max_act_dim;
 
-    int num_groups_hq = (p->hidden_dim + GS - 1) / GS;
+    int num_groups_hq = (p->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     s->hq.q = a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
     s->hq.s = a_calloc((size_t)num_groups_hq * sizeof(float));
     s->hq.rows = 1;

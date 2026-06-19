@@ -222,15 +222,15 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
 
 static void quantize_group_into(int8_t *q, float *s,
         const float *weights, int rows, int cols) {
-    int num_groups = (cols + GS - 1) / GS;
+    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     for (int i = 0; i < rows; i++) {
         const float *row = weights + (size_t)i * cols;
         float *row_s = s + (size_t)i * num_groups;
         int8_t *row_q = q + (size_t)i * cols;
 
         for (int g = 0; g < num_groups; g++) {
-            int start = g * GS;
-            int end = start + GS;
+            int start = g * GROUP_SIZE;
+            int end = start + GROUP_SIZE;
             if (end > cols) {
                 end = cols;
             }
@@ -259,7 +259,7 @@ static void quantize_group_into(int8_t *q, float *s,
 void quantize_group(qtensor *qt, const float *weights, int rows, int cols) {
     qt->rows = rows;
     qt->cols = cols;
-    int num_groups = (cols + GS - 1) / GS;
+    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
 
     qt->q = (int8_t *)a_calloc((size_t)rows * cols * sizeof(int8_t));
     qt->s = (float *)a_calloc((size_t)rows * num_groups * sizeof(float));
@@ -629,7 +629,7 @@ int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out,
         return -1;
     }
 
-    int num_groups = (cols + GS - 1) / GS;
+    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     uint64_t q_bytes = (uint64_t)rows * (uint64_t)cols;
     uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);
 

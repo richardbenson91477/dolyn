@@ -38,7 +38,7 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
     s->gate = a_calloc((size_t)p->n_heads * head_size * sizeof(float));
 
-    int num_groups = (max_act_dim + GS - 1) / GS;
+    int num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     s->xq.q = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->xq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
     s->xq.rows = 1;

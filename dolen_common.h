@@ -16,7 +16,7 @@
 
 // Quantized Tensor
 
-#define GS 64 // Group Size
+#define GROUP_SIZE 64 // Group Size
 
 typedef struct {
     int8_t *q;
