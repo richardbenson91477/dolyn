@@ -170,6 +170,9 @@ debug_ig4_1_q: $(BIN_IG4_1_Q_DBG)
 strip: $(BINS)
 	strip $(BINS)
 
+format:
+	clang-format -i $(SRCS)
+
 clean:
 	rm -vf $(BINS) $(BINS_DBG)
 
