@@ -1,8 +1,7 @@
 #include "dolen_common_mem.h"
 
-
 void *a_calloc(size_t size) {
-    if (size == 0) {
+    if (! size) {
         return NULL;
     }
 
@@ -22,4 +21,3 @@ uint64_t read_le64(const uint8_t bytes[8]) {
     }
     return value;
 }
-

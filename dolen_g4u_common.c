@@ -11,8 +11,10 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     int cache_stride_sliding = p->head_dim / 2;
 
     int max_act_dim = p->dim;
-    if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
-    if (p->hidden_dim > max_act_dim) max_act_dim = p->hidden_dim;
+    if (attn_out_dim > max_act_dim)
+        max_act_dim = attn_out_dim;
+    if (p->hidden_dim > max_act_dim)
+        max_act_dim = p->hidden_dim;
 
     s->x = a_calloc((size_t)p->dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -82,13 +84,14 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
         s->sin_cache_sliding = NULL;
     }
 
-    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->k_raw || !s->v || !s->att ||
-            !s->logits || !s->key_cache || !s->value_cache || !s->xq.data || !s->xq.s || !s->hq.data || !s->hq.s) {
+    if (! s->x || ! s->xb || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->k_raw || ! s->v || ! s->att ||
+            ! s->logits || ! s->key_cache || ! s->value_cache || ! s->xq.data || ! s->xq.s || ! s->hq.data ||
+            ! s->hq.s) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
     if (p->seq_len > 1 &&
-            (!s->cos_cache_full || !s->sin_cache_full || !s->cos_cache_sliding || !s->sin_cache_sliding)) {
+            (! s->cos_cache_full || ! s->sin_cache_full || ! s->cos_cache_sliding || ! s->sin_cache_sliding)) {
         log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -96,7 +99,8 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
 }
 
 void free_state_g4u(state_g4u *s) {
-    if (!s->allocated) return;
+    if (! s->allocated)
+        return;
 
     free(s->x);
     free(s->xb);
@@ -123,13 +127,14 @@ void free_state_g4u(state_g4u *s) {
 }
 
 void free_g4u(G4U *model) {
-    if (!model) return;
+    if (! model)
+        return;
 
     config_g4u *p = &model->config;
     weights_g4u *w = &model->weights;
 
     free(model->layer_types);
-    
+
     free_qt(&w->embed_tokens);
     free_qt(&w->rms_final_norm);
     free_qt(&w->rope_freqs_full);

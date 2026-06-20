@@ -2,7 +2,7 @@
 
 int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
@@ -38,13 +38,13 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     weights_ig4_1 *w = &model_ig4_1->weights;
 
     log_msg(stderr,
-             "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
-             "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
-             "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
+            "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
+            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
+            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
             p->dim, p->n_heads, p->n_kv_heads, p->d_head, p->n_layer, p->seq_len, p->rope_theta,
             p->attention_multiplier, p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
 
-    if (!(p->rope_theta > 1.0f)) {
+    if (! (p->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", p->rope_theta);
         fclose(f);
         return -1;
@@ -57,12 +57,13 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     read_qt(f, &w->token_embedding_table);
 
     w->rms_att_weight = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    if (!w->rms_att_weight) {
+    if (! w->rms_att_weight) {
         log_msg(stderr, "ERROR: Failed to allocate rms_att_weight\n");
         fclose(f);
         return -1;
     }
-    for (int i = 0; i < p->n_layer; i++) read_qt(f, &w->rms_att_weight[i]);
+    for (int i = 0; i < p->n_layer; i++)
+        read_qt(f, &w->rms_att_weight[i]);
 
     w->wq = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->wk = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
@@ -77,12 +78,13 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     }
 
     w->rms_ffn_weight = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    if (!w->rms_ffn_weight) {
+    if (! w->rms_ffn_weight) {
         log_msg(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
         fclose(f);
         return -1;
     }
-    for (int i = 0; i < p->n_layer; i++) read_qt(f, &w->rms_ffn_weight[i]);
+    for (int i = 0; i < p->n_layer; i++)
+        read_qt(f, &w->rms_ffn_weight[i]);
 
     w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
@@ -95,7 +97,7 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
 
     read_qt(f, &w->rms_final_weight);
 
-    if (!p->tie_word_embeddings) {
+    if (! p->tie_word_embeddings) {
         read_qt(f, &w->wcls);
     } else {
         w->wcls = w->token_embedding_table;
@@ -298,10 +300,10 @@ static const chat_template CHAT_TEMPLATE_IG4_1 = {
 };
 
 static token_map SPECIAL_TOKENS_IG4_1[] = {
-    {"<|end_of_text|\x3e", 100257},
-    {"<|start_of_role|\x3e", 100264},
-    {"<|end_of_role|\x3e", 100265},
-    {NULL, 0},
+    { "<|end_of_text|\x3e", 100257 },
+    { "<|start_of_role|\x3e", 100264 },
+    { "<|end_of_role|\x3e", 100265 },
+    { NULL, 0 },
 };
 
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _think) {
@@ -318,7 +320,7 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
     }
 
     model_iface *model_i = a_calloc(sizeof(model_iface));
-    *model_i = (model_iface){.model = model,
+    *model_i = (model_iface){ .model = model,
         .forward = forward_ig4_1_wrap,
         .free_model = free_ig4_1_wrap,
         .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
@@ -327,7 +329,7 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
         .eos_token_id = 100257,
         .im_end_id = 100257,
         .special_tokens = SPECIAL_TOKENS_IG4_1,
-        .chat_template = &CHAT_TEMPLATE_IG4_1};
+        .chat_template = &CHAT_TEMPLATE_IG4_1 };
     return model_i;
 }
 

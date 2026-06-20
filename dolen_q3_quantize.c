@@ -6,7 +6,7 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
 
     FILE *f = fopen(config_path, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
@@ -16,21 +16,29 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     fseek(f, 0, SEEK_SET);
 
     char *json_str = (char *)a_calloc(size + 1);
-    if (!json_str) { fclose(f); return -1; }
-    if (fread(json_str, 1, size, f) != (size_t)size) { free(json_str); fclose(f); return -1; }
+    if (! json_str) {
+        fclose(f);
+        return -1;
+    }
+    if (fread(json_str, 1, size, f) != (size_t)size) {
+        free(json_str);
+        fclose(f);
+        return -1;
+    }
     json_str[size] = '\0';
     fclose(f);
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
-    if (!root) {
+    if (! root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error);
         return -1;
     }
 
     JsonValue *cfg = json_object_get(root, "text_config");
-    if (!cfg) cfg = root;
+    if (! cfg)
+        cfg = root;
 
     memset(config, 0, sizeof(config_q3));
     config->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
@@ -57,7 +65,8 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols, q_type_t type) {
+static int write_layer_tensor(
+        quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols, q_type_t type) {
     char name[256];
     snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
     if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, type)) {
@@ -69,7 +78,8 @@ static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const cha
 
 int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     config_q3 config;
-    if (load_config_q3(model_dir, &config)) return -1;
+    if (load_config_q3(model_dir, &config))
+        return -1;
 
     quantize_ctx ctx;
     if (quantize_ctx_open(&ctx, model_dir)) {
@@ -78,7 +88,7 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     }
 
     FILE *out = fopen(output_file, "wb");
-    if (!out) {
+    if (! out) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
         quantize_ctx_close(&ctx);
         return -1;
@@ -101,31 +111,37 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
 
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_tensor(&ctx, out, l, "input_layernorm.weight", 1, config.dim, Q_TYPE_F32)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_tensor(&ctx, out, l, "post_attention_layernorm.weight", 1, config.dim, Q_TYPE_F32)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
     if (quantize_write_tensor_or_empty(&ctx, out, "model.norm.weight", 1, config.dim, Q_TYPE_F32)) {
-        failed = 1; goto cleanup;
+        failed = 1;
+        goto cleanup;
     }
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_tensor(&ctx, out, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
     for (int l = 0; l < config.n_layers; l++) {
         if (write_layer_tensor(&ctx, out, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
-    if (!config.shared_classifier &&
+    if (! config.shared_classifier &&
             quantize_write_tensor(&ctx, out, "lm_head.weight", config.vocab_size, config.dim, Q_TYPE_Q8)) {
-        failed = 1; goto cleanup;
+        failed = 1;
+        goto cleanup;
     }
 
     for (int l = 0; l < config.n_layers; l++) {
@@ -142,7 +158,8 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0) failed = 1;
+    if (fclose(out) != 0)
+        failed = 1;
     quantize_ctx_close(&ctx);
 
     if (failed) {

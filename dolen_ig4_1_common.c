@@ -8,8 +8,10 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
     int attn_dim = p->n_heads * head_size;
 
     int max_act_dim = dim;
-    if (attn_dim > max_act_dim) max_act_dim = attn_dim;
-    if (hidden_dim > max_act_dim) max_act_dim = hidden_dim;
+    if (attn_dim > max_act_dim)
+        max_act_dim = attn_dim;
+    if (hidden_dim > max_act_dim)
+        max_act_dim = hidden_dim;
 
     s->x = a_calloc((size_t)dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -51,8 +53,8 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
         }
     }
 
-    if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q || !s->k || !s->v || !s->att || !s->logits ||
-            !s->xq.data || !s->xq.s || !s->hq.data || !s->hq.s || !s->key_cache || !s->value_cache) {
+    if (! s->x || ! s->xb || ! s->xb2 || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
+            ! s->xq.data || ! s->xq.s || ! s->hq.data || ! s->hq.s || ! s->key_cache || ! s->value_cache) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -61,7 +63,8 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
 }
 
 void free_state_ig4_1(state_ig4_1 *s) {
-    if (!s->allocated) return;
+    if (! s->allocated)
+        return;
 
     free(s->x);
     free(s->xb);
@@ -100,8 +103,8 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
     free_qt(&w->rms_final_weight);
-    
-    if (!model_ig4_1->config.tie_word_embeddings) {
+
+    if (! model_ig4_1->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 

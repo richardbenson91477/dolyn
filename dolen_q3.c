@@ -2,7 +2,7 @@
 
 int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
@@ -38,15 +38,16 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     weights_q3 *w = &model_q3->weights;
 
-    if (seq_n_max) p->seq_len = seq_n_max;
+    if (seq_n_max)
+        p->seq_len = seq_n_max;
 
     w->rms_att_weight = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->rms_ffn_weight = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
-    
+
     w->q_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->k_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (!w->rms_att_weight || !w->rms_ffn_weight || !w->q_norm || !w->k_norm) {
+    if (! w->rms_att_weight || ! w->rms_ffn_weight || ! w->q_norm || ! w->k_norm) {
         log_msg(stderr, "ERROR: Failed to allocate memory for weights\n");
         fclose(f);
         return -1;
@@ -54,15 +55,19 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     read_qt(f, &w->token_embedding_table);
 
-    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->rms_att_weight[l]);
-    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->rms_ffn_weight[l]);
-    
+    for (int l = 0; l < p->n_layers; l++)
+        read_qt(f, &w->rms_att_weight[l]);
+    for (int l = 0; l < p->n_layers; l++)
+        read_qt(f, &w->rms_ffn_weight[l]);
+
     read_qt(f, &w->rms_final_weight);
 
-    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->q_norm[l]);
-    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->k_norm[l]);
+    for (int l = 0; l < p->n_layers; l++)
+        read_qt(f, &w->q_norm[l]);
+    for (int l = 0; l < p->n_layers; l++)
+        read_qt(f, &w->k_norm[l]);
 
-    if (!p->shared_classifier) {
+    if (! p->shared_classifier) {
         read_qt(f, &w->wcls);
     } else {
         w->wcls = w->token_embedding_table;
@@ -76,7 +81,7 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (!w->wq || !w->wk || !w->wv || !w->wo || !w->w1 || !w->w2 || !w->w3) {
+    if (! w->wq || ! w->wk || ! w->wv || ! w->wo || ! w->w1 || ! w->w2 || ! w->w3) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(f);
         return -1;
@@ -315,4 +320,3 @@ static model_iface *init_q3(const char *model_path, int seq_n_max, bool _think) 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3, "dolen3");
 }
-

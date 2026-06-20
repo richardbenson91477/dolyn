@@ -3,7 +3,7 @@
 #include "dolen_common_mem.h"
 
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
-    if (row_idx >= qt->rows || row_idx < 0) {
+    if ((row_idx >= qt->rows) || (row_idx < 0)) {
         log_msg(stderr, "ERROR: Row index %d out of bounds (max %d)\n", row_idx, qt->rows);
         exit(EXIT_FAILURE);
     }
@@ -25,7 +25,9 @@ void dequantize_row(float *output, const qtensor *qt, int row_idx) {
         for (int g = 0; g < num_groups; g++) {
             int start = g * GROUP_SIZE;
             int end = start + GROUP_SIZE;
-            if (end > cols) end = cols;
+            if (end > cols) {
+                end = cols;
+            }
             float scale = row_s[g];
             for (int j = start; j < end; j++) {
                 output[j] = (float)row_q[j] * scale;
@@ -109,7 +111,9 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
         float wmax = 0.0f;
         for (int i = start; i < end; i++) {
             float v = fabsf(x[i]);
-            if (v > wmax) wmax = v;
+            if (v > wmax) {
+                wmax = v;
+            }
         }
         float scale = wmax < 1e-9f ? 1e-9f : wmax / 127.0f;
         xq->s[g] = scale;
@@ -124,7 +128,7 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
 void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor *restrict w) {
     int n = x->cols;
     int d = w->rows;
-    
+
     const int8_t *x_q = (const int8_t *)x->data;
     const float *x_s = x->s;
     int n_groups = (n + GROUP_SIZE - 1) / GROUP_SIZE;
@@ -219,17 +223,24 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
 }
 
 void free_qt(qtensor *qt) {
-    if (!qt) return;
+    if (! qt) {
+        return;
+    }
+
     free(qt->data);
-    free(qt->s);
     qt->data = NULL;
+
+    free(qt->s);
     qt->s = NULL;
+
     qt->rows = 0;
     qt->cols = 0;
 }
 
 void free_qt_array(qtensor *arr, int n) {
-    if (!arr) return;
+    if (! arr) {
+        return;
+    }
     for (int i = 0; i < n; i++) {
         free_qt(&arr[i]);
     }
@@ -241,7 +252,7 @@ void read_qt(FILE *f, qtensor *qt) {
     fread(&qt->rows, sizeof(int), 1, f);
     fread(&qt->cols, sizeof(int), 1, f);
 
-    if (qt->rows <= 0 || qt->cols <= 0) {
+    if ((qt->rows <= 0) || (qt->cols <= 0)) {
         qt->data = NULL;
         qt->s = NULL;
         return;
@@ -271,7 +282,9 @@ void write_qt(FILE *f, qtensor *qt) {
     fwrite(&qt->rows, sizeof(int), 1, f);
     fwrite(&qt->cols, sizeof(int), 1, f);
 
-    if (qt->rows <= 0 || qt->cols <= 0) return;
+    if ((qt->rows <= 0) || (qt->cols <= 0)) {
+        return;
+    }
 
     int num_groups = (qt->cols + GROUP_SIZE - 1) / GROUP_SIZE;
     size_t elements = (size_t)qt->rows * qt->cols;

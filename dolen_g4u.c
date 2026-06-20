@@ -2,7 +2,7 @@
 
 int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
         return -1;
     }
@@ -37,7 +37,8 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    if (seq_n_max != 0) p->seq_len = seq_n_max;
+    if (seq_n_max != 0)
+        p->seq_len = seq_n_max;
 
     model->layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
     if (fread(model->layer_types, sizeof(int), (size_t)p->n_layers, f) != (size_t)p->n_layers) {
@@ -55,22 +56,28 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     w->rms_q_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->rms_k_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (!w->rms_input_layernorm || !w->rms_post_attn_layernorm || !w->rms_pre_ffn_layernorm ||
-        !w->rms_post_ffn_layernorm || !w->rms_q_norm || !w->rms_k_norm) {
+    if (! w->rms_input_layernorm || ! w->rms_post_attn_layernorm || ! w->rms_pre_ffn_layernorm ||
+            ! w->rms_post_ffn_layernorm || ! w->rms_q_norm || ! w->rms_k_norm) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(f);
         return -1;
     }
 
     read_qt(f, &w->embed_tokens);
-    
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_input_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_post_attn_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_pre_ffn_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_post_ffn_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_q_norm[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_k_norm[i]);
-    
+
+    for (int i = 0; i < p->n_layers; i++)
+        read_qt(f, &w->rms_input_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++)
+        read_qt(f, &w->rms_post_attn_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++)
+        read_qt(f, &w->rms_pre_ffn_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++)
+        read_qt(f, &w->rms_post_ffn_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++)
+        read_qt(f, &w->rms_q_norm[i]);
+    for (int i = 0; i < p->n_layers; i++)
+        read_qt(f, &w->rms_k_norm[i]);
+
     read_qt(f, &w->rms_final_norm);
 
     w->q_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -82,7 +89,8 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     w->down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
 
-    for (int i = 0; i < p->n_layers; i++) w->layer_scalars[i] = 1.0f;
+    for (int i = 0; i < p->n_layers; i++)
+        w->layer_scalars[i] = 1.0f;
 
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->q_proj[i]);
@@ -109,7 +117,8 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 }
 
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
-    if (rotary_dim <= 0) return;
+    if (rotary_dim <= 0)
+        return;
 
     int half_rot = rotary_dim / 2;
     int cache_stride = vec_dim / 2;
@@ -341,8 +350,7 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
     }
 
     model_iface *model_i = a_calloc(sizeof(model_iface));
-    *model_i = (model_iface){
-        .model = model,
+    *model_i = (model_iface){ .model = model,
         .forward = forward_g4u_wrap,
         .free_model = free_g4u_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
@@ -351,8 +359,7 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U
-    };
+        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U };
     return model_i;
 }
 

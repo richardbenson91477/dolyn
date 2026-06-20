@@ -1,6 +1,5 @@
 #include "dolen_common_math.h"
 
-
 void rmsnorm(float *o, float *x, float *weight, int size, float eps) {
     float ss = 0.0f;
 
@@ -146,4 +145,3 @@ float matmul_scalar(float *x, float *w, int n) {
     }
     return val;
 }
-

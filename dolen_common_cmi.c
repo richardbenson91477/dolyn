@@ -3,7 +3,6 @@
 #include "dolen_common_io.h"
 #include "dolen_common_mem.h"
 
-
 void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *prompt, int steps_n_max) {
     if (prompt == NULL) {
         prompt = "";
@@ -44,7 +43,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 
         token = next;
 
-        if (start == 0) {
+        if (! start) {
             start = time_in_ms();
         }
     }
@@ -100,8 +99,7 @@ static bool is_chat_stop_token(const model_iface *model_i, int token) {
     if (token == model_i->im_end_id) {
         return true;
     }
-    if ((model_i->eos_token_id > 0) &&
-            (token == model_i->eos_token_id)) {
+    if ((model_i->eos_token_id > 0) && (token == model_i->eos_token_id)) {
         return true;
     }
 
@@ -114,9 +112,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
     if (! chat_tmpl) {
         chat_tmpl = &CHAT_TEMPLATE_CHATML;
     }
-    if ((! chat_tmpl->system) ||
-            (! chat_tmpl->main) ||
-            (! chat_tmpl->end_turn)) {
+    if ((! chat_tmpl->system) || (! chat_tmpl->main) || (! chat_tmpl->end_turn)) {
         log_msg(stderr, "ERROR: Model supplied an incomplete chat template\n");
         exit(EXIT_FAILURE);
     }
@@ -306,7 +302,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         exit(EXIT_FAILURE);
     }
 
-    if (rng_seed == 0) {
+    if (! rng_seed) {
         rng_seed = (unsigned int)time(NULL);
     }
     log_msg(stderr, "INFO: Using seed %lu\n", rng_seed);
@@ -372,4 +368,3 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
     return 0;
 }
-

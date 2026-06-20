@@ -1,8 +1,6 @@
 #include "dolen_common_io.h"
 
-
 char *log_path = NULL;
-
 
 long time_in_ms(void) {
     struct timespec time;
@@ -42,7 +40,7 @@ void log_msg(FILE *stream, const char *format, ...) {
 }
 
 void read_msg(char *buf, size_t buf_len) {
-    if (buf_len == 0) {
+    if (! buf_len) {
         return;
     }
 
@@ -95,4 +93,3 @@ int seek_abs(FILE *f, uint64_t offset) {
     }
     return 0;
 }
-

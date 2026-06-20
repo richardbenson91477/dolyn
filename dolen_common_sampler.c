@@ -2,7 +2,6 @@
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 
-
 int sample_argmax(float *probs, int n) {
     int max_i = 0;
     float max_p = probs[0];
@@ -67,7 +66,7 @@ int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, 
         }
     }
 
-    if (n0 == 0) {
+    if (! n0) {
         return sample_argmax(probs, n);
     }
 
@@ -135,4 +134,3 @@ void build_sampler(
 void free_sampler(Sampler *sampler) {
     free(sampler->probindex);
 }
-

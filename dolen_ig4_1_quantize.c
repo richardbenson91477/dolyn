@@ -6,7 +6,7 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
 
     FILE *f = fopen(config_path, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
@@ -24,10 +24,10 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     json_str[size] = '\0';
     fclose(f);
 
-    char error[256] = {0};
+    char error[256] = { 0 };
     JsonValue *root = json_parse(json_str, size, error, sizeof(error));
     free(json_str);
-    if (!root) {
+    if (! root) {
         return -1;
     }
 
@@ -46,16 +46,16 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     if (rope_params && rope_params->type == JSON_OBJECT) {
         rope_theta_value = json_object_get(rope_params, "rope_theta");
     }
-    if (!rope_theta_value) {
+    if (! rope_theta_value) {
         rope_theta_value = json_object_get(root, "rope_theta");
     }
-    if (!rope_theta_value) {
+    if (! rope_theta_value) {
         log_msg(stderr, "ERROR: config.json has no rope_theta\n");
         json_free(root);
         return -1;
     }
     config->rope_theta = json_get_double(rope_theta_value, 0.0);
-    if (!(config->rope_theta > 1.0f)) {
+    if (! (config->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in config.json\n", config->rope_theta);
         json_free(root);
         return -1;
@@ -71,9 +71,9 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     config->logits_scaling = json_get_double(json_object_get(root, "logits_scaling"), 1.0);
 
     log_msg(stderr,
-             "INFO: Model config loaded: dim=%d heads=%d kv_heads=%d head_dim=%d "
-             "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
-             "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
+            "INFO: Model config loaded: dim=%d heads=%d kv_heads=%d head_dim=%d "
+            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
+            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
             config->dim, config->n_heads, config->n_kv_heads, config->d_head, config->n_layer, config->seq_len,
             config->rope_theta, config->attention_multiplier, config->embedding_multiplier, config->residual_multiplier,
             config->logits_scaling);
@@ -92,7 +92,7 @@ static int write_layer_f32(quantize_ctx *ctx, FILE *out, int layer, const char *
 }
 
 static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols) {
-    char name[256]; 
+    char name[256];
     snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
     if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, Q_TYPE_Q8)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
@@ -114,7 +114,7 @@ int quantize_ig4_1_to_file(const char *model_dir, const char *output_file) {
     }
 
     FILE *out = fopen(output_file, "wb");
-    if (!out) {
+    if (! out) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
         quantize_ctx_close(&ctx);
         return -1;
@@ -173,7 +173,7 @@ int quantize_ig4_1_to_file(const char *model_dir, const char *output_file) {
         goto cleanup;
     }
 
-    if (!config.tie_word_embeddings &&
+    if (! config.tie_word_embeddings &&
             quantize_write_tensor(&ctx, out, "lm_head.weight", config.vocab_size, config.dim, Q_TYPE_Q8)) {
         failed = 1;
         goto cleanup;

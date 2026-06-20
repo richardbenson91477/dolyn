@@ -2,7 +2,6 @@
 #include "dolen_common_io.h"
 #include "dolen_common_mem.h"
 
-
 int compare_tokens(const void *a, const void *b) {
     return strcmp(((token_map *)a)->str, ((token_map *)b)->str);
 }
@@ -50,7 +49,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
         exit(EXIT_FAILURE);
     }
 
-    if (t->sorted_vocab == NULL) {
+    if (! t->sorted_vocab) {
         t->sorted_vocab = a_calloc(t->vocab_size * sizeof(token_map));
         for (int i = 0; i < t->vocab_size; i++) {
             t->sorted_vocab[i].str = t->vocab[i];
@@ -67,7 +66,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
         const char *bos_piece = t->vocab[bos_token];
         if (bos_piece) {
             size_t bos_len = strlen(bos_piece);
-            if (bos_len > 0 && strncmp(input, bos_piece, bos_len) == 0) {
+            if ((bos_len > 0) && (! strncmp(input, bos_piece, bos_len))) {
                 input += bos_len;
             }
         }
@@ -80,7 +79,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
         int found_special = 0;
         for (int i = 0; i < t->n_special_tokens; i++) {
             size_t len = strlen(t->special_tokens[i].str);
-            if (strncmp(pos, t->special_tokens[i].str, len) == 0) {
+            if (! strncmp(pos, t->special_tokens[i].str, len)) {
                 tokens[(*tokens_n)++] = t->special_tokens[i].id;
                 pos += len;
                 found_special = 1;
@@ -93,7 +92,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
             while (*pos) {
                 int is_special_start = 0;
                 for (int i = 0; i < t->n_special_tokens; i++) {
-                    if (strncmp(pos, t->special_tokens[i].str, strlen(t->special_tokens[i].str)) == 0) {
+                    if (! strncmp(pos, t->special_tokens[i].str, strlen(t->special_tokens[i].str))) {
                         is_special_start = 1;
                         break;
                     }
@@ -196,4 +195,3 @@ void free_tokenizer(Tokenizer *t) {
     free(t->vocab);
     free(t->sorted_vocab);
 }
-
