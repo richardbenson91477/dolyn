@@ -1,9 +1,8 @@
 #include "dolen_q3_5_common.h"
 
-
 int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (! f) {
+    if (!f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
@@ -23,7 +22,7 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
         return -1;
     }
 
-    if (version != 1) {
+    if (version != 2) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, filepath);
         fclose(f);
         return -1;
@@ -38,15 +37,13 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     config_q3_5 *p = &model_q3_5->config;
     weights_q3_5 *w = &model_q3_5->weights;
 
-    if (seq_n_max) {
-        p->seq_len = seq_n_max;
-    }
+    if (seq_n_max) p->seq_len = seq_n_max;
 
     model_q3_5->layer_types = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     model_q3_5->attn_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     model_q3_5->deltanet_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
 
-    if (! model_q3_5->layer_types || ! model_q3_5->attn_layer_indices || ! model_q3_5->deltanet_layer_indices) {
+    if (!model_q3_5->layer_types || !model_q3_5->attn_layer_indices || !model_q3_5->deltanet_layer_indices) {
         log_msg(stderr, "ERROR: Failed to allocate memory for layer indices\n");
         fclose(f);
         return -1;
@@ -67,32 +64,31 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
         }
     }
 
+    w->rms_att_weight = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+    w->q_norm = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
+    w->k_norm = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
+    w->rms_ffn_weight = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
+
+    if (!w->rms_att_weight || !w->q_norm || !w->k_norm || !w->rms_ffn_weight) {
+        log_msg(stderr, "ERROR: Failed to allocate norm weights\n");
+        fclose(f);
+        return -1;
+    }
+
     read_qt(f, &w->token_embedding_table);
 
-    w->rms_att_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
-    if (! w->rms_att_weight) {
-        log_msg(stderr, "ERROR: Failed to allocate rms_att_weight\n");
-        fclose(f);
-        return -1;
-    }
-    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
-        fclose(f);
-        return -1;
-    }
+    for (int i = 0; i < p->n_layer; i++) read_qt(f, &w->rms_att_weight[i]);
 
     w->wq = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
     w->wk = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
     w->wv = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
     w->wo = (qtensor *)a_calloc((size_t)p->n_full_attn_layers * sizeof(qtensor));
 
-    if (! w->wq || ! w->wk || ! w->wv || ! w->wo) {
+    if (!w->wq || !w->wk || !w->wv || !w->wo) {
         log_msg(stderr, "ERROR: Failed to allocate attention weights\n");
         fclose(f);
         return -1;
     }
-
-    int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
 
     for (int i = 0; i < p->n_full_attn_layers; i++) {
         read_qt(f, &w->wq[i]);
@@ -101,35 +97,23 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
         read_qt(f, &w->wo[i]);
     }
 
-    w->q_norm = (float *)a_calloc((size_t)p->n_full_attn_layers * head_size * sizeof(float));
-    w->k_norm = (float *)a_calloc((size_t)p->n_full_attn_layers * head_size * sizeof(float));
-    if (! w->q_norm || ! w->k_norm) {
-        log_msg(stderr, "ERROR: Failed to allocate norm weights\n");
-        fclose(f);
-        return -1;
-    }
-    if (fread(w->q_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) !=
-            (size_t)p->n_full_attn_layers * head_size) {
-        log_msg(stderr, "ERROR: Failed to read q_norm\n");
-        fclose(f);
-        return -1;
-    }
-    if (fread(w->k_norm, sizeof(float), (size_t)p->n_full_attn_layers * head_size, f) !=
-            (size_t)p->n_full_attn_layers * head_size) {
-        log_msg(stderr, "ERROR: Failed to read k_norm\n");
-        fclose(f);
-        return -1;
-    }
+    for (int i = 0; i < p->n_full_attn_layers; i++) read_qt(f, &w->q_norm[i]);
+    for (int i = 0; i < p->n_full_attn_layers; i++) read_qt(f, &w->k_norm[i]);
 
     if (p->n_linear_attn_layers > 0) {
-        int key_dim = p->n_linear_k_heads * p->d_linear_k;
-        int value_dim = p->n_linear_v_heads * p->d_linear_v;
-        int conv_dim = key_dim * 2 + value_dim;
-
         w->in_proj_qkv = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
         w->in_proj_z = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
-        if (! w->in_proj_qkv || ! w->in_proj_z) {
-            log_msg(stderr, "ERROR: Failed to allocate linear attention projections\n");
+        w->in_proj_b = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+        w->in_proj_a = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+        w->conv1d_weight = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+        w->dt_bias = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+        w->A_log = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+        w->linear_norm = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+        w->out_proj = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
+
+        if (!w->in_proj_qkv || !w->in_proj_z || !w->in_proj_b || !w->in_proj_a || !w->conv1d_weight || 
+            !w->dt_bias || !w->A_log || !w->linear_norm || !w->out_proj) {
+            log_msg(stderr, "ERROR: Failed to allocate linear attention weights\n");
             fclose(f);
             return -1;
         }
@@ -138,87 +122,21 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
             read_qt(f, &w->in_proj_qkv[i]);
             read_qt(f, &w->in_proj_z[i]);
         }
-
-        w->in_proj_b =
-                (float *)a_calloc((size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim * sizeof(float));
-        w->in_proj_a =
-                (float *)a_calloc((size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim * sizeof(float));
-        w->conv1d_weight =
-                (float *)a_calloc((size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel * sizeof(float));
-        w->dt_bias = (float *)a_calloc((size_t)p->n_linear_attn_layers * p->n_linear_v_heads * sizeof(float));
-        w->A_log = (float *)a_calloc((size_t)p->n_linear_attn_layers * p->n_linear_v_heads * sizeof(float));
-        w->linear_norm = (float *)a_calloc((size_t)p->n_linear_attn_layers * p->d_linear_v * sizeof(float));
-
-        if (! w->in_proj_b || ! w->in_proj_a || ! w->conv1d_weight || ! w->dt_bias || ! w->A_log || ! w->linear_norm) {
-            log_msg(stderr, "ERROR: Failed to allocate linear attention weights\n");
-            fclose(f);
-            return -1;
-        }
-
-        if (fread(w->in_proj_b, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f) !=
-                (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
-            log_msg(stderr, "ERROR: Failed to read in_proj_b\n");
-            fclose(f);
-            return -1;
-        }
-        if (fread(w->in_proj_a, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim, f) !=
-                (size_t)p->n_linear_attn_layers * p->n_linear_v_heads * p->dim) {
-            log_msg(stderr, "ERROR: Failed to read in_proj_a\n");
-            fclose(f);
-            return -1;
-        }
-        if (fread(w->conv1d_weight, sizeof(float), (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel,
-                    f) != (size_t)p->n_linear_attn_layers * conv_dim * p->linear_conv_kernel) {
-            log_msg(stderr, "ERROR: Failed to read conv1d_weight\n");
-            fclose(f);
-            return -1;
-        }
-        if (fread(w->dt_bias, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f) !=
-                (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
-            log_msg(stderr, "ERROR: Failed to read dt_bias\n");
-            fclose(f);
-            return -1;
-        }
-        if (fread(w->A_log, sizeof(float), (size_t)p->n_linear_attn_layers * p->n_linear_v_heads, f) !=
-                (size_t)p->n_linear_attn_layers * p->n_linear_v_heads) {
-            log_msg(stderr, "ERROR: Failed to read A_log\n");
-            fclose(f);
-            return -1;
-        }
-        if (fread(w->linear_norm, sizeof(float), (size_t)p->n_linear_attn_layers * p->d_linear_v, f) !=
-                (size_t)p->n_linear_attn_layers * p->d_linear_v) {
-            log_msg(stderr, "ERROR: Failed to read linear_norm\n");
-            fclose(f);
-            return -1;
-        }
-
-        w->out_proj = (qtensor *)a_calloc((size_t)p->n_linear_attn_layers * sizeof(qtensor));
-        if (! w->out_proj) {
-            log_msg(stderr, "ERROR: Failed to allocate out_proj\n");
-            fclose(f);
-            return -1;
-        }
-        for (int i = 0; i < p->n_linear_attn_layers; i++) {
-            read_qt(f, &w->out_proj[i]);
-        }
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->in_proj_b[i]);
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->in_proj_a[i]);
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->conv1d_weight[i]);
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->dt_bias[i]);
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->A_log[i]);
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->linear_norm[i]);
+        for (int i = 0; i < p->n_linear_attn_layers; i++) read_qt(f, &w->out_proj[i]);
     }
 
-    w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layer * p->dim * sizeof(float));
-    if (! w->rms_ffn_weight) {
-        log_msg(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
-        fclose(f);
-        return -1;
-    }
-    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layer * p->dim, f) != (size_t)p->n_layer * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
-        fclose(f);
-        return -1;
-    }
+    for (int i = 0; i < p->n_layer; i++) read_qt(f, &w->rms_ffn_weight[i]);
 
     w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
-    if (! w->w1 || ! w->w2 || ! w->w3) {
+    if (!w->w1 || !w->w2 || !w->w3) {
         log_msg(stderr, "ERROR: Failed to allocate MLP weights\n");
         fclose(f);
         return -1;
@@ -229,26 +147,15 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
         read_qt(f, &w->w3[i]);
     }
 
-    w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
-    if (! w->rms_final_weight) {
-        log_msg(stderr, "ERROR: Failed to allocate rms_final_weight\n");
-        fclose(f);
-        return -1;
-    }
-    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
-        fclose(f);
-        return -1;
-    }
+    read_qt(f, &w->rms_final_weight);
 
-    if (! p->tie_word_embeddings) {
+    if (!p->tie_word_embeddings) {
         read_qt(f, &w->wcls);
     } else {
         w->wcls = w->token_embedding_table;
     }
 
     fclose(f);
-
     log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
 
     alloc_state_q3_5(&(model_q3_5->state), &(model_q3_5->config));
@@ -270,9 +177,9 @@ void forward_q3_5_attention_layer(Q3_5 *model_q3_5, int l, int la, int pos) {
     float eps = p->rms_norm_eps;
     float *key_cache_row = s->key_cache + loff + pos * kv_dim;
     float *value_cache_row = s->value_cache + loff + pos * kv_dim;
-    float *rms_att_weight = w->rms_att_weight + (long long)l * dim;
-    float *q_norm = w->q_norm + (long long)la * head_size;
-    float *k_norm = w->k_norm + (long long)la * head_size;
+    float *rms_att_weight = (float *)w->rms_att_weight[l].data;
+    float *q_norm = (float *)w->q_norm[la].data;
+    float *k_norm = (float *)w->k_norm[la].data;
 
     rmsnorm_gemma(s->xb, x, rms_att_weight, dim, eps);
 
@@ -394,13 +301,13 @@ void forward_q3_5_linear_attention_layer(Q3_5 *model_q3_5, int l, int ld, int po
     int value_dim = n_v_heads * d_v;
     int conv_dim = key_dim * 2 + value_dim;
     int conv_kernel = p->linear_conv_kernel;
-    float *rms_att_weight = w->rms_att_weight + (long long)l * dim;
-    float *in_proj_b = w->in_proj_b + (long long)ld * n_v_heads * dim;
-    float *in_proj_a = w->in_proj_a + (long long)ld * n_v_heads * dim;
-    float *conv1d_weight = w->conv1d_weight + (long long)ld * conv_dim * conv_kernel;
-    float *dt_bias = w->dt_bias + (long long)ld * n_v_heads;
-    float *A_log = w->A_log + (long long)ld * n_v_heads;
-    float *linear_norm = w->linear_norm + (long long)ld * d_v;
+    float *rms_att_weight = (float *)w->rms_att_weight[l].data;
+    float *in_proj_b = (float *)w->in_proj_b[ld].data;
+    float *in_proj_a = (float *)w->in_proj_a[ld].data;
+    float *conv1d_weight = (float *)w->conv1d_weight[ld].data;
+    float *dt_bias = (float *)w->dt_bias[ld].data;
+    float *A_log = (float *)w->A_log[ld].data;
+    float *linear_norm = (float *)w->linear_norm[ld].data;
     float *conv_state = s->conv_state + (long long)ld * conv_dim * conv_kernel;
     float *S = s->S + (long long)ld * n_v_heads * d_k * d_v;
 
@@ -522,7 +429,7 @@ void forward_q3_5_mlp_layer(Q3_5 *model_q3_5, int l) {
     int dim = p->dim;
     int hidden_dim = p->n_mlp;
     float eps = p->rms_norm_eps;
-    float *rms_ffn_weight = w->rms_ffn_weight + (long long)l * dim;
+    float *rms_ffn_weight = (float *)w->rms_ffn_weight[l].data;
 
     rmsnorm_gemma(s->xb, x, rms_ffn_weight, dim, eps);
 
@@ -563,7 +470,7 @@ float *forward_q3_5(Q3_5 *model_q3_5, int token, int pos) {
         forward_q3_5_mlp_layer(model_q3_5, l);
     }
 
-    rmsnorm_gemma(x, x, w->rms_final_weight, dim, p->rms_norm_eps);
+    rmsnorm_gemma(x, x, (float *)w->rms_final_weight.data, dim, p->rms_norm_eps);
 
     if (p->tie_word_embeddings)
         matmul_qt(s->logits, x, &w->token_embedding_table);
@@ -583,26 +490,26 @@ static void free_q3_5_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_Q3_5 = {
-    .system = "<|im_start|>system\n%s<|im_end|>\n",
-    .main = "<|im_start|>user\n%s<|im_end|>\n"
-            "<|im_start|>assistant\n"
-            "<think>\n\n</think>\n\n",
-    .end_turn = "<|im_end|>\n",
+    .system = "<|im_start|\x3esystem\n%s<|im_end|\x3e\n",
+    .main = "<|im_start|\x3euser\n%s<|im_end|\x3e\n"
+            "<|im_start|\x3eassistant\n"
+            "<think\x3e\n\n</think\x3e\n\n",
+    .end_turn = "<|im_end|\x3e\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
-    .system = "<|im_start|>system\n%s<|im_end|>\n",
-    .main = "<|im_start|>user\n%s<|im_end|>\n"
-            "<|im_start|>assistant\n"
-            "<think>",
-    .end_turn = "<|im_end|>\n",
+    .system = "<|im_start|\x3esystem\n%s<|im_end|\x3e\n",
+    .main = "<|im_start|\x3euser\n%s<|im_end|\x3e\n"
+            "<|im_start|\x3eassistant\n"
+            "<think\x3e",
+    .end_turn = "<|im_end|\x3e\n",
 };
 
-static token_map SPECIAL_TOKENS_Q3_5[] = { { "<|endoftext|\x3e", 248044 }, { "<|im_start|\x3e", 248045 },
-    { "<|im_end|\x3e", 248046 }, { "<|object_ref_start|\x3e", 248047 }, { "<|object_ref_end|\x3e", 248048 },
-    { "<|box_start|\x3e", 248049 }, { "<|box_end|\x3e", 248050 }, { "<|quad_start|\x3e", 248051 },
-    { "<|quad_end|\x3e", 248052 }, { "<|vision_start|\x3e", 248053 }, { "<|vision_end|\x3e", 248054 },
-    { "<|vision_pad|\x3e", 248055 }, { "<|image_pad|\x3e", 248056 }, { "<|video_pad|\x3e", 248057 }, { NULL, 0 } };
+static token_map SPECIAL_TOKENS_Q3_5[] = {{"<|endoftext|\x3e", 248044}, {"<|im_start|\x3e", 248045},
+    {"<|im_end|\x3e", 248046}, {"<|object_ref_start|\x3e", 248047}, {"<|object_ref_end|\x3e", 248048},
+    {"<|box_start|\x3e", 248049}, {"<|box_end|\x3e", 248050}, {"<|quad_start|\x3e", 248051},
+    {"<|quad_end|\x3e", 248052}, {"<|vision_start|\x3e", 248053}, {"<|vision_end|\x3e", 248054},
+    {"<|vision_pad|\x3e", 248055}, {"<|image_pad|\x3e", 248056}, {"<|video_pad|\x3e", 248057}, {NULL, 0}};
 
 static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think) {
     Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
@@ -632,4 +539,3 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3_5, "dolen3_5");
 }
-

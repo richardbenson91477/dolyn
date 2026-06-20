@@ -7,7 +7,6 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
-
 typedef struct {
     int dim;
     int hidden_dim;
@@ -33,14 +32,13 @@ typedef struct {
 
 typedef struct {
     qtensor embed_tokens;
-    float *rms_input_layernorm;
-    float *rms_post_attn_layernorm;
-    float *rms_pre_ffn_layernorm;
-    float *rms_post_ffn_layernorm;
-    float *rms_q_norm;
-    float *rms_k_norm;
-    float *rms_final_norm;
-    int *norm_offsets;
+    qtensor *rms_input_layernorm;
+    qtensor *rms_post_attn_layernorm;
+    qtensor *rms_pre_ffn_layernorm;
+    qtensor *rms_post_ffn_layernorm;
+    qtensor *rms_q_norm;
+    qtensor *rms_k_norm;
+    qtensor rms_final_norm;
     qtensor *q_proj;
     qtensor *k_proj;
     qtensor *v_proj;
@@ -49,7 +47,7 @@ typedef struct {
     qtensor *up_proj;
     qtensor *down_proj;
     float *layer_scalars;
-    float *rope_freqs_full;
+    qtensor rope_freqs_full;
 } weights_g4u;
 
 typedef struct {
@@ -66,7 +64,7 @@ typedef struct {
     float *key_cache;
     float *value_cache;
     qtensor xq;
-    qtensor hq;
+    qtensor hq; 
     float *cos_cache_full;
     float *sin_cache_full;
     float *cos_cache_sliding;
@@ -81,17 +79,10 @@ typedef struct {
     int *layer_types;
 } G4U;
 
-
 void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w);
-
 void free_state_g4u(state_g4u *s);
-
 void free_g4u(G4U *model);
-
 int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max);
-
 float *forward_g4u(G4U *model, int token, int pos);
 
-
 #endif // DOLEN_G4U_COMMON_H
-

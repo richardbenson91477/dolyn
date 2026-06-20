@@ -7,7 +7,6 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
-
 typedef struct {
     int dim;
     int n_heads;
@@ -29,16 +28,16 @@ typedef struct {
 
 typedef struct {
     qtensor token_embedding_table;
-    float *rms_att_weight;
+    qtensor *rms_att_weight;
     qtensor *wq;
     qtensor *wk;
     qtensor *wv;
     qtensor *wo;
-    float *rms_ffn_weight;
+    qtensor *rms_ffn_weight;
     qtensor *w1;
     qtensor *w2;
     qtensor *w3;
-    float *rms_final_weight;
+    qtensor rms_final_weight;
     qtensor wcls;
 } weights_ig4_1;
 
@@ -68,13 +67,8 @@ typedef struct {
     state_ig4_1 state;
 } IG4_1;
 
-
 void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p);
-
 void free_state_ig4_1(state_ig4_1 *s);
-
 void free_ig4_1(IG4_1 *model_ig4_1);
 
-
 #endif // DOLEN_IG4_1_COMMON_H
-

@@ -1,9 +1,8 @@
 #include "dolen_g4u_common.h"
 
-
 int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (! f) {
+    if (!f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
         return -1;
     }
@@ -24,8 +23,8 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    if (version != 4) {
-        log_msg(stderr, "ERROR: Unsupported version %u (expected 4). RE-RUN QUANTIZER.\n", version);
+    if (version != 5) {
+        log_msg(stderr, "ERROR: Unsupported version %u (expected 5). RE-RUN QUANTIZER.\n", version);
         fclose(f);
         return -1;
     }
@@ -38,9 +37,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    if (seq_n_max != 0) {
-        p->seq_len = seq_n_max;
-    }
+    if (seq_n_max != 0) p->seq_len = seq_n_max;
 
     model->layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
     if (fread(model->layer_types, sizeof(int), (size_t)p->n_layers, f) != (size_t)p->n_layers) {
@@ -50,35 +47,31 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     }
 
     weights_g4u *w = &model->weights;
-    int total_norm_dim = 0;
-    w->norm_offsets = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
-    for (int i = 0; i < p->n_layers; i++) {
-        w->norm_offsets[i] = total_norm_dim;
-        total_norm_dim += (model->layer_types[i] ? p->global_head_dim : p->head_dim);
-    }
 
-    w->rms_input_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    w->rms_post_attn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    w->rms_pre_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    w->rms_post_ffn_layernorm = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    w->rms_q_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
-    w->rms_k_norm = (float *)a_calloc((size_t)total_norm_dim * sizeof(float));
-    w->rms_final_norm = (float *)a_calloc((size_t)p->dim * sizeof(float));
+    w->rms_input_layernorm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->rms_post_attn_layernorm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->rms_pre_ffn_layernorm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->rms_post_ffn_layernorm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->rms_q_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->rms_k_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (! w->rms_input_layernorm || ! w->rms_final_norm || ! w->rms_q_norm) {
+    if (!w->rms_input_layernorm || !w->rms_post_attn_layernorm || !w->rms_pre_ffn_layernorm ||
+        !w->rms_post_ffn_layernorm || !w->rms_q_norm || !w->rms_k_norm) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(f);
         return -1;
     }
 
     read_qt(f, &w->embed_tokens);
-    fread(w->rms_input_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fread(w->rms_post_attn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fread(w->rms_pre_ffn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fread(w->rms_post_ffn_layernorm, sizeof(float), (size_t)p->n_layers * p->dim, f);
-    fread(w->rms_q_norm, sizeof(float), total_norm_dim, f);
-    fread(w->rms_k_norm, sizeof(float), total_norm_dim, f);
-    fread(w->rms_final_norm, sizeof(float), (size_t)p->dim, f);
+    
+    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_input_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_post_attn_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_pre_ffn_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_post_ffn_layernorm[i]);
+    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_q_norm[i]);
+    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_k_norm[i]);
+    
+    read_qt(f, &w->rms_final_norm);
 
     w->q_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->k_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -89,9 +82,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     w->down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
 
-    for (int i = 0; i < p->n_layers; i++) {
-        w->layer_scalars[i] = 1.0f;
-    }
+    for (int i = 0; i < p->n_layers; i++) w->layer_scalars[i] = 1.0f;
 
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->q_proj[i]);
@@ -106,13 +97,10 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     fread(w->layer_scalars, sizeof(float), (size_t)p->n_layers, f);
 
     if (p->use_rope_freqs) {
-        int freq_dim = p->global_head_dim / 2;
-        w->rope_freqs_full = (float *)a_calloc(freq_dim * sizeof(float));
-        fread(w->rope_freqs_full, sizeof(float), freq_dim, f);
+        read_qt(f, &w->rope_freqs_full);
     }
 
     fclose(f);
-
     log_msg(stderr, "INFO: Quantized G4U loaded from %s\n", filepath);
 
     alloc_state_g4u(&model->state, p, w);
@@ -121,9 +109,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 }
 
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
-    if (rotary_dim <= 0) {
-        return;
-    }
+    if (rotary_dim <= 0) return;
 
     int half_rot = rotary_dim / 2;
     int cache_stride = vec_dim / 2;
@@ -179,12 +165,12 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         int layer_attn_out_dim = p->n_heads * head_dim;
 
-        float *rms_in = w->rms_input_layernorm + l * dim;
-        float *rms_post_a = w->rms_post_attn_layernorm + l * dim;
-        float *rms_pre_f = w->rms_pre_ffn_layernorm + l * dim;
-        float *rms_post_f = w->rms_post_ffn_layernorm + l * dim;
-        float *rms_q = w->rms_q_norm + w->norm_offsets[l];
-        float *rms_k = w->rms_k_norm + w->norm_offsets[l];
+        float *rms_in = (float *)w->rms_input_layernorm[l].data;
+        float *rms_post_a = (float *)w->rms_post_attn_layernorm[l].data;
+        float *rms_pre_f = (float *)w->rms_pre_ffn_layernorm[l].data;
+        float *rms_post_f = (float *)w->rms_post_ffn_layernorm[l].data;
+        float *rms_q = (float *)w->rms_q_norm[l].data;
+        float *rms_k = (float *)w->rms_k_norm[l].data;
 
         rmsnorm_g4u(s->xb, x, rms_in, dim, eps, 1);
 
@@ -210,7 +196,6 @@ float *forward_g4u(G4U *model, int token, int pos) {
 #pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
-
             rmsnorm_g4u(kh, kh, rms_k, head_dim, eps, 1);
             if (rotary_dim > 0 && cos_cache) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
@@ -306,7 +291,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
         }
     }
 
-    rmsnorm_g4u(x, x, w->rms_final_norm, dim, eps, 1);
+    rmsnorm_g4u(x, x, (float *)w->rms_final_norm.data, dim, eps, 1);
 
     quantize_vec(&s->xq, x, dim);
     matmul_qq(s->logits, &s->xq, &w->embed_tokens);
@@ -333,18 +318,18 @@ static void free_g4u_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_G4U = {
-    .system = "<|turn>system\n%s<turn|>\n",
-    .main = "<|turn>user\n%s<turn|>\n"
-            "<|turn>model\n"
-            "<|channel>thought\n<channel|>",
-    .end_turn = "<turn|>\n",
+    .system = "<|turn\x3esystem\n%s<turn|\x3e\n",
+    .main = "<|turn\x3euser\n%s<turn|\x3e\n"
+            "<|turn\x3emodel\n"
+            "<|channel\x3ethought\n<channel|\x3e",
+    .end_turn = "<turn|\x3e\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_G4U = {
-    .system = "<|turn>system\n<|think|>%s<turn|>\n",
-    .main = "<|turn>user\n%s<turn|>\n"
-            "<|turn>model\n",
-    .end_turn = "<turn|>\n",
+    .system = "<|turn\x3esystem\n<|think|\x3e%s<turn|\x3e\n",
+    .main = "<|turn\x3euser\n%s<turn|\x3e\n"
+            "<|turn\x3emodel\n",
+    .end_turn = "<turn|\x3e\n",
 };
 
 static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think) {
@@ -356,7 +341,8 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
     }
 
     model_iface *model_i = a_calloc(sizeof(model_iface));
-    *model_i = (model_iface){ .model = model,
+    *model_i = (model_iface){
+        .model = model,
         .forward = forward_g4u_wrap,
         .free_model = free_g4u_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
@@ -365,11 +351,11 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U };
+        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U
+    };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_g4u, "dolen_g4u");
 }
-

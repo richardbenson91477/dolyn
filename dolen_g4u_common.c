@@ -1,6 +1,5 @@
 #include "dolen_g4u_common.h"
 
-
 void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
@@ -12,12 +11,8 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     int cache_stride_sliding = p->head_dim / 2;
 
     int max_act_dim = p->dim;
-    if (attn_out_dim > max_act_dim) {
-        max_act_dim = attn_out_dim;
-    }
-    if (p->hidden_dim > max_act_dim) {
-        max_act_dim = p->hidden_dim;
-    }
+    if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
+    if (p->hidden_dim > max_act_dim) max_act_dim = p->hidden_dim;
 
     s->x = a_calloc((size_t)p->dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -34,14 +29,16 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
 
     int num_groups_xq = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
-    s->xq.q = a_calloc((size_t)max_act_dim * sizeof(int8_t));
+    s->xq.data = a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->xq.s = a_calloc((size_t)num_groups_xq * sizeof(float));
+    s->xq.type = Q_TYPE_Q8;
     s->xq.rows = 1;
     s->xq.cols = max_act_dim;
 
     int num_groups_hq = (p->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
-    s->hq.q = a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
+    s->hq.data = a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
     s->hq.s = a_calloc((size_t)num_groups_hq * sizeof(float));
+    s->hq.type = Q_TYPE_Q8;
     s->hq.rows = 1;
     s->hq.cols = p->hidden_dim;
 
@@ -85,13 +82,13 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
         s->sin_cache_sliding = NULL;
     }
 
-    if (! s->x || ! s->xb || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->k_raw || ! s->v || ! s->att ||
-            ! s->logits || ! s->key_cache || ! s->value_cache || ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s) {
+    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->q || !s->k || !s->k_raw || !s->v || !s->att ||
+            !s->logits || !s->key_cache || !s->value_cache || !s->xq.data || !s->xq.s || !s->hq.data || !s->hq.s) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
     if (p->seq_len > 1 &&
-            (! s->cos_cache_full || ! s->sin_cache_full || ! s->cos_cache_sliding || ! s->sin_cache_sliding)) {
+            (!s->cos_cache_full || !s->sin_cache_full || !s->cos_cache_sliding || !s->sin_cache_sliding)) {
         log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -99,9 +96,7 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
 }
 
 void free_state_g4u(state_g4u *s) {
-    if (! s->allocated) {
-        return;
-    }
+    if (!s->allocated) return;
 
     free(s->x);
     free(s->xb);
@@ -115,9 +110,9 @@ void free_state_g4u(state_g4u *s) {
     free(s->logits);
     free(s->key_cache);
     free(s->value_cache);
-    free(s->xq.q);
+    free(s->xq.data);
     free(s->xq.s);
-    free(s->hq.q);
+    free(s->hq.data);
     free(s->hq.s);
     free(s->cos_cache_full);
     free(s->sin_cache_full);
@@ -128,58 +123,37 @@ void free_state_g4u(state_g4u *s) {
 }
 
 void free_g4u(G4U *model) {
-    if (! model) {
-        return;
-    }
+    if (!model) return;
 
     config_g4u *p = &model->config;
     weights_g4u *w = &model->weights;
 
     free(model->layer_types);
-    free(w->norm_offsets);
-    free(w->rms_input_layernorm);
-    free(w->rms_post_attn_layernorm);
-    free(w->rms_pre_ffn_layernorm);
-    free(w->rms_post_ffn_layernorm);
-    free(w->rms_q_norm);
-    free(w->rms_k_norm);
-    free(w->rms_final_norm);
+    
+    free_qt(&w->embed_tokens);
+    free_qt(&w->rms_final_norm);
+    free_qt(&w->rope_freqs_full);
+
+    free_qt_array(w->rms_input_layernorm, p->n_layers);
+    free_qt_array(w->rms_post_attn_layernorm, p->n_layers);
+    free_qt_array(w->rms_pre_ffn_layernorm, p->n_layers);
+    free_qt_array(w->rms_post_ffn_layernorm, p->n_layers);
+    free_qt_array(w->rms_q_norm, p->n_layers);
+    free_qt_array(w->rms_k_norm, p->n_layers);
+
+    free_qt_array(w->q_proj, p->n_layers);
+    free_qt_array(w->k_proj, p->n_layers);
+    free_qt_array(w->v_proj, p->n_layers);
+    free_qt_array(w->o_proj, p->n_layers);
+    free_qt_array(w->gate_proj, p->n_layers);
+    free_qt_array(w->up_proj, p->n_layers);
+    free_qt_array(w->down_proj, p->n_layers);
+
     free(w->layer_scalars);
-    free(w->rope_freqs_full);
 
-    for (int i = 0; i < p->n_layers; i++) {
-        free(w->q_proj[i].q);
-        free(w->q_proj[i].s);
-
-        free(w->k_proj[i].q);
-        free(w->k_proj[i].s);
-
-        if (w->v_proj[i].q != w->k_proj[i].q) {
-            free(w->v_proj[i].q);
-            free(w->v_proj[i].s);
-        }
-
-        free(w->o_proj[i].q);
-        free(w->o_proj[i].s);
-        free(w->gate_proj[i].q);
-        free(w->gate_proj[i].s);
-        free(w->up_proj[i].q);
-        free(w->up_proj[i].s);
-        free(w->down_proj[i].q);
-        free(w->down_proj[i].s);
+    if (model->state.allocated == 1) {
+        free_state_g4u(&model->state);
     }
-
-    free(w->q_proj);
-    free(w->k_proj);
-    free(w->v_proj);
-    free(w->o_proj);
-    free(w->gate_proj);
-    free(w->up_proj);
-    free(w->down_proj);
-
-    free(w->embed_tokens.q);
-    free(w->embed_tokens.s);
 
     memset(model, 0, sizeof(G4U));
 }
-

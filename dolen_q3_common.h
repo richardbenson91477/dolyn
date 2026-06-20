@@ -7,7 +7,6 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
-
 typedef struct {
     int dim;
     int hidden_dim;
@@ -25,18 +24,18 @@ typedef struct {
 
 typedef struct {
     qtensor token_embedding_table;
-    float *rms_att_weight;
-    float *rms_ffn_weight;
+    qtensor *rms_att_weight; 
+    qtensor *rms_ffn_weight;
     qtensor *wq;
     qtensor *wk;
     qtensor *wv;
     qtensor *wo;
-    float *q_norm_weights;
-    float *k_norm_weights;
+    qtensor *q_norm;
+    qtensor *k_norm;
     qtensor *w1;
     qtensor *w2;
     qtensor *w3;
-    float *rms_final_weight;
+    qtensor rms_final_weight;
     qtensor wcls;
 } weights_q3;
 
@@ -65,13 +64,8 @@ typedef struct {
     state_q3 state;
 } Q3;
 
-
 void alloc_state_q3(state_q3 *s, config_q3 *p);
-
 void free_state_q3(state_q3 *s);
-
 void free_q3(Q3 *t);
 
-
 #endif // DOLEN_Q3_COMMON_H
-

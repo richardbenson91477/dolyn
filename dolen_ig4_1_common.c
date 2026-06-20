@@ -1,6 +1,5 @@
 #include "dolen_ig4_1_common.h"
 
-
 void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
@@ -9,12 +8,8 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
     int attn_dim = p->n_heads * head_size;
 
     int max_act_dim = dim;
-    if (attn_dim > max_act_dim) {
-        max_act_dim = attn_dim;
-    }
-    if (hidden_dim > max_act_dim) {
-        max_act_dim = hidden_dim;
-    }
+    if (attn_dim > max_act_dim) max_act_dim = attn_dim;
+    if (hidden_dim > max_act_dim) max_act_dim = hidden_dim;
 
     s->x = a_calloc((size_t)dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -28,13 +23,15 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
 
     int num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
-    s->xq.q = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
+    s->xq.data = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->xq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
+    s->xq.type = Q_TYPE_Q8;
     s->xq.rows = 1;
     s->xq.cols = max_act_dim;
 
-    s->hq.q = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
+    s->hq.data = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->hq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
+    s->hq.type = Q_TYPE_Q8;
     s->hq.rows = 1;
     s->hq.cols = max_act_dim;
 
@@ -54,8 +51,8 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
         }
     }
 
-    if (! s->x || ! s->xb || ! s->xb2 || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
-            ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s || ! s->key_cache || ! s->value_cache) {
+    if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q || !s->k || !s->v || !s->att || !s->logits ||
+            !s->xq.data || !s->xq.s || !s->hq.data || !s->hq.s || !s->key_cache || !s->value_cache) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -64,9 +61,7 @@ void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
 }
 
 void free_state_ig4_1(state_ig4_1 *s) {
-    if (! s->allocated) {
-        return;
-    }
+    if (!s->allocated) return;
 
     free(s->x);
     free(s->xb);
@@ -80,9 +75,9 @@ void free_state_ig4_1(state_ig4_1 *s) {
     free(s->logits);
     free(s->key_cache);
     free(s->value_cache);
-    free(s->xq.q);
+    free(s->xq.data);
     free(s->xq.s);
-    free(s->hq.q);
+    free(s->hq.data);
     free(s->hq.s);
     free(s->cos_cache);
     free(s->sin_cache);
@@ -95,17 +90,18 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
     int n_layer = model_ig4_1->config.n_layer;
 
     free_qt(&w->token_embedding_table);
-    free(w->rms_att_weight);
+    free_qt_array(w->rms_att_weight, n_layer);
     free_qt_array(w->wq, n_layer);
     free_qt_array(w->wk, n_layer);
     free_qt_array(w->wv, n_layer);
     free_qt_array(w->wo, n_layer);
-    free(w->rms_ffn_weight);
+    free_qt_array(w->rms_ffn_weight, n_layer);
     free_qt_array(w->w1, n_layer);
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
-    free(w->rms_final_weight);
-    if (! model_ig4_1->config.tie_word_embeddings) {
+    free_qt(&w->rms_final_weight);
+    
+    if (!model_ig4_1->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 
@@ -113,4 +109,3 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
         free_state_ig4_1(&model_ig4_1->state);
     }
 }
-

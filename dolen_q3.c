@@ -1,9 +1,8 @@
 #include "dolen_q3_common.h"
 
-
 int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (! f) {
+    if (!f) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", filepath);
         return -1;
     }
@@ -39,18 +38,15 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     weights_q3 *w = &model_q3->weights;
 
-    if (seq_n_max) {
-        p->seq_len = seq_n_max;
-    }
+    if (seq_n_max) p->seq_len = seq_n_max;
 
-    w->rms_att_weight = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    w->rms_ffn_weight = (float *)a_calloc((size_t)p->n_layers * p->dim * sizeof(float));
-    w->rms_final_weight = (float *)a_calloc((size_t)p->dim * sizeof(float));
-    w->q_norm_weights = (float *)a_calloc((size_t)p->n_layers * p->head_dim * sizeof(float));
-    w->k_norm_weights = (float *)a_calloc((size_t)p->n_layers * p->head_dim * sizeof(float));
+    w->rms_att_weight = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->rms_ffn_weight = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    
+    w->q_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
+    w->k_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (! w->rms_att_weight || ! w->rms_ffn_weight || ! w->rms_final_weight || ! w->q_norm_weights ||
-            ! w->k_norm_weights) {
+    if (!w->rms_att_weight || !w->rms_ffn_weight || !w->q_norm || !w->k_norm) {
         log_msg(stderr, "ERROR: Failed to allocate memory for weights\n");
         fclose(f);
         return -1;
@@ -58,39 +54,15 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     read_qt(f, &w->token_embedding_table);
 
-    if (fread(w->rms_att_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_att_weight\n");
-        fclose(f);
-        return -1;
-    }
+    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->rms_att_weight[l]);
+    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->rms_ffn_weight[l]);
+    
+    read_qt(f, &w->rms_final_weight);
 
-    if (fread(w->rms_ffn_weight, sizeof(float), (size_t)p->n_layers * p->dim, f) != (size_t)p->n_layers * p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_ffn_weight\n");
-        fclose(f);
-        return -1;
-    }
+    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->q_norm[l]);
+    for (int l = 0; l < p->n_layers; l++) read_qt(f, &w->k_norm[l]);
 
-    if (fread(w->rms_final_weight, sizeof(float), (size_t)p->dim, f) != (size_t)p->dim) {
-        log_msg(stderr, "ERROR: Failed to read rms_final_weight\n");
-        fclose(f);
-        return -1;
-    }
-
-    if (fread(w->q_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f) !=
-            (size_t)p->n_layers * p->head_dim) {
-        log_msg(stderr, "ERROR: Failed to read q_norm_weights\n");
-        fclose(f);
-        return -1;
-    }
-
-    if (fread(w->k_norm_weights, sizeof(float), (size_t)p->n_layers * p->head_dim, f) !=
-            (size_t)p->n_layers * p->head_dim) {
-        log_msg(stderr, "ERROR: Failed to read k_norm_weights\n");
-        fclose(f);
-        return -1;
-    }
-
-    if (! p->shared_classifier) {
+    if (!p->shared_classifier) {
         read_qt(f, &w->wcls);
     } else {
         w->wcls = w->token_embedding_table;
@@ -104,7 +76,7 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (! w->wq || ! w->wk || ! w->wv || ! w->wo || ! w->w1 || ! w->w2 || ! w->w3) {
+    if (!w->wq || !w->wk || !w->wv || !w->wo || !w->w1 || !w->w2 || !w->w3) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(f);
         return -1;
@@ -142,7 +114,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
     for (int l = 0; l < p->n_layers; l++) {
         long long loff = l * p->seq_len * kv_dim;
 
-        rmsnorm(s->xb, s->x, w->rms_att_weight + l * p->dim, p->dim, eps);
+        rmsnorm(s->xb, s->x, (const float *)w->rms_att_weight[l].data, p->dim, eps);
 
         quantize_vec(&s->xq, s->xb, p->dim);
 
@@ -160,7 +132,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
             for (int h = 0; h < p->n_heads; h++) {
                 float *q_ptr = s->q + h * p->head_dim;
 
-                rmsnorm(q_ptr, q_ptr, w->q_norm_weights + l * p->head_dim, p->head_dim, eps);
+                rmsnorm(q_ptr, q_ptr, (const float *)w->q_norm[l].data, p->head_dim, eps);
 
                 for (int j = 0; j < rotary_half; j++) {
                     float c = cos_row[j], sn = sin_row[j];
@@ -174,7 +146,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
             for (int h = 0; h < p->n_kv_heads; h++) {
                 float *k_ptr = s->k + h * p->head_dim;
 
-                rmsnorm(k_ptr, k_ptr, w->k_norm_weights + l * p->head_dim, p->head_dim, eps);
+                rmsnorm(k_ptr, k_ptr, (const float *)w->k_norm[l].data, p->head_dim, eps);
 
                 for (int j = 0; j < rotary_half; j++) {
                     float c = cos_row[j], sn = sin_row[j];
@@ -187,7 +159,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
 #pragma omp parallel for
             for (int h = 0; h < p->n_heads; h++) {
                 float *q_ptr = s->q + h * p->head_dim;
-                rmsnorm(q_ptr, q_ptr, w->q_norm_weights + l * p->head_dim, p->head_dim, eps);
+                rmsnorm(q_ptr, q_ptr, (const float *)w->q_norm[l].data, p->head_dim, eps);
                 for (int j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(p->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / p->rope_scaling_factor;
@@ -202,7 +174,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
 #pragma omp parallel for
             for (int h = 0; h < p->n_kv_heads; h++) {
                 float *k_ptr = s->k + h * p->head_dim;
-                rmsnorm(k_ptr, k_ptr, w->k_norm_weights + l * p->head_dim, p->head_dim, eps);
+                rmsnorm(k_ptr, k_ptr, (const float *)w->k_norm[l].data, p->head_dim, eps);
                 for (int j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(p->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / p->rope_scaling_factor;
@@ -257,7 +229,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
             s->x[i] += s->xb[i];
         }
 
-        rmsnorm(s->xb, s->x, w->rms_ffn_weight + l * p->dim, p->dim, eps);
+        rmsnorm(s->xb, s->x, (const float *)w->rms_ffn_weight[l].data, p->dim, eps);
 
         quantize_vec(&s->xq, s->xb, p->dim);
 
@@ -278,7 +250,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
         }
     }
 
-    rmsnorm(s->x, s->x, w->rms_final_weight, p->dim, eps);
+    rmsnorm(s->x, s->x, (const float *)w->rms_final_weight.data, p->dim, eps);
 
     matmul_qt(s->logits, s->x, &w->wcls);
 

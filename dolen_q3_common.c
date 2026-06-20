@@ -1,6 +1,5 @@
 #include "dolen_q3_common.h"
 
-
 void alloc_state_q3(state_q3 *s, config_q3 *p) {
     int all_heads_dim = p->n_heads * p->head_dim;
     int kv_dim = p->n_kv_heads * p->head_dim;
@@ -15,11 +14,13 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
     int xq_num_groups = (xq_size + GROUP_SIZE - 1) / GROUP_SIZE;
     int hq_num_groups = (p->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
 
-    s->xq.q = a_calloc((size_t)xq_size * sizeof(int8_t));
+    s->xq.data = a_calloc((size_t)xq_size * sizeof(int8_t));
     s->xq.s = a_calloc((size_t)xq_num_groups * sizeof(float));
+    s->xq.type = Q_TYPE_Q8;
 
-    s->hq.q = a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
+    s->hq.data = a_calloc((size_t)p->hidden_dim * sizeof(int8_t));
     s->hq.s = a_calloc((size_t)hq_num_groups * sizeof(float));
+    s->hq.type = Q_TYPE_Q8;
 
     s->q = a_calloc((size_t)all_heads_dim * sizeof(float));
     s->k = a_calloc((size_t)kv_dim * sizeof(float));
@@ -47,9 +48,9 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
         s->sin_cache = NULL;
     }
 
-    if (! s->x || ! s->xb || ! s->hb || ! s->hb2 || ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s || ! s->q ||
-            ! s->k || ! s->v || ! s->att || ! s->logits || ! s->key_cache || ! s->value_cache ||
-            (rotary_half > 0 && (! s->cos_cache || ! s->sin_cache))) {
+    if (!s->x || !s->xb || !s->hb || !s->hb2 || !s->xq.data || !s->xq.s || !s->hq.data || !s->hq.s || !s->q ||
+            !s->k || !s->v || !s->att || !s->logits || !s->key_cache || !s->value_cache ||
+            (rotary_half > 0 && (!s->cos_cache || !s->sin_cache))) {
         log_msg(stderr, "ERROR: alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -58,17 +59,15 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
 }
 
 void free_state_q3(state_q3 *s) {
-    if (! s->allocated) {
-        return;
-    }
+    if (!s->allocated) return;
 
     free(s->x);
     free(s->xb);
     free(s->hb);
     free(s->hb2);
-    free(s->xq.q);
+    free(s->xq.data);
     free(s->xq.s);
-    free(s->hq.q);
+    free(s->hq.data);
     free(s->hq.s);
     free(s->q);
     free(s->k);
@@ -78,12 +77,8 @@ void free_state_q3(state_q3 *s) {
     free(s->key_cache);
     free(s->value_cache);
 
-    if (s->cos_cache) {
-        free(s->cos_cache);
-    }
-    if (s->sin_cache) {
-        free(s->sin_cache);
-    }
+    if (s->cos_cache) free(s->cos_cache);
+    if (s->sin_cache) free(s->sin_cache);
 
     s->allocated = 0;
 }
@@ -93,11 +88,12 @@ void free_q3(Q3 *model_q3) {
     int n_layer = model_q3->config.n_layers;
 
     free_qt(&w->token_embedding_table);
-    free(w->rms_att_weight);
-    free(w->rms_ffn_weight);
-    free(w->rms_final_weight);
-    free(w->q_norm_weights);
-    free(w->k_norm_weights);
+    free_qt_array(w->rms_att_weight, n_layer);
+    free_qt_array(w->rms_ffn_weight, n_layer);
+    free_qt(&w->rms_final_weight);
+    
+    free_qt_array(w->q_norm, n_layer);
+    free_qt_array(w->k_norm, n_layer);
 
     free_qt_array(w->wq, n_layer);
     free_qt_array(w->wk, n_layer);
@@ -107,7 +103,7 @@ void free_q3(Q3 *model_q3) {
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
 
-    if (! model_q3->config.shared_classifier) {
+    if (!model_q3->config.shared_classifier) {
         free_qt(&w->wcls);
     }
 
@@ -115,4 +111,3 @@ void free_q3(Q3 *model_q3) {
         free_state_q3(&model_q3->state);
     }
 }
-

@@ -1,6 +1,5 @@
 #include "dolen_q3_5_common.h"
 
-
 void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
@@ -13,18 +12,10 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int value_dim = p->n_linear_v_heads * p->d_linear_v;
 
     int max_act_dim = dim;
-    if (q_dim > max_act_dim) {
-        max_act_dim = q_dim;
-    }
-    if (attn_dim > max_act_dim) {
-        max_act_dim = attn_dim;
-    }
-    if (hidden_dim > max_act_dim) {
-        max_act_dim = hidden_dim;
-    }
-    if (value_dim > max_act_dim) {
-        max_act_dim = value_dim;
-    }
+    if (q_dim > max_act_dim) max_act_dim = q_dim;
+    if (attn_dim > max_act_dim) max_act_dim = attn_dim;
+    if (hidden_dim > max_act_dim) max_act_dim = hidden_dim;
+    if (value_dim > max_act_dim) max_act_dim = value_dim;
 
     s->x = a_calloc((size_t)dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -39,13 +30,15 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     s->gate = a_calloc((size_t)p->n_heads * head_size * sizeof(float));
 
     int num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
-    s->xq.q = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
+    s->xq.data = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->xq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
+    s->xq.type = Q_TYPE_Q8;
     s->xq.rows = 1;
     s->xq.cols = max_act_dim;
 
-    s->hq.q = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
+    s->hq.data = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     s->hq.s = (float *)a_calloc((size_t)num_groups * sizeof(float));
+    s->hq.type = Q_TYPE_Q8;
     s->hq.rows = 1;
     s->hq.cols = max_act_dim;
 
@@ -87,12 +80,12 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
         s->sin_cache = NULL;
     }
 
-    if (! s->x || ! s->xb || ! s->xb2 || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
-            ! s->gate || ! s->xq.q || ! s->xq.s || ! s->hq.q || ! s->hq.s) {
+    if (!s->x || !s->xb || !s->xb2 || !s->hb || !s->hb2 || !s->q || !s->k || !s->v || !s->att || !s->logits ||
+            !s->gate || !s->xq.data || !s->xq.s || !s->hq.data || !s->hq.s) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
-    if (n_kv_layers > 0 && (! s->key_cache || ! s->value_cache)) {
+    if (n_kv_layers > 0 && (!s->key_cache || !s->value_cache)) {
         log_msg(stderr, "ERROR: alloc failed for KV cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -101,9 +94,7 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
 }
 
 void free_state_q3_5(state_q3_5 *s) {
-    if (! s->allocated) {
-        return;
-    }
+    if (!s->allocated) return;
 
     free(s->x);
     free(s->xb);
@@ -126,17 +117,13 @@ void free_state_q3_5(state_q3_5 *s) {
     free(s->conv_state);
     free(s->S);
     free(s->delta_S);
-    free(s->xq.q);
+    free(s->xq.data);
     free(s->xq.s);
-    free(s->hq.q);
+    free(s->hq.data);
     free(s->hq.s);
 
-    if (s->cos_cache) {
-        free(s->cos_cache);
-    }
-    if (s->sin_cache) {
-        free(s->sin_cache);
-    }
+    if (s->cos_cache) free(s->cos_cache);
+    if (s->sin_cache) free(s->sin_cache);
 
     s->allocated = 0;
 }
@@ -148,29 +135,29 @@ void free_q3_5(Q3_5 *model_q3_5) {
     int n_layer = model_q3_5->config.n_layer;
 
     free_qt(&w->token_embedding_table);
-    free(w->rms_att_weight);
+    free_qt_array(w->rms_att_weight, n_layer);
     free_qt_array(w->wq, n_full_attn);
     free_qt_array(w->wk, n_full_attn);
     free_qt_array(w->wv, n_full_attn);
     free_qt_array(w->wo, n_full_attn);
-    free(w->q_norm);
-    free(w->k_norm);
+    free_qt_array(w->q_norm, n_full_attn);
+    free_qt_array(w->k_norm, n_full_attn);
     free_qt_array(w->in_proj_qkv, n_linear_attn);
     free_qt_array(w->in_proj_z, n_linear_attn);
-    free(w->in_proj_b);
-    free(w->in_proj_a);
-    free(w->conv1d_weight);
-    free(w->dt_bias);
-    free(w->A_log);
-    free(w->linear_norm);
+    free_qt_array(w->in_proj_b, n_linear_attn);
+    free_qt_array(w->in_proj_a, n_linear_attn);
+    free_qt_array(w->conv1d_weight, n_linear_attn);
+    free_qt_array(w->dt_bias, n_linear_attn);
+    free_qt_array(w->A_log, n_linear_attn);
+    free_qt_array(w->linear_norm, n_linear_attn);
     free_qt_array(w->out_proj, n_linear_attn);
-    free(w->rms_ffn_weight);
+    free_qt_array(w->rms_ffn_weight, n_layer);
     free_qt_array(w->w1, n_layer);
     free_qt_array(w->w2, n_layer);
     free_qt_array(w->w3, n_layer);
-    free(w->rms_final_weight);
+    free_qt(&w->rms_final_weight);
 
-    if (! model_q3_5->config.tie_word_embeddings) {
+    if (!model_q3_5->config.tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 
@@ -182,4 +169,3 @@ void free_q3_5(Q3_5 *model_q3_5) {
         free_state_q3_5(&model_q3_5->state);
     }
 }
-
