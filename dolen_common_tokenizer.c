@@ -2,6 +2,7 @@
 #include "dolen_common_io.h"
 #include "dolen_common_mem.h"
 
+
 int compare_tokens(const void *a, const void *b) {
     return strcmp(((token_map *)a)->str, ((token_map *)b)->str);
 }
@@ -20,8 +21,11 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
     char *pos = text;
     while (*pos) {
         int best_len = 0, best_id = -1;
-        for (int len = 1; (len <= t->max_token_length) && (pos[len - 1]); len++) {
-            if (((pos[len - 1] & 0xC0) == 0x80) && ((len < t->max_token_length) && (pos[len]))) {
+        for (int len = 1; (len <= t->max_token_length) &&
+                (pos[len - 1]); len++) {
+            if (((pos[len - 1] & 0xC0) == 0x80) &&
+                    ((len < t->max_token_length) &&
+                     (pos[len]))) {
                 continue;
             }
             strncpy(str_buf, pos, len);
@@ -66,7 +70,8 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
         const char *bos_piece = t->vocab[bos_token];
         if (bos_piece) {
             size_t bos_len = strlen(bos_piece);
-            if ((bos_len > 0) && (! strncmp(input, bos_piece, bos_len))) {
+            if ((bos_len > 0) &&
+                    (! strncmp(input, bos_piece, bos_len))) {
                 input += bos_len;
             }
         }
@@ -195,3 +200,4 @@ void free_tokenizer(Tokenizer *t) {
     free(t->vocab);
     free(t->sorted_vocab);
 }
+

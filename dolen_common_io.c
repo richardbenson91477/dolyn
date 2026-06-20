@@ -57,7 +57,8 @@ void read_msg(char *buf, size_t buf_len) {
             break;
         }
 
-        if ((p[len - 2] == '\\') && (p[len - 1] == '\n')) {
+        if ((p[len - 2] == '\\') &&
+                (p[len - 1] == '\n')) {
             p[len - 2] = '\n';
             p += len - 1;
             rem -= len - 1;
@@ -93,3 +94,4 @@ int seek_abs(FILE *f, uint64_t offset) {
     }
     return 0;
 }
+

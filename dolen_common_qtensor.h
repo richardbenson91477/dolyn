@@ -55,3 +55,4 @@ void write_qt(FILE *f, qtensor *qt);
 
 
 #endif // DOLEN_COMMON_QTENSOR_H
+

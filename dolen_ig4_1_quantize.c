@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_ig4_1_common.h"
 
+
 int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
@@ -43,7 +44,8 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
 
     JsonValue *rope_theta_value = NULL;
     JsonValue *rope_params = json_object_get(root, "rope_parameters");
-    if (rope_params && rope_params->type == JSON_OBJECT) {
+    if (rope_params &&
+            (rope_params->type == JSON_OBJECT)) {
         rope_theta_value = json_object_get(rope_params, "rope_theta");
     }
     if (! rope_theta_value) {
@@ -173,7 +175,7 @@ int quantize_ig4_1_to_file(const char *model_dir, const char *output_file) {
         goto cleanup;
     }
 
-    if (! config.tie_word_embeddings &&
+    if ((! config.tie_word_embeddings) &&
             quantize_write_tensor(&ctx, out, "lm_head.weight", config.vocab_size, config.dim, Q_TYPE_Q8)) {
         failed = 1;
         goto cleanup;
@@ -201,3 +203,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_ig4_1_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

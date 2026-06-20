@@ -37,8 +37,9 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     }
 
     JsonValue *cfg = json_object_get(root, "text_config");
-    if (! cfg)
+    if (! cfg) {
         cfg = root;
+    }
 
     memset(config, 0, sizeof(config_q3));
     config->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
@@ -54,7 +55,8 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     config->rms_norm_eps = get_json_float_val(json_object_get(cfg, "rms_norm_eps"), 1e-6f);
 
     JsonValue *rope_scaling = json_object_get(cfg, "rope_scaling");
-    if (rope_scaling && (rope_scaling->type == JSON_OBJECT)) {
+    if (rope_scaling &&
+            (rope_scaling->type == JSON_OBJECT)) {
         config->rope_scaling_factor = get_json_float_val(json_object_get(rope_scaling, "factor"), 1.0f);
     } else {
         config->rope_scaling_factor = 1.0f;
@@ -78,8 +80,9 @@ static int write_layer_tensor(
 
 int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     config_q3 config;
-    if (load_config_q3(model_dir, &config))
+    if (load_config_q3(model_dir, &config)) {
         return -1;
+    }
 
     quantize_ctx ctx;
     if (quantize_ctx_open(&ctx, model_dir)) {
@@ -138,7 +141,7 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
         }
     }
 
-    if (! config.shared_classifier &&
+    if ((! config.shared_classifier) &&
             quantize_write_tensor(&ctx, out, "lm_head.weight", config.vocab_size, config.dim, Q_TYPE_Q8)) {
         failed = 1;
         goto cleanup;
@@ -158,8 +161,9 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0)
+    if (fclose(out) != 0) {
         failed = 1;
+    }
     quantize_ctx_close(&ctx);
 
     if (failed) {

@@ -1,5 +1,6 @@
 #include "dolen_q3_common.h"
 
+
 void alloc_state_q3(state_q3 *s, config_q3 *p) {
     int all_heads_dim = p->n_heads * p->head_dim;
     int kv_dim = p->n_kv_heads * p->head_dim;
@@ -48,9 +49,24 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
         s->sin_cache = NULL;
     }
 
-    if (! s->x || ! s->xb || ! s->hb || ! s->hb2 || ! s->xq.data || ! s->xq.s || ! s->hq.data || ! s->hq.s || ! s->q ||
-            ! s->k || ! s->v || ! s->att || ! s->logits || ! s->key_cache || ! s->value_cache ||
-            (rotary_half > 0 && (! s->cos_cache || ! s->sin_cache))) {
+    if ((! s->x) ||
+            (! s->xb) ||
+            (! s->hb) ||
+            (! s->hb2) ||
+            (! s->xq.data) ||
+            (! s->xq.s) ||
+            (! s->hq.data) ||
+            (! s->hq.s) ||
+            (! s->q) ||
+            (! s->k) ||
+            (! s->v) ||
+            (! s->att) ||
+            (! s->logits) ||
+            (! s->key_cache) ||
+            (! s->value_cache) ||
+            ((rotary_half > 0) &&
+                ((! s->cos_cache) ||
+                 (! s->sin_cache)))) {
         log_msg(stderr, "ERROR: alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -59,8 +75,9 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
 }
 
 void free_state_q3(state_q3 *s) {
-    if (! s->allocated)
+    if (! s->allocated) {
         return;
+    }
 
     free(s->x);
     free(s->xb);
@@ -78,10 +95,12 @@ void free_state_q3(state_q3 *s) {
     free(s->key_cache);
     free(s->value_cache);
 
-    if (s->cos_cache)
+    if (s->cos_cache) {
         free(s->cos_cache);
-    if (s->sin_cache)
+    }
+    if (s->sin_cache) {
         free(s->sin_cache);
+    }
 
     s->allocated = 0;
 }
@@ -114,3 +133,4 @@ void free_q3(Q3 *model_q3) {
         free_state_q3(&model_q3->state);
     }
 }
+

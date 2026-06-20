@@ -12,7 +12,9 @@
 #include "dolen_common_qtensor.h"
 #include "dolen_common_tokenizer.h"
 
+
 #define DOLEN_QUANTIZE_CHUNK_BYTES (16u * 1024u * 1024u)
+
 
 typedef enum {
     ST_DTYPE_UNSUPPORTED = 0,
@@ -47,24 +49,33 @@ typedef struct {
     size_t chunk_bytes;
 } quantize_ctx;
 
+
 void quantize_group(qtensor *qt, const float *weights, int rows, int cols);
+
 int quantize_write_bytes(FILE *out, const void *data, size_t size, size_t count);
 
 int load_safetensors_index(safetensors_idx *idx, const char *model_dir);
+
 void free_safetensors_index(safetensors_idx *idx);
 
 int quantize_ctx_open(quantize_ctx *ctx, const char *model_dir);
+
 void quantize_ctx_close(quantize_ctx *ctx);
 
 const weightmap_entry *quantize_find_tensor(const quantize_ctx *ctx, const char *name);
+
 const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *ctx, const char *const *names, size_t n_names);
 
 int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols, q_type_t type);
+
 int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols, q_type_t type);
+
 int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry, int rows, int cols, q_type_t type);
+
 int quantize_write_empty_tensor(FILE *out);
 
 int quantize_write_scalar_or_default(
         quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names, float default_value);
+
 
 #endif // DOLEN_Q_COMMON_H

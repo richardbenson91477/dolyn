@@ -10,7 +10,8 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     memset(model_ig4_1, 0, sizeof(IG4_1));
 
     uint32_t magic, version;
-    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
+    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) ||
+            (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
@@ -62,8 +63,9 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
         fclose(f);
         return -1;
     }
-    for (int i = 0; i < p->n_layer; i++)
+    for (int i = 0; i < p->n_layer; i++) {
         read_qt(f, &w->rms_att_weight[i]);
+    }
 
     w->wq = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->wk = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
@@ -83,8 +85,9 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
         fclose(f);
         return -1;
     }
-    for (int i = 0; i < p->n_layer; i++)
+    for (int i = 0; i < p->n_layer; i++) {
         read_qt(f, &w->rms_ffn_weight[i]);
+    }
 
     w->w1 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
@@ -267,13 +270,16 @@ float *forward_ig4_1(IG4_1 *model_ig4_1, int token, int pos) {
 
     rmsnorm(x, x, (float *)w->rms_final_weight.data, dim, p->rms_norm_eps);
 
-    if (p->tie_word_embeddings)
+    if (p->tie_word_embeddings) {
         matmul_qt(s->logits, x, &w->token_embedding_table);
-    else
+    }
+    else {
         matmul_qt(s->logits, x, &w->wcls);
+    }
 
     float logit_scale = p->logits_scaling;
-    if (logit_scale != 0.0f && logit_scale != 1.0f) {
+    if ((logit_scale != 0.0f) &&
+            (logit_scale != 1.0f)) {
 #pragma omp simd
         for (int i = 0; i < p->vocab_size; i++) {
             s->logits[i] /= logit_scale;
@@ -293,10 +299,10 @@ static void free_ig4_1_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    .system = "<|start_of_role|\x3esystem<|end_of_role|\x3e%s<|end_of_text|\x3e\n",
-    .main = "<|start_of_role|\x3euser<|end_of_role|\x3e%s<|end_of_text|\x3e\n"
-            "<|start_of_role|\x3eassistant<|end_of_role|\x3e",
-    .end_turn = "<|end_of_text|\x3e\n",
+    .system = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n",
+    .main = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n"
+            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
+    .end_turn = "<|end_of_text|\x3e" "\n",
 };
 
 static token_map SPECIAL_TOKENS_IG4_1[] = {
@@ -336,3 +342,4 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
+

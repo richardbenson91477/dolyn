@@ -3,7 +3,8 @@
 #include "dolen_common_mem.h"
 
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
-    if ((row_idx >= qt->rows) || (row_idx < 0)) {
+    if ((row_idx >= qt->rows) ||
+            (row_idx < 0)) {
         log_msg(stderr, "ERROR: Row index %d out of bounds (max %d)\n", row_idx, qt->rows);
         exit(EXIT_FAILURE);
     }
@@ -252,7 +253,8 @@ void read_qt(FILE *f, qtensor *qt) {
     fread(&qt->rows, sizeof(int), 1, f);
     fread(&qt->cols, sizeof(int), 1, f);
 
-    if ((qt->rows <= 0) || (qt->cols <= 0)) {
+    if ((qt->rows <= 0) ||
+            (qt->cols <= 0)) {
         qt->data = NULL;
         qt->s = NULL;
         return;
@@ -282,7 +284,8 @@ void write_qt(FILE *f, qtensor *qt) {
     fwrite(&qt->rows, sizeof(int), 1, f);
     fwrite(&qt->cols, sizeof(int), 1, f);
 
-    if ((qt->rows <= 0) || (qt->cols <= 0)) {
+    if ((qt->rows <= 0) ||
+            (qt->cols <= 0)) {
         return;
     }
 
@@ -298,3 +301,4 @@ void write_qt(FILE *f, qtensor *qt) {
         fwrite(qt->s, sizeof(float), (size_t)qt->rows * num_groups, f);
     }
 }
+

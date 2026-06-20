@@ -2,6 +2,7 @@
 #ifndef DOLEN_COMMON_SAMPLER_H
 #define DOLEN_COMMON_SAMPLER_H
 
+
 #include <ctype.h>
 #include <fcntl.h>
 #include <math.h>

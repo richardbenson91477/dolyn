@@ -1,5 +1,6 @@
 #include "dolen_g4u_common.h"
 
+
 int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -11,7 +12,8 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 
     uint32_t magic, version;
 
-    if (fread(&magic, sizeof(uint32_t), 1, f) != 1 || fread(&version, sizeof(uint32_t), 1, f) != 1) {
+    if (fread(&magic, sizeof(uint32_t), 1, f) != 1 ||
+            fread(&version, sizeof(uint32_t), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read header\n");
         fclose(f);
         return -1;
@@ -37,8 +39,9 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    if (seq_n_max != 0)
+    if (seq_n_max != 0) {
         p->seq_len = seq_n_max;
+    }
 
     model->layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
     if (fread(model->layer_types, sizeof(int), (size_t)p->n_layers, f) != (size_t)p->n_layers) {
@@ -56,8 +59,12 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     w->rms_q_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->rms_k_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (! w->rms_input_layernorm || ! w->rms_post_attn_layernorm || ! w->rms_pre_ffn_layernorm ||
-            ! w->rms_post_ffn_layernorm || ! w->rms_q_norm || ! w->rms_k_norm) {
+    if (! w->rms_input_layernorm ||
+            (! w->rms_post_attn_layernorm) ||
+            (! w->rms_pre_ffn_layernorm) ||
+            (! w->rms_post_ffn_layernorm) ||
+            (! w->rms_q_norm) ||
+            (! w->rms_k_norm)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(f);
         return -1;
@@ -65,18 +72,24 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 
     read_qt(f, &w->embed_tokens);
 
-    for (int i = 0; i < p->n_layers; i++)
+    for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_input_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++)
+    }
+    for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_post_attn_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++)
+    }
+    for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_pre_ffn_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++)
+    }
+    for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_post_ffn_layernorm[i]);
-    for (int i = 0; i < p->n_layers; i++)
+    }
+    for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_q_norm[i]);
-    for (int i = 0; i < p->n_layers; i++)
+    }
+    for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_k_norm[i]);
+    }
 
     read_qt(f, &w->rms_final_norm);
 
@@ -89,8 +102,9 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     w->down_proj = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->layer_scalars = (float *)a_calloc((size_t)p->n_layers * sizeof(float));
 
-    for (int i = 0; i < p->n_layers; i++)
+    for (int i = 0; i < p->n_layers; i++) {
         w->layer_scalars[i] = 1.0f;
+    }
 
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->q_proj[i]);
@@ -117,8 +131,9 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
 }
 
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
-    if (rotary_dim <= 0)
+    if (rotary_dim <= 0) {
         return;
+    }
 
     int half_rot = rotary_dim / 2;
     int cache_stride = vec_dim / 2;
@@ -145,12 +160,14 @@ float *forward_g4u(G4U *model, int token, int pos) {
     int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
     int max_kv_dim = max_kv_heads * max_head_dim;
 
-    if (token < 0 || token >= p->vocab_size) {
+    if (token < 0 ||
+            token >= p->vocab_size) {
         log_msg(stderr, "ERROR: token %d is outside vocabulary [0, %d)\n", token, p->vocab_size);
         exit(EXIT_FAILURE);
     }
 
-    if (pos < 0 || pos >= p->seq_len) {
+    if (pos < 0 ||
+            pos >= p->seq_len) {
         log_msg(stderr, "ERROR: position %d is outside KV cache [0, %d)\n", pos, p->seq_len);
         exit(EXIT_FAILURE);
     }
@@ -197,7 +214,8 @@ float *forward_g4u(G4U *model, int token, int pos) {
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
             rmsnorm_g4u(qh, qh, rms_q, head_dim, eps, 1);
-            if (rotary_dim > 0 && cos_cache) {
+            if ((rotary_dim > 0) &&
+                    cos_cache) {
                 apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
         }
@@ -206,7 +224,8 @@ float *forward_g4u(G4U *model, int token, int pos) {
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
             rmsnorm_g4u(kh, kh, rms_k, head_dim, eps, 1);
-            if (rotary_dim > 0 && cos_cache) {
+            if ((rotary_dim > 0) &&
+                    cos_cache) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
             }
         }
@@ -327,18 +346,18 @@ static void free_g4u_wrap(void *model) {
 }
 
 static const chat_template CHAT_TEMPLATE_G4U = {
-    .system = "<|turn\x3esystem\n%s<turn|\x3e\n",
-    .main = "<|turn\x3euser\n%s<turn|\x3e\n"
-            "<|turn\x3emodel\n"
-            "<|channel\x3ethought\n<channel|\x3e",
-    .end_turn = "<turn|\x3e\n",
+    .system = "<|turn\x3e" "system\n%s<turn|\x3e" "\n",
+    .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
+            "<|turn\x3e" "model\n"
+            "<|channel\x3e" "thought\n<channel|\x3e",
+    .end_turn = "<turn|\x3e" "\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_G4U = {
-    .system = "<|turn\x3esystem\n<|think|\x3e%s<turn|\x3e\n",
-    .main = "<|turn\x3euser\n%s<turn|\x3e\n"
-            "<|turn\x3emodel\n",
-    .end_turn = "<turn|\x3e\n",
+    .system = "<|turn\x3e" "system\n<|think|\x3e" "%s<turn|\x3e" "\n",
+    .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
+            "<|turn\x3e" "model\n",
+    .end_turn = "<turn|\x3e" "\n",
 };
 
 static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think) {

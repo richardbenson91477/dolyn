@@ -1,5 +1,6 @@
 #include "dolen_q3_common.h"
 
+
 int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -10,7 +11,8 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     memset(model_q3, 0, sizeof(Q3));
 
     uint32_t magic, version;
-    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) || (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
+    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) ||
+            (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
@@ -38,8 +40,9 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     weights_q3 *w = &model_q3->weights;
 
-    if (seq_n_max)
+    if (seq_n_max) {
         p->seq_len = seq_n_max;
+    }
 
     w->rms_att_weight = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->rms_ffn_weight = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -47,7 +50,10 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     w->q_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->k_norm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (! w->rms_att_weight || ! w->rms_ffn_weight || ! w->q_norm || ! w->k_norm) {
+    if ((! w->rms_att_weight) ||
+            (! w->rms_ffn_weight) ||
+            (! w->q_norm) ||
+            (! w->k_norm)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for weights\n");
         fclose(f);
         return -1;
@@ -55,17 +61,21 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     read_qt(f, &w->token_embedding_table);
 
-    for (int l = 0; l < p->n_layers; l++)
+    for (int l = 0; l < p->n_layers; l++) {
         read_qt(f, &w->rms_att_weight[l]);
-    for (int l = 0; l < p->n_layers; l++)
+    }
+    for (int l = 0; l < p->n_layers; l++) {
         read_qt(f, &w->rms_ffn_weight[l]);
+    }
 
     read_qt(f, &w->rms_final_weight);
 
-    for (int l = 0; l < p->n_layers; l++)
+    for (int l = 0; l < p->n_layers; l++) {
         read_qt(f, &w->q_norm[l]);
-    for (int l = 0; l < p->n_layers; l++)
+    }
+    for (int l = 0; l < p->n_layers; l++) {
         read_qt(f, &w->k_norm[l]);
+    }
 
     if (! p->shared_classifier) {
         read_qt(f, &w->wcls);
@@ -81,7 +91,13 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (! w->wq || ! w->wk || ! w->wv || ! w->wo || ! w->w1 || ! w->w2 || ! w->w3) {
+    if ((! w->wq) ||
+            (! w->wk) ||
+            (! w->wv) ||
+            (! w->wo) ||
+            (! w->w1) ||
+            (! w->w2) ||
+            (! w->w3)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(f);
         return -1;
@@ -119,7 +135,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
     for (int l = 0; l < p->n_layers; l++) {
         long long loff = l * p->seq_len * kv_dim;
 
-        rmsnorm(s->xb, s->x, (const float *)w->rms_att_weight[l].data, p->dim, eps);
+        rmsnorm(s->xb, s->x, (float *)w->rms_att_weight[l].data, p->dim, eps);
 
         quantize_vec(&s->xq, s->xb, p->dim);
 
@@ -129,7 +145,8 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
 
         int rotary_half = p->head_dim / 2;
 
-        if ((rotary_half > 0) && (s->cos_cache != NULL)) {
+        if ((rotary_half > 0) &&
+                (s->cos_cache != NULL)) {
             float *cos_row = s->cos_cache + pos * rotary_half;
             float *sin_row = s->sin_cache + pos * rotary_half;
 
@@ -137,7 +154,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
             for (int h = 0; h < p->n_heads; h++) {
                 float *q_ptr = s->q + h * p->head_dim;
 
-                rmsnorm(q_ptr, q_ptr, (const float *)w->q_norm[l].data, p->head_dim, eps);
+                rmsnorm(q_ptr, q_ptr, (float *)w->q_norm[l].data, p->head_dim, eps);
 
                 for (int j = 0; j < rotary_half; j++) {
                     float c = cos_row[j], sn = sin_row[j];
@@ -151,7 +168,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
             for (int h = 0; h < p->n_kv_heads; h++) {
                 float *k_ptr = s->k + h * p->head_dim;
 
-                rmsnorm(k_ptr, k_ptr, (const float *)w->k_norm[l].data, p->head_dim, eps);
+                rmsnorm(k_ptr, k_ptr, (float *)w->k_norm[l].data, p->head_dim, eps);
 
                 for (int j = 0; j < rotary_half; j++) {
                     float c = cos_row[j], sn = sin_row[j];
@@ -164,7 +181,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
 #pragma omp parallel for
             for (int h = 0; h < p->n_heads; h++) {
                 float *q_ptr = s->q + h * p->head_dim;
-                rmsnorm(q_ptr, q_ptr, (const float *)w->q_norm[l].data, p->head_dim, eps);
+                rmsnorm(q_ptr, q_ptr, (float *)w->q_norm[l].data, p->head_dim, eps);
                 for (int j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(p->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / p->rope_scaling_factor;
@@ -179,7 +196,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
 #pragma omp parallel for
             for (int h = 0; h < p->n_kv_heads; h++) {
                 float *k_ptr = s->k + h * p->head_dim;
-                rmsnorm(k_ptr, k_ptr, (const float *)w->k_norm[l].data, p->head_dim, eps);
+                rmsnorm(k_ptr, k_ptr, (float *)w->k_norm[l].data, p->head_dim, eps);
                 for (int j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(p->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / p->rope_scaling_factor;
@@ -234,7 +251,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
             s->x[i] += s->xb[i];
         }
 
-        rmsnorm(s->xb, s->x, (const float *)w->rms_ffn_weight[l].data, p->dim, eps);
+        rmsnorm(s->xb, s->x, (float *)w->rms_ffn_weight[l].data, p->dim, eps);
 
         quantize_vec(&s->xq, s->xb, p->dim);
 
@@ -255,7 +272,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
         }
     }
 
-    rmsnorm(s->x, s->x, (const float *)w->rms_final_weight.data, p->dim, eps);
+    rmsnorm(s->x, s->x, (float *)w->rms_final_weight.data, p->dim, eps);
 
     matmul_qt(s->logits, s->x, &w->wcls);
 
@@ -271,24 +288,36 @@ static void free_q3_wrap(void *model) {
     free(model);
 }
 
-static token_map SPECIAL_TOKENS_Q3[] = { { "<|endoftext|\x3e", 151643 }, { "<|im_start|\x3e", 151644 },
-    { "<|im_end|\x3e", 151645 }, { "<|object_ref_start|\x3e", 151646 }, { "<|object_ref_end|\x3e", 151647 },
-    { "<|box_start|\x3e", 151648 }, { "<|box_end|\x3e", 151649 }, { "<|quad_start|\x3e", 151650 },
-    { "<|quad_end|\x3e", 151651 }, { "<|vision_start|\x3e", 151652 }, { "<|vision_end|\x3e", 151653 },
-    { "<|vision_pad|\x3e", 151654 }, { "<|image_pad|\x3e", 151655 }, { "<|video_pad|\x3e", 151656 }, { NULL, 0 } };
+static token_map SPECIAL_TOKENS_Q3[] = {
+    {"<|endoftext|\x3e", 151643},
+    {"<|im_start|\x3e", 151644},
+    {"<|im_end|\x3e", 151645},
+    {"<|object_ref_start|\x3e", 151646},
+    {"<|object_ref_end|\x3e", 151647},
+    {"<|box_start|\x3e", 151648},
+    {"<|box_end|\x3e", 151649},
+    {"<|quad_start|\x3e", 151650},
+    {"<|quad_end|\x3e", 151651},
+    {"<|vision_start|\x3e", 151652},
+    {"<|vision_end|\x3e", 151653},
+    {"<|vision_pad|\x3e", 151654},
+    {"<|image_pad|\x3e", 151655},
+    {"<|video_pad|\x3e", 151656},
+    {NULL, 0}
+};
 
 static const chat_template CHAT_TEMPLATE_Q3 = {
-    .system = "<|im_start|>system\n/no_think\n%s<|im_end|>\n",
-    .main = "<|im_start|>user\n%s<|im_end|>\n"
-            "<|im_start|>assistant\n",
-    .end_turn = "<|im_end|>\n",
+    .system = "<|im_start|\x3e" "system\n/no_think\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n",
+    .end_turn = "<|im_end|\x3e" "\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
-    .system = "<|im_start|>system\n/think\n%s<|im_end|>\n",
-    .main = "<|im_start|>user\n%s<|im_end|>\n"
-            "<|im_start|>assistant<think>\n",
-    .end_turn = "<|im_end|>\n",
+    .system = "<|im_start|\x3e" "system\n/think\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant<think\x3e" "\n",
+    .end_turn = "<|im_end|\x3e" "\n",
 };
 
 static model_iface *init_q3(const char *model_path, int seq_n_max, bool _think) {
@@ -320,3 +349,4 @@ static model_iface *init_q3(const char *model_path, int seq_n_max, bool _think) 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3, "dolen3");
 }
+

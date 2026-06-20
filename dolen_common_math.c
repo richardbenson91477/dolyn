@@ -64,7 +64,8 @@ void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int wit
     }
     ss = 1.0f / sqrtf(ss / size + eps);
 
-    if (with_scale && weight) {
+    if (with_scale &&
+            weight) {
 #pragma omp simd
         for (int j = 0; j < size; j++) {
             o[j] = x[j] * ss * weight[j];
@@ -145,3 +146,4 @@ float matmul_scalar(float *x, float *w, int n) {
     }
     return val;
 }
+

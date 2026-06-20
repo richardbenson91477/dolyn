@@ -1,5 +1,6 @@
 #include "dolen_g4u_common.h"
 
+
 void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
@@ -84,14 +85,30 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
         s->sin_cache_sliding = NULL;
     }
 
-    if (! s->x || ! s->xb || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->k_raw || ! s->v || ! s->att ||
-            ! s->logits || ! s->key_cache || ! s->value_cache || ! s->xq.data || ! s->xq.s || ! s->hq.data ||
-            ! s->hq.s) {
+    if ((! s->x) ||
+            (! s->xb) ||
+            (! s->hb) ||
+            (! s->hb2) ||
+            (! s->q) ||
+            (! s->k) ||
+            (! s->k_raw) ||
+            (! s->v) ||
+            (! s->att) ||
+            (! s->logits) ||
+            (! s->key_cache) ||
+            (! s->value_cache) ||
+            (! s->xq.data) ||
+            (! s->xq.s) ||
+            (! s->hq.data) ||
+            (! s->hq.s)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
     if (p->seq_len > 1 &&
-            (! s->cos_cache_full || ! s->sin_cache_full || ! s->cos_cache_sliding || ! s->sin_cache_sliding)) {
+            (! s->cos_cache_full) ||
+            (! s->sin_cache_full) ||
+            (! s->cos_cache_sliding) ||
+            (! s->sin_cache_sliding)) {
         log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -162,3 +179,4 @@ void free_g4u(G4U *model) {
 
     memset(model, 0, sizeof(G4U));
 }
+

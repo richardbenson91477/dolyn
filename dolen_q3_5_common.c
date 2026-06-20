@@ -1,5 +1,6 @@
 #include "dolen_q3_5_common.h"
 
+
 void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
@@ -12,14 +13,18 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
     int value_dim = p->n_linear_v_heads * p->d_linear_v;
 
     int max_act_dim = dim;
-    if (q_dim > max_act_dim)
+    if (q_dim > max_act_dim) {
         max_act_dim = q_dim;
-    if (attn_dim > max_act_dim)
+    }
+    if (attn_dim > max_act_dim) {
         max_act_dim = attn_dim;
-    if (hidden_dim > max_act_dim)
+    }
+    if (hidden_dim > max_act_dim) {
         max_act_dim = hidden_dim;
-    if (value_dim > max_act_dim)
+    }
+    if (value_dim > max_act_dim) {
         max_act_dim = value_dim;
+    }
 
     s->x = a_calloc((size_t)dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -84,12 +89,27 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
         s->sin_cache = NULL;
     }
 
-    if (! s->x || ! s->xb || ! s->xb2 || ! s->hb || ! s->hb2 || ! s->q || ! s->k || ! s->v || ! s->att || ! s->logits ||
-            ! s->gate || ! s->xq.data || ! s->xq.s || ! s->hq.data || ! s->hq.s) {
+    if ((! s->x) ||
+            (! s->xb) ||
+            (! s->xb2) ||
+            (! s->hb) ||
+            (! s->hb2) ||
+            (! s->q) ||
+            (! s->k) ||
+            (! s->v) ||
+            (! s->att) ||
+            (! s->logits) ||
+            (! s->gate) ||
+            (! s->xq.data) ||
+            (! s->xq.s) ||
+            (! s->hq.data) ||
+            (! s->hq.s)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
-    if (n_kv_layers > 0 && (! s->key_cache || ! s->value_cache)) {
+    if (n_kv_layers > 0 &&
+            ((! s->key_cache) ||
+             (! s->value_cache))) {
         log_msg(stderr, "ERROR: alloc failed for KV cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -98,8 +118,9 @@ void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p) {
 }
 
 void free_state_q3_5(state_q3_5 *s) {
-    if (! s->allocated)
+    if (! s->allocated) {
         return;
+    }
 
     free(s->x);
     free(s->xb);
@@ -127,10 +148,12 @@ void free_state_q3_5(state_q3_5 *s) {
     free(s->hq.data);
     free(s->hq.s);
 
-    if (s->cos_cache)
+    if (s->cos_cache) {
         free(s->cos_cache);
-    if (s->sin_cache)
+    }
+    if (s->sin_cache) {
         free(s->sin_cache);
+    }
 
     s->allocated = 0;
 }
@@ -176,3 +199,4 @@ void free_q3_5(Q3_5 *model_q3_5) {
         free_state_q3_5(&model_q3_5->state);
     }
 }
+

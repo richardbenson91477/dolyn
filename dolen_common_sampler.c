@@ -2,6 +2,7 @@
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 
+
 int sample_argmax(float *probs, int n) {
     int max_i = 0;
     float max_p = probs[0];
@@ -72,7 +73,8 @@ int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, 
 
     qsort(probindex, n0, sizeof(ProbIndex), compare_prob);
 
-    if (topk > 0 && n0 > topk) {
+    if ((topk > 0) &&
+            (n0 > topk)) {
         n0 = topk;
     }
 
@@ -112,7 +114,8 @@ int sample(Sampler *sampler, float *logits) {
         softmax(logits, sampler->vocab_size);
 
         float coin = random_f32(&sampler->rng_state);
-        if (sampler->topp <= 0 || sampler->topp >= 1) {
+        if (sampler->topp <= 0 ||
+                sampler->topp >= 1) {
             next = sample_mult(logits, sampler->vocab_size, coin);
         } else {
             next = sample_top(logits, sampler->vocab_size, sampler->topk, sampler->topp, sampler->probindex, coin);
@@ -134,3 +137,4 @@ void build_sampler(
 void free_sampler(Sampler *sampler) {
     free(sampler->probindex);
 }
+

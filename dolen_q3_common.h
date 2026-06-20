@@ -1,11 +1,13 @@
 #ifndef DOLEN_Q3_COMMON_H
 #define DOLEN_Q3_COMMON_H
 
+
 #include "dolen_common_cmi.h"
 #include "dolen_common_io.h"
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
+
 
 typedef struct {
     int dim;
@@ -69,3 +71,4 @@ void free_state_q3(state_q3 *s);
 void free_q3(Q3 *t);
 
 #endif // DOLEN_Q3_COMMON_H
+

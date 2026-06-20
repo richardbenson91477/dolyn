@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_g4u_common.h"
 
+
 int load_config_g4u(G4U *model, const char *model_dir) {
     config_g4u *p = &model->config;
 
@@ -16,7 +17,8 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     fseek(f, 0, SEEK_SET);
 
     char *json_str = (char *)a_calloc(size + 1);
-    if ((! json_str) || (fread(json_str, 1, size, f) != (size_t)size)) {
+    if ((! json_str) ||
+            (fread(json_str, 1, size, f) != (size_t)size)) {
         free(json_str);
         fclose(f);
         return -1;
@@ -33,8 +35,9 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     }
 
     JsonValue *cfg = json_object_get(root, "text_config");
-    if (! cfg)
+    if (! cfg) {
         cfg = root;
+    }
 
     memset(p, 0, sizeof(config_g4u));
     p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
@@ -66,16 +69,19 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     const char *rope_type = json_get_string(json_object_get(full_rope, "rope_type"), "proportional");
 
     p->use_rope_freqs = 0;
-    if (rope_type && (! strcmp(rope_type, "proportional"))) {
+    if (rope_type &&
+            (! strcmp(rope_type, "proportional"))) {
         log_msg(stderr, "INFO: Full attention uses config-derived proportional RoPE\n");
     }
 
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
     model->layer_types = a_calloc((size_t)p->n_layers * sizeof(int));
-    if (layer_types_json && layer_types_json->type == JSON_ARRAY) {
+    if (layer_types_json &&
+            layer_types_json->type == JSON_ARRAY) {
         for (int i = 0; i < p->n_layers; i++) {
             JsonValue *lt = json_array_get(layer_types_json, i);
-            if (lt && (lt->type == JSON_STRING)) {
+            if (lt &&
+                    (lt->type == JSON_STRING)) {
                 model->layer_types[i] = (strcmp(lt->data.string, "full_attention")) ? 0 : 1;
             } else {
                 model->layer_types[i] = 0;
@@ -115,8 +121,9 @@ static int write_layer_qt(quantize_ctx *ctx, FILE *out, int layer, const char *s
 int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     G4U model;
     memset(&model, 0, sizeof(model));
-    if (load_config_g4u(&model, model_dir))
+    if (load_config_g4u(&model, model_dir)) {
         return -1;
+    }
 
     quantize_ctx ctx;
     if (quantize_ctx_open(&ctx, model_dir)) {
@@ -139,7 +146,8 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     int failed = 0;
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
-            quantize_write_bytes(out, &version, sizeof(version), 1) || quantize_write_bytes(out, p, sizeof(*p), 1) ||
+            quantize_write_bytes(out, &version, sizeof(version), 1) ||
+            quantize_write_bytes(out, p, sizeof(*p), 1) ||
             quantize_write_bytes(out, model.layer_types, sizeof(int), p->n_layers)) {
         failed = 1;
         goto cleanup;
@@ -247,7 +255,11 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
         snprintf(scalar0, sizeof(scalar0), "model.language_model.layers.%d.layer_scalar", l);
         snprintf(scalar1, sizeof(scalar1), "model.language_model.layers.%d.layer_scalar.weight", l);
         snprintf(scalar2, sizeof(scalar2), "model.language_model.layers.%d.layer_output_scale.weight", l);
-        const char *names[] = { scalar0, scalar1, scalar2 };
+        const char *names[] = {
+            scalar0,
+            scalar1,
+            scalar2
+        };
         if (quantize_write_scalar_or_default(&ctx, out, names, 3, 1.0f)) {
             failed = 1;
             goto cleanup;
@@ -263,8 +275,10 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0)
+    if (fclose(out) != 0) {
         failed = 1;
+    }
+
     quantize_ctx_close(&ctx);
     free(model.layer_types);
 
@@ -284,3 +298,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_g4u_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+
