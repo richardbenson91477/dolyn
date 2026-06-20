@@ -1,5 +1,6 @@
-#include "dolen_g4u_common.h"
 #include "dolen_quantize_common.h"
+#include "dolen_g4u_common.h"
+
 
 int load_config_g4u(G4U *model, const char *model_dir) {
     config_g4u *p = &model->config;
@@ -297,3 +298,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_g4u_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

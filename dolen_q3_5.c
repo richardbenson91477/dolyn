@@ -1,5 +1,6 @@
 #include "dolen_q3_5_common.h"
 
+
 int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -253,46 +254,6 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     alloc_state_q3_5(&(model_q3_5->state), &(model_q3_5->config));
 
     return 0;
-}
-
-void rmsnorm_gemma(float *o, float *x, float *weight, int size, float eps) {
-    float ss = 0.0f;
-
-#pragma omp simd reduction(+ : ss)
-    for (int j = 0; j < size; j++) {
-        ss += x[j] * x[j];
-    }
-    ss = 1.0f / sqrtf(ss / size + eps);
-
-#pragma omp simd
-    for (int j = 0; j < size; j++) {
-        o[j] = (1.0f + weight[j]) * (ss * x[j]);
-    }
-}
-
-void rmsnorm_gated(float *o, float *x, float *gate, float *weight, int n_heads, int d_v, float eps) {
-#pragma omp parallel for
-    for (int h = 0; h < n_heads; h++) {
-        float *x_h = x + h * d_v;
-        float *gate_h = gate + h * d_v;
-        float *o_h = o + h * d_v;
-
-        float ss = 0.0f;
-#pragma omp simd reduction(+ : ss)
-        for (int j = 0; j < d_v; j++) {
-            ss += x_h[j] * x_h[j];
-        }
-
-        ss /= d_v;
-        ss += eps;
-        ss = 1.0f / sqrtf(ss);
-
-#pragma omp simd
-        for (int j = 0; j < d_v; j++) {
-            float x_norm = ss * x_h[j];
-            o_h[j] = weight[j] * x_norm * silu(gate_h[j]);
-        }
-    }
 }
 
 void forward_q3_5_attention_layer(Q3_5 *model_q3_5, int l, int la, int pos) {
@@ -671,3 +632,4 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3_5, "dolen3_5");
 }
+

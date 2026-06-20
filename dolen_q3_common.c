@@ -1,5 +1,6 @@
 #include "dolen_q3_common.h"
 
+
 void alloc_state_q3(state_q3 *s, config_q3 *p) {
     int all_heads_dim = p->n_heads * p->head_dim;
     int kv_dim = p->n_kv_heads * p->head_dim;
@@ -114,3 +115,4 @@ void free_q3(Q3 *model_q3) {
         free_state_q3(&model_q3->state);
     }
 }
+

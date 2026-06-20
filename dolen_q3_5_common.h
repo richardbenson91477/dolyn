@@ -1,7 +1,12 @@
 #ifndef dolen_Q3_5_COMMON_H
 #define DOLEN_Q3_5_COMMON_H
 
-#include "dolen_common.h"
+#include "dolen_common_cmi.h"
+#include "dolen_common_io.h"
+#include "dolen_common_math.h"
+#include "dolen_common_mem.h"
+#include "dolen_common_qtensor.h"
+
 
 typedef struct {
     int dim;
@@ -89,10 +94,13 @@ typedef struct {
     int *deltanet_layer_indices;
 } Q3_5;
 
+
 void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p);
 
 void free_state_q3_5(state_q3_5 *s);
 
 void free_q3_5(Q3_5 *model_q3_5);
 
+
 #endif // DOLEN_Q3_5_COMMON_H
+

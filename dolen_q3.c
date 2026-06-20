@@ -1,5 +1,6 @@
 #include "dolen_q3_common.h"
 
+
 int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -342,3 +343,4 @@ static model_iface *init_q3(const char *model_path, int seq_n_max, bool _think) 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3, "dolen3");
 }
+

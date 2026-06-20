@@ -1,5 +1,6 @@
 #include "dolen_ig4_1_common.h"
 
+
 int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -337,3 +338,4 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
+

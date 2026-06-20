@@ -1,7 +1,9 @@
 #include "dolen_quantize_common.h"
 
+
 static int checked_mul_size(size_t a, size_t b, size_t *out) {
-    if (a != 0 && b > SIZE_MAX / a) {
+    if ((a != 0) &&
+            (b > (SIZE_MAX / a))) {
         return -1;
     }
     *out = a * b;
@@ -9,7 +11,7 @@ static int checked_mul_size(size_t a, size_t b, size_t *out) {
 }
 
 static int checked_add_u64(uint64_t a, uint64_t b, uint64_t *out) {
-    if (b > UINT64_MAX - a) {
+    if (b > (UINT64_MAX - a)) {
         return -1;
     }
     *out = a + b;
@@ -27,35 +29,15 @@ int quantize_write_bytes(FILE *f, const void *data, size_t size, size_t count) {
     return 0;
 }
 
-static int seek_abs(FILE *f, uint64_t offset) {
-    if (offset > (uint64_t)INT64_MAX) {
-        log_msg(stderr, "ERROR: File offset is too large\n");
-        return -1;
-    }
-    if (fseeko(f, (off_t)offset, SEEK_SET) != 0) {
-        log_msg(stderr, "ERROR: Seek failed: %s\n", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
-static uint64_t read_le64(const uint8_t bytes[8]) {
-    uint64_t value = 0;
-    for (int i = 7; i >= 0; i--) {
-        value = (value << 8) | bytes[i];
-    }
-    return value;
-}
-
 static size_t dtype_size(st_dtype dtype) {
     switch (dtype) {
-    case ST_DTYPE_F16:
-    case ST_DTYPE_BF16:
-        return sizeof(uint16_t);
-    case ST_DTYPE_F32:
-        return sizeof(float);
-    default:
-        return 0;
+        case ST_DTYPE_F16:
+        case ST_DTYPE_BF16:
+            return sizeof(uint16_t);
+        case ST_DTYPE_F32:
+            return sizeof(float);
+        default:
+            return 0;
     }
 }
 
@@ -588,8 +570,8 @@ int quantize_write_f32_or_zeros(quantize_ctx *ctx, FILE *out, const char *name, 
 
 int quantize_write_empty_qtensor(FILE *out) {
     int zero = 0;
-    return quantize_write_bytes(out, &zero, sizeof(zero), 1) || quantize_write_bytes(out, &zero, sizeof(zero), 1) ? -1
-                                                                                                                  : 0;
+    return quantize_write_bytes(out, &zero, sizeof(zero), 1) ||
+            quantize_write_bytes(out, &zero, sizeof(zero), 1) ? -1 : 0;
 }
 
 int quantize_write_qtensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry, int rows, int cols) {
@@ -709,11 +691,12 @@ int quantize_write_qtensor_or_empty(quantize_ctx *ctx, FILE *out, const char *na
     return quantize_write_qtensor_entry(ctx, out, entry, rows, cols);
 }
 
-int quantize_write_scalar_or_default(
-        quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names, float default_value) {
+int quantize_write_scalar_or_default( quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names,
+        float default_value) {
     const weightmap_entry *entry = quantize_find_last_tensor(ctx, names, n_names);
     if (! entry) {
         return quantize_write_bytes(out, &default_value, sizeof(default_value), 1);
     }
     return quantize_write_f32_entry(ctx, out, entry, 1);
 }
+

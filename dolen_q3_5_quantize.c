@@ -1,15 +1,18 @@
-#include "dolen_q3_5_common.h"
 #include "dolen_quantize_common.h"
+#include "dolen_q3_5_common.h"
+
 
 static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
-    if (! layer_types || (layer_types->type != JSON_ARRAY)) {
+    if ((! layer_types) ||
+            (layer_types->type != JSON_ARRAY)) {
         return 0;
     }
     if (layer_idx >= (int)layer_types->data.array.count) {
         return 0;
     }
     JsonValue *lt = json_array_get(layer_types, layer_idx);
-    if ((! lt) || (lt->type != JSON_STRING)) {
+    if ((! lt) ||
+            (lt->type != JSON_STRING)) {
         return 0;
     }
     const char *type_str = lt->data.string;
@@ -181,12 +184,15 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     model.layer_types = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     model.attn_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
     model.deltanet_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
-    if (! model.layer_types || ! model.attn_layer_indices || ! model.deltanet_layer_indices) {
+    if ((! model.layer_types) ||
+            (! model.attn_layer_indices) ||
+            (! model.deltanet_layer_indices)) {
         free(model.layer_types);
         free(model.attn_layer_indices);
         free(model.deltanet_layer_indices);
         return -1;
     }
+    // FIXME: why are we loading the config.json twice?
     load_q3_5_layer_types(&model, model_dir);
 
     quantize_ctx ctx;
@@ -371,3 +377,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_q3_5_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

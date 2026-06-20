@@ -1,5 +1,6 @@
 #include "dolen_g4u_common.h"
 
+
 int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -119,28 +120,6 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     return 0;
 }
 
-void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int with_scale) {
-    float ss = 0.0f;
-
-#pragma omp simd reduction(+ : ss)
-    for (int j = 0; j < size; j++) {
-        ss += x[j] * x[j];
-    }
-    ss = 1.0f / sqrtf(ss / size + eps);
-
-    if (with_scale && weight) {
-#pragma omp simd
-        for (int j = 0; j < size; j++) {
-            o[j] = x[j] * ss * weight[j];
-        }
-    } else {
-#pragma omp simd
-        for (int j = 0; j < size; j++) {
-            o[j] = x[j] * ss;
-        }
-    }
-}
-
 static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int vec_dim, int pos) {
     if (rotary_dim <= 0) {
         return;
@@ -157,10 +136,6 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
         vec[i] = v0 * c - v1 * sn;
         vec[i + cache_stride] = v0 * sn + v1 * c;
     }
-}
-
-static inline float gelu_g4u(float x) {
-    return 0.5f * x * (1.0f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x)));
 }
 
 float *forward_g4u(G4U *model, int token, int pos) {
@@ -310,7 +285,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
 #pragma omp parallel for
         for (int i = 0; i < ffn_dim; i++) {
-            s->hb[i] = gelu_g4u(s->hb[i]) * s->hb2[i];
+            s->hb[i] = gelu(s->hb[i]) * s->hb2[i];
         }
 
         quantize_vec(&s->hq, s->hb, ffn_dim);
@@ -397,3 +372,4 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_g4u, "dolen_g4u");
 }
+

@@ -1,20 +1,27 @@
 #ifndef DOLEN_Q_COMMON_H
 #define DOLEN_Q_COMMON_H
 
-#include <errno.h>
-#include <limits.h>
-#include <sys/types.h>
-
 #include "ext/csafetensors.h"
 #include "ext/json.h"
 
-#include "dolen_common.h"
+#include "dolen_common_sampler.h"
+#include "dolen_common_cmi.h"
+#include "dolen_common_io.h"
+#include "dolen_common_math.h"
+#include "dolen_common_mem.h"
+#include "dolen_common_qtensor.h"
+#include "dolen_common_tokenizer.h"
 
-#ifndef DOLEN_QUANTIZE_CHUNK_BYTES
+
 #define DOLEN_QUANTIZE_CHUNK_BYTES (16u * 1024u * 1024u)
-#endif
 
-typedef enum { ST_DTYPE_UNSUPPORTED = 0, ST_DTYPE_F16, ST_DTYPE_BF16, ST_DTYPE_F32 } st_dtype;
+
+typedef enum {
+    ST_DTYPE_UNSUPPORTED = 0,
+    ST_DTYPE_F16,
+    ST_DTYPE_BF16,
+    ST_DTYPE_F32
+} st_dtype;
 
 typedef struct {
     char *tensor_name;
@@ -42,6 +49,7 @@ typedef struct {
     size_t chunk_bytes;
 } quantize_ctx;
 
+
 void quantize_group(qtensor *qt, const float *weights, int rows, int cols);
 int quantize_write_bytes(FILE *out, const void *data, size_t size, size_t count);
 
@@ -67,4 +75,6 @@ int quantize_write_empty_qtensor(FILE *out);
 int quantize_write_scalar_or_default(
         quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names, float default_value);
 
+
 #endif // DOLEN_Q_COMMON_H
+

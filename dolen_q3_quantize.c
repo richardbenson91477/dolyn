@@ -1,18 +1,6 @@
-#include "dolen_q3_common.h"
 #include "dolen_quantize_common.h"
+#include "dolen_q3_common.h"
 
-static float get_json_float_val(JsonValue *v, float def) {
-    if (! v) {
-        return def;
-    }
-    if (v->type == JSON_NUMBER) {
-        return (float)v->data.number;
-    }
-    if (v->type == JSON_STRING) {
-        return (float)atof(v->data.string);
-    }
-    return def;
-}
 
 int load_config_q3(const char *model_dir, config_q3 *config) {
     char config_path[PATH_MAX];
@@ -204,3 +192,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_q3_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

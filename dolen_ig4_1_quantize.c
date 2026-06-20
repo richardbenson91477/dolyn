@@ -1,5 +1,6 @@
-#include "dolen_ig4_1_common.h"
 #include "dolen_quantize_common.h"
+#include "dolen_ig4_1_common.h"
+
 
 int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     char config_path[PATH_MAX];
@@ -201,3 +202,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_ig4_1_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

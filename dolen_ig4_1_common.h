@@ -1,7 +1,12 @@
 #ifndef DOLEN_IG4_1_COMMON_H
 #define DOLEN_IG4_1_COMMON_H
 
-#include "dolen_common.h"
+#include "dolen_common_cmi.h"
+#include "dolen_common_io.h"
+#include "dolen_common_math.h"
+#include "dolen_common_mem.h"
+#include "dolen_common_qtensor.h"
+
 
 typedef struct {
     int dim;
@@ -63,10 +68,13 @@ typedef struct {
     state_ig4_1 state;
 } IG4_1;
 
+
 void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p);
 
 void free_state_ig4_1(state_ig4_1 *s);
 
 void free_ig4_1(IG4_1 *model_ig4_1);
 
+
 #endif // DOLEN_IG4_1_COMMON_H
+

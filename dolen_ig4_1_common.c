@@ -1,5 +1,6 @@
 #include "dolen_ig4_1_common.h"
 
+
 void alloc_state_ig4_1(state_ig4_1 *s, config_ig4_1 *p) {
     int dim = p->dim;
     int head_size = p->d_head > 0 ? p->d_head : dim / p->n_heads;
@@ -112,3 +113,4 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
         free_state_ig4_1(&model_ig4_1->state);
     }
 }
+

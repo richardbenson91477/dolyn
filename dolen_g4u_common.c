@@ -1,5 +1,6 @@
 #include "dolen_g4u_common.h"
 
+
 void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
@@ -181,3 +182,4 @@ void free_g4u(G4U *model) {
 
     memset(model, 0, sizeof(G4U));
 }
+
