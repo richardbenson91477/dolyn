@@ -70,7 +70,7 @@ int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name,
 int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name,
         int rows, int cols, q_type_t type);
 
-int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry,
+int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const char *name, const weightmap_entry *entry,
         int rows, int cols, q_type_t type);
 
 int quantize_write_empty_tensor(FILE *out);
@@ -79,6 +79,7 @@ int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out, const char *c
         float default_value);
 
 q_type_t parse_q_type(const char *str);
+
 
 #endif // DOLEN_Q_COMMON_H
 

@@ -107,7 +107,6 @@ static int write_layer_tensor(
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
     }
-    log_msg(stdout, "INFO: wrote \"%s\", %d rows, %d cols, %d type\n", name, rows, cols, (int)type);
     return 0;
 }
 
@@ -150,7 +149,8 @@ int quantize_g4u_to_file(
     const char *embed_names[2] = { "model.language_model.embed_tokens.weight", "lm_head.weight" };
     size_t n_embed_names = p->tie_word_embeddings ? 1 : 2;
     const weightmap_entry *embed = quantize_find_last_tensor(&ctx, embed_names, n_embed_names);
-    if (quantize_write_tensor_entry(&ctx, out, embed, p->vocab_size, p->dim, embed_type)) {
+    // FIXME: (?) 
+    if (quantize_write_tensor_entry(&ctx, out, "(?)", embed, p->vocab_size, p->dim, embed_type)) {
         log_msg(stderr, "ERROR: Failed quantizing embedding/classifier weights\n");
         failed = 1;
         goto cleanup;
@@ -293,19 +293,24 @@ int main(int argc, char *argv[]) {
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     for (int i = 3; i < argc; i++) {
-        if (strcmp(argv[i], "--type") == 0 && i + 1 < argc) {
-            q_type_t t = parse_q_type(argv[++i]);
+        if ((! strcmp(argv[i], "--type")) && ((i + 1) < argc)) {
+            i += 1;
+            q_type_t t = parse_q_type(argv[i]);
             embed_type = attn_type = mlp_type = t;
-        } else if (strcmp(argv[i], "--embed") == 0 && i + 1 < argc) {
-            embed_type = parse_q_type(argv[++i]);
+        } else if ((! strcmp(argv[i], "--embed")) && ((i + 1) < argc)) {
+            i += 1;
+            embed_type = parse_q_type(argv[i]);
         }
-        else if (strcmp(argv[i], "--attn") == 0 && i + 1 < argc) {
-            attn_type = parse_q_type(argv[++i]);
+        else if ((! strcmp(argv[i], "--attn")) && ((i + 1) < argc)) {
+            i += 1;
+            attn_type = parse_q_type(argv[i]);
         }
-        else if (strcmp(argv[i], "--mlp") == 0 && i + 1 < argc) {
-            mlp_type = parse_q_type(argv[++i]);
+        else if ((! strcmp(argv[i], "--mlp")) && ((i + 1) < argc)) {
+            i += 1;
+            mlp_type = parse_q_type(argv[i]);
         }
     }
 
     return quantize_g4u_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

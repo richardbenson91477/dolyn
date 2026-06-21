@@ -508,8 +508,10 @@ static int read_f32_range(quantize_ctx *ctx, const weightmap_entry *entry, uint6
     return 0;
 }
 
-int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry,
+int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const char *name, const weightmap_entry *entry,
         int rows, int cols, q_type_t type) {
+    log_msg(stdout, "INFO: writing(2) \"%s\", %d rows, %d cols, %d type\n", name, rows, cols, (int)type);
+
     if (rows <= 0 ||
             cols <= 0) {
         log_msg(stderr, "ERROR: Invalid quantized tensor shape %d x %d\n", rows, cols);
@@ -725,16 +727,19 @@ int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_en
 
 int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name,
         int rows, int cols, q_type_t type) {
-    return quantize_write_tensor_entry(ctx, out, quantize_find_tensor(ctx, name), rows, cols, type);
+    log_msg(stdout, "INFO: writing \"%s\", %d rows, %d cols, %d type\n", name, rows, cols, (int)type);
+
+    return quantize_write_tensor_entry(ctx, out, name, quantize_find_tensor(ctx, name), rows, cols, type);
 }
 
 int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name,
         int rows, int cols, q_type_t type) {
+
     const weightmap_entry *entry = quantize_find_tensor(ctx, name);
     if (! entry) {
         return quantize_write_empty_tensor(out);
     }
-    return quantize_write_tensor_entry(ctx, out, entry, rows, cols, type);
+    return quantize_write_tensor_entry(ctx, out, name, entry, rows, cols, type);
 }
 
 int quantize_write_empty_tensor(FILE *out) {

@@ -3,6 +3,7 @@
 #include "dolen_common_io.h"
 #include "dolen_common_mem.h"
 
+
 void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *prompt, int steps_n_max) {
     if (prompt == NULL) {
         prompt = "";

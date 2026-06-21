@@ -1,5 +1,6 @@
 #include "dolen_common_mem.h"
 
+
 void *a_calloc(size_t size) {
     if (! size) {
         return NULL;

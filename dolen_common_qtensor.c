@@ -2,6 +2,7 @@
 #include "dolen_common_io.h"
 #include "dolen_common_mem.h"
 
+
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
     if ((row_idx >= qt->rows) ||
             (row_idx < 0)) {

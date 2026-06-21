@@ -1,6 +1,8 @@
 #include "dolen_common_io.h"
 
+
 char *log_path = NULL;
+
 
 long time_in_ms(void) {
     struct timespec time;
