@@ -50,8 +50,6 @@ typedef struct {
 } quantize_ctx;
 
 
-void quantize_group(qtensor *qt, const float *weights, int rows, int cols);
-
 int quantize_write_bytes(FILE *out, const void *data, size_t size, size_t count);
 
 int load_safetensors_index(safetensors_idx *idx, const char *model_dir);
@@ -79,3 +77,4 @@ int quantize_write_scalar_or_default(
 
 
 #endif // DOLEN_Q_COMMON_H
+

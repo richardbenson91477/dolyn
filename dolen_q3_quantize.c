@@ -183,3 +183,4 @@ int main(int argc, char *argv[]) {
     }
     return quantize_q3_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

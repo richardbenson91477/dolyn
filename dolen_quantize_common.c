@@ -247,24 +247,6 @@ static void quantize_group_into(int8_t *q, float *s, const float *weights, int r
     }
 }
 
-void quantize_group(qtensor *qt, const float *weights, int rows, int cols) {
-    qt->rows = rows;
-    qt->cols = cols;
-    qt->type = Q_TYPE_Q8;
-    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
-
-    qt->data = a_calloc((size_t)rows * cols * sizeof(int8_t));
-    qt->s = a_calloc((size_t)rows * num_groups * sizeof(float));
-    if (((rows > 0) &&
-            (cols > 0)) &&
-                ((! qt->data) ||
-                 (! qt->s))) {
-        log_msg(stderr, "ERROR: Quantization allocation failed\n");
-        exit(EXIT_FAILURE);
-    }
-    quantize_group_into((int8_t *)qt->data, qt->s, weights, rows, cols);
-}
-
 int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     memset(idx, 0, sizeof(*idx));
 

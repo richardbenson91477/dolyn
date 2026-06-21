@@ -386,3 +386,4 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_g4u, "dolen_g4u");
 }
+
