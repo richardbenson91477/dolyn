@@ -64,7 +64,7 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     }
 
     json_free(root);
-    log_msg(stderr, "INFO: Model config loaded\n");
+    log_msg(stdout, "INFO: Model config loaded\n");
     return 0;
 }
 
@@ -76,6 +76,7 @@ static int write_layer_tensor(
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
     }
+    log_msg(stdout, "INFO: wrote \"%s\", %d rows, %d cols, %d type\n", name, rows, cols, (int)type);
     return 0;
 }
 
@@ -172,13 +173,13 @@ cleanup:
         return -1;
     }
 
-    log_msg(stderr, "INFO: Quantized model saved to %s\n", output_file);
+    log_msg(stdout, "INFO: Quantized model saved to %s\n", output_file);
     return 0;
 }
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        log_msg(stderr, "Usage: dolen3_quantize <model_dir> <output_file>\n");
+        log_msg(stdout, "Usage: dolen3_quantize <model_dir> <output_file>\n");
         return EXIT_FAILURE;
     }
     return quantize_q3_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;

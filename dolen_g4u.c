@@ -123,7 +123,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     }
 
     fclose(f);
-    log_msg(stderr, "INFO: Quantized G4U loaded from %s\n", filepath);
+    log_msg(stdout, "INFO: Quantized G4U loaded from %s\n", filepath);
 
     alloc_state_g4u(&model->state, p, w);
 

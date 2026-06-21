@@ -201,7 +201,7 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     }
 
     fclose(f);
-    log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
+    log_msg(stdout, "INFO: Quantized model loaded from %s\n", filepath);
 
     alloc_state_q3_5(&(model_q3_5->state), &(model_q3_5->config));
 

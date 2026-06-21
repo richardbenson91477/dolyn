@@ -52,7 +52,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 
     if (pos > 1) {
         long end = time_in_ms();
-        log_msg(stderr, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end - start) * 1000);
+        log_msg(stdout, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end - start) * 1000);
     }
 
     free(prompt_tokens);
@@ -197,7 +197,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
                 long end = time_in_ms();
                 if ((generated_tokens > 0) &&
                         ((end - start) > 0)) {
-                    log_msg(stderr, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
+                    log_msg(stdout, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
                 }
                 user_turn = 1;
             }
@@ -218,24 +218,24 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
 }
 
 void error_usage(const char *prog_name) {
-    log_msg(stderr, "Usage: %s [options]\n", prog_name);
-    log_msg(stderr, "Options:\n");
-    log_msg(stderr, " -m  | --model <str>:         model path, default: none\n");
-    log_msg(stderr, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
-    log_msg(stderr, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
-    log_msg(stderr, " -k  | --top_k <int>:         top-k value, default: %d\n", TOP_K_DEFAULT);
-    log_msg(stderr, " -s  | --seed <int>:          random seed, default: current time\n");
-    log_msg(stderr, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
-    log_msg(stderr, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
-    log_msg(stderr, " -p  | --prompt <str>:        prompt, default: none\n");
-    log_msg(stderr, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
-    log_msg(stderr, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
-    log_msg(stderr, " -M  | --mode <str>:          generate|chat, default: chat\n");
-    log_msg(stderr, " -sp | --system_prompt <str>: system prompt, default: none\n");
-    log_msg(stderr, " -d  | --debug:               enable debug output, default: disabled\n");
-    log_msg(stderr, " -l  | --log <str>:           path to append all I/O to, default: none\n");
-    log_msg(stderr, " -h  | --help:                print this help and exit\n");
-    log_msg(stderr, " -th | --think:               enable think-mode chat template, default: disabled\n");
+    log_msg(stdout, "Usage: %s [options]\n", prog_name);
+    log_msg(stdout, "Options:\n");
+    log_msg(stdout, " -m  | --model <str>:         model path, default: none\n");
+    log_msg(stdout, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
+    log_msg(stdout, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
+    log_msg(stdout, " -k  | --top_k <int>:         top-k value, default: %d\n", TOP_K_DEFAULT);
+    log_msg(stdout, " -s  | --seed <int>:          random seed, default: current time\n");
+    log_msg(stdout, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
+    log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
+    log_msg(stdout, " -p  | --prompt <str>:        prompt, default: none\n");
+    log_msg(stdout, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
+    log_msg(stdout, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
+    log_msg(stdout, " -M  | --mode <str>:          generate|chat, default: chat\n");
+    log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
+    log_msg(stdout, " -d  | --debug:               enable debug output, default: disabled\n");
+    log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
+    log_msg(stdout, " -h  | --help:                print this help and exit\n");
+    log_msg(stdout, " -th | --think:               enable think-mode chat template, default: disabled\n");
 
     exit(EXIT_FAILURE);
 }
@@ -351,7 +351,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     if (! rng_seed) {
         rng_seed = (unsigned int)time(NULL);
     }
-    log_msg(stderr, "INFO: Using seed %lu\n", rng_seed);
+    log_msg(stdout, "INFO: Using seed %lu\n", rng_seed);
 
     if (prompt_file) {
         if (prompt) {

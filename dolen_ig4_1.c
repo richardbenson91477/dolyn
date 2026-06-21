@@ -38,13 +38,6 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     config_ig4_1 *p = &model_ig4_1->config;
     weights_ig4_1 *w = &model_ig4_1->weights;
 
-    log_msg(stderr,
-            "INFO: Granite config: dim=%d heads=%d kv_heads=%d head_dim=%d "
-            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
-            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
-            p->dim, p->n_heads, p->n_kv_heads, p->d_head, p->n_layer, p->seq_len, p->rope_theta,
-            p->attention_multiplier, p->embedding_multiplier, p->residual_multiplier, p->logits_scaling);
-
     if (! (p->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", p->rope_theta);
         fclose(f);
@@ -108,7 +101,7 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     }
 
     fclose(f);
-    log_msg(stderr, "INFO: Quantized model loaded from %s\n", filepath);
+    log_msg(stdin, "INFO: Quantized model loaded from %s\n", filepath);
     alloc_state_ig4_1(&(model_ig4_1->state), &(model_ig4_1->config));
     return 0;
 }

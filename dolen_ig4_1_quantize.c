@@ -72,13 +72,6 @@ int load_config_ig4_1(const char *model_dir, config_ig4_1 *config) {
     config->residual_multiplier = json_get_double(json_object_get(root, "residual_multiplier"), 1.0);
     config->logits_scaling = json_get_double(json_object_get(root, "logits_scaling"), 1.0);
 
-    log_msg(stderr,
-            "INFO: Model config loaded: dim=%d heads=%d kv_heads=%d head_dim=%d "
-            "layers=%d seq_len=%d rope_theta=%.9g attn_mult=%.9g "
-            "emb_mult=%.9g residual_mult=%.9g logits_scaling=%.9g\n",
-            config->dim, config->n_heads, config->n_kv_heads, config->d_head, config->n_layer, config->seq_len,
-            config->rope_theta, config->attention_multiplier, config->embedding_multiplier, config->residual_multiplier,
-            config->logits_scaling);
     json_free(root);
     return 0;
 }
@@ -91,6 +84,7 @@ static int write_layer_tensor( quantize_ctx *ctx, FILE *out, int layer, const ch
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
     }
+    log_msg(stdout, "INFO: wrote \"%s\", %d rows, %d cols, %d type\n", name, rows, cols, (int)type);
     return 0;
 }
 
@@ -183,13 +177,13 @@ cleanup:
         return -1;
     }
 
-    log_msg(stderr, "INFO: Quantized model saved to %s\n", output_file);
+    log_msg(stdout, "INFO: Quantized model saved to %s\n", output_file);
     return 0;
 }
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        log_msg(stderr, "Usage: dolen_ig4_1_quantize <model_dir> <output_file>\n");
+        log_msg(stdout, "Usage: dolen_ig4_1_quantize <model_dir> <output_file>\n");
         return EXIT_FAILURE;
     }
     return quantize_ig4_1_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;

@@ -71,7 +71,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     p->use_rope_freqs = 0;
     if (rope_type &&
             (! strcmp(rope_type, "proportional"))) {
-        log_msg(stderr, "INFO: Full attention uses config-derived proportional RoPE\n");
+        log_msg(stdout, "INFO: Full attention uses config-derived proportional RoPE\n");
     }
 
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
@@ -96,7 +96,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     }
 
     json_free(root);
-    log_msg(stderr, "INFO: G4U config loaded\n");
+    log_msg(stdout, "INFO: G4U config loaded\n");
     return 0;
 }
 
@@ -108,6 +108,7 @@ static int write_layer_tensor(
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
     }
+    log_msg(stdout, "INFO: wrote \"%s\", %d rows, %d cols, %d type\n", name, rows, cols, (int)type);
     return 0;
 }
 
@@ -281,13 +282,13 @@ cleanup:
         return -1;
     }
 
-    log_msg(stderr, "INFO: Quantized G4U saved to %s\n", output_file);
+    log_msg(stdout, "INFO: Quantized G4U saved to %s\n", output_file);
     return 0;
 }
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        log_msg(stderr, "Usage: dolen_g4u_quantize <model_dir> <output_file>\n");
+        log_msg(stdout, "Usage: dolen_g4u_quantize <model_dir> <output_file>\n");
         return EXIT_FAILURE;
     }
     return quantize_g4u_to_file(argv[1], argv[2]) ? EXIT_FAILURE : EXIT_SUCCESS;
