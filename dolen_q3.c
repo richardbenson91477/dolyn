@@ -59,7 +59,7 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
         return -1;
     }
 
-    read_qt(f, &w->token_embedding_table);
+    read_qt(f, &w->embed_tokens_weight);
 
     for (int l = 0; l < p->n_layers; l++) {
         read_qt(f, &w->rms_att_weight[l]);
@@ -79,8 +79,9 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     if (! p->shared_classifier) {
         read_qt(f, &w->wcls);
-    } else {
-        w->wcls = w->token_embedding_table;
+    }
+    else {
+        w->wcls = w->embed_tokens_weight;
     }
 
     w->wq = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -130,7 +131,7 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
     int all_heads_dim = p->n_heads * p->head_dim;
     float eps = p->rms_norm_eps;
 
-    dequantize_row(s->x, &w->token_embedding_table, token);
+    dequantize_row(s->x, &w->embed_tokens_weight, token);
 
     for (int l = 0; l < p->n_layers; l++) {
         long long loff = l * p->seq_len * kv_dim;
@@ -177,7 +178,8 @@ float *forward_q3(Q3 *model_q3, int token, int pos) {
                     k_ptr[j + rotary_half] = x_val * sn + y_val * c;
                 }
             }
-        } else {
+        }
+        else {
 #pragma omp parallel for
             for (int h = 0; h < p->n_heads; h++) {
                 float *q_ptr = s->q + h * p->head_dim;

@@ -182,7 +182,7 @@ int quantize_ig4_1_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0) {
+    if (fclose(out)) {
         failed = 1;
     }
     quantize_ctx_close(&ctx);

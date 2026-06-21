@@ -58,7 +58,8 @@ int load_config_q3(const char *model_dir, config_q3 *config) {
     if (rope_scaling &&
             (rope_scaling->type == JSON_OBJECT)) {
         config->rope_scaling_factor = get_json_float_val(json_object_get(rope_scaling, "factor"), 1.0f);
-    } else {
+    }
+    else {
         config->rope_scaling_factor = 1.0f;
     }
 
@@ -161,7 +162,7 @@ int quantize_q3_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0) {
+    if (fclose(out)) {
         failed = 1;
     }
     quantize_ctx_close(&ctx);

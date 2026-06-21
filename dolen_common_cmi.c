@@ -29,7 +29,8 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 
         if (pos < (prompt_tokens_n - 1)) {
             next = prompt_tokens[pos + 1];
-        } else {
+        }
+        else {
             next = sample(sampler, logits);
         }
 
@@ -58,10 +59,10 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
 }
 
 static const chat_template CHAT_TEMPLATE_CHATML = {
-    .system = "<|im_start|>system\n%s<|im_end|>\n",
-    .main = "<|im_start|>user\n%s<|im_end|>\n"
-            "<|im_start|>assistant\n",
-    .end_turn = "<|im_end|>\n",
+    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n",
+    .end_turn = "<|im_end|\x3e" "\n",
 };
 
 static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn, const char *system_prompt,
@@ -74,7 +75,8 @@ static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn, c
             system_prompt[0]) {
         len1 = snprintf(NULL, 0, chat_tmpl->system, system_prompt);
         len2 = snprintf(NULL, 0, chat_tmpl->main, prompt);
-    } else {
+    }
+    else {
         len1 = snprintf(NULL, 0, chat_tmpl->end_turn);
         len2 = snprintf(NULL, 0, chat_tmpl->main, prompt);
     }
@@ -90,7 +92,8 @@ static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn, c
             system_prompt[0]) {
         snprintf(rendered, len1 + 1, chat_tmpl->system, system_prompt);
         snprintf(rendered + len1, len2 + 1, chat_tmpl->main, prompt);
-    } else {
+    }
+    else {
         snprintf(rendered, len1 + 1, chat_tmpl->end_turn);
         snprintf(rendered + len1, len2 + 1, chat_tmpl->main, prompt);
     }
@@ -145,7 +148,8 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
                     init_prompt) {
                 strncpy(prompt, init_prompt, prompt_n_max);
                 prompt[prompt_n_max] = '\0';
-            } else {
+            }
+            else {
                 log_msg(stdout, "In: ");
                 read_msg(prompt, prompt_n_max);
             }
@@ -178,7 +182,8 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
 
         if (user_idx < prompt_tokens_n) {
             token = prompt_tokens[user_idx++];
-        } else {
+        }
+        else {
             token = next;
         }
 
@@ -195,7 +200,8 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
                     log_msg(stderr, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
                 }
                 user_turn = 1;
-            } else {
+            }
+            else {
                 char *piece = decode(tokenizer, next, _debug);
                 log_msg(stdout, "%s", piece);
                 generated_tokens++;
@@ -258,12 +264,14 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         if ((! strcmp(argv[i], "-h")) ||
                 (! strcmp(argv[i], "--help"))) {
             error_usage(prog_name);
-        } else if ((! strcmp(argv[i], "-th")) ||
+        }
+        else if ((! strcmp(argv[i], "-th")) ||
                 (! strcmp(argv[i], "--think"))) {
             _think = true;
             i += 1;
             continue;
-        } else if ((! strcmp(argv[i], "-d")) ||
+        }
+        else if ((! strcmp(argv[i], "-d")) ||
                 (! strcmp(argv[i], "--debug"))) {
             _debug = true;
             i += 1;
@@ -277,45 +285,58 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         if ((! strcmp(argv[i], "-m")) ||
                 (! strcmp(argv[i], "--model"))) {
             model_path = argv[i + 1];
-        } else if ((! strcmp(argv[i], "-t")) ||
+        }
+        else if ((! strcmp(argv[i], "-t")) ||
                 (! strcmp(argv[i], "--temp"))) {
             temperature = atof(argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-k")) ||
+        }
+        else if ((! strcmp(argv[i], "-k")) ||
                 (! strcmp(argv[i], "--top_k"))) {
             topk = atoi(argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-tp")) ||
+        }
+        else if ((! strcmp(argv[i], "-tp")) ||
                 (! strcmp(argv[i], "--top_p"))) {
             topp = atof(argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-s")) ||
+        }
+        else if ((! strcmp(argv[i], "-s")) ||
                 (! strcmp(argv[i], "--seed"))) {
             rng_seed = atoi(argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-n")) ||
+        }
+        else if ((! strcmp(argv[i], "-n")) ||
                 (! strcmp(argv[i], "--seq_n"))) {
             seq_n_max = atoi(argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-pn")) ||
+        }
+        else if ((! strcmp(argv[i], "-pn")) ||
                 (! strcmp(argv[i], "--prompt_n"))) {
             prompt_n_max = atoi(argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-p")) ||
+        }
+        else if ((! strcmp(argv[i], "-p")) ||
                 (! strcmp(argv[i], "--prompt"))) {
             prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(prompt, argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-pf")) ||
+        }
+        else if ((! strcmp(argv[i], "-pf")) ||
                 (! strcmp(argv[i], "--prompt_file"))) {
             prompt_file = argv[i + 1];
-        } else if ((! strcmp(argv[i], "-tk")) ||
+        }
+        else if ((! strcmp(argv[i], "-tk")) ||
                 (! strcmp(argv[i], "--tokenizer"))) {
             tokenizer_path = argv[i + 1];
-        } else if ((! strcmp(argv[i], "-M")) ||
+        }
+        else if ((! strcmp(argv[i], "-M")) ||
                 (! strcmp(argv[i], "--mode"))) {
             mode = argv[i + 1];
-        } else if ((! strcmp(argv[i], "-sp")) ||
+        }
+        else if ((! strcmp(argv[i], "-sp")) ||
                 (! strcmp(argv[i], "--system_prompt"))) {
             system_prompt = a_calloc(strlen(argv[i + 1]) + 1);
             strcpy(system_prompt, argv[i + 1]);
-        } else if ((! strcmp(argv[i], "-l")) ||
+        }
+        else if ((! strcmp(argv[i], "-l")) ||
                 (! strcmp(argv[i], "--log"))) {
             log_path = argv[i + 1];
-        } else {
+        }
+        else {
             error_usage(prog_name);
         }
 
@@ -377,9 +398,11 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
     if (! memcmp(mode, "generate", strlen("generate") + 1)) {
         generate_common(model_i, &tokenizer, &sampler, prompt, model_i->seq_n_max);
-    } else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
+    }
+    else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
         chat_common(model_i, &tokenizer, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, _debug);
-    } else {
+    }
+    else {
         log_msg(stderr, "ERROR: Unknown mode: %s\n", mode);
         error_usage(prog_name);
     }

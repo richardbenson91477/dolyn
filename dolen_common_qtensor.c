@@ -13,12 +13,14 @@ void dequantize_row(float *output, const qtensor *qt, int row_idx) {
     if (qt->type == Q_TYPE_F32) {
         const float *row = (const float *)qt->data + (size_t)row_idx * cols;
         memcpy(output, row, cols * sizeof(float));
-    } else if (qt->type == Q_TYPE_F16) {
+    }
+    else if (qt->type == Q_TYPE_F16) {
         const _Float16 *row = (const _Float16 *)qt->data + (size_t)row_idx * cols;
         for (int j = 0; j < cols; j++) {
             output[j] = (float)row[j];
         }
-    } else if (qt->type == Q_TYPE_Q8) {
+    }
+    else if (qt->type == Q_TYPE_Q8) {
         int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         const float *row_s = qt->s + row_idx * num_groups;
         const int8_t *row_q = (const int8_t *)qt->data + row_idx * cols;
@@ -53,7 +55,8 @@ void matmul_qt(float *restrict output, const float *restrict input, const qtenso
             }
             output[i] = sum;
         }
-    } else if (qt->type == Q_TYPE_F16) {
+    }
+    else if (qt->type == Q_TYPE_F16) {
         const _Float16 *w_data = (const _Float16 *)qt->data;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < rows; i++) {
@@ -65,7 +68,8 @@ void matmul_qt(float *restrict output, const float *restrict input, const qtenso
             }
             output[i] = sum;
         }
-    } else if (qt->type == Q_TYPE_Q8) {
+    }
+    else if (qt->type == Q_TYPE_Q8) {
         int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         int full_groups = cols / GROUP_SIZE;
 
@@ -163,7 +167,8 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
             }
             output[i] = val;
         }
-    } else if (w->type == Q_TYPE_F16) {
+    }
+    else if (w->type == Q_TYPE_F16) {
         const _Float16 *w_data = (const _Float16 *)w->data;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < d; i++) {
@@ -191,7 +196,8 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
             }
             output[i] = val;
         }
-    } else if (w->type == Q_TYPE_Q8) {
+    }
+    else if (w->type == Q_TYPE_Q8) {
         const int8_t *w_q = (const int8_t *)w->data;
         const float *w_s = w->s;
 #pragma omp parallel for schedule(static)
@@ -267,11 +273,13 @@ void read_qt(FILE *f, qtensor *qt) {
         qt->data = a_calloc(elements * sizeof(float));
         qt->s = NULL;
         fread(qt->data, sizeof(float), elements, f);
-    } else if (qt->type == Q_TYPE_F16) {
+    }
+    else if (qt->type == Q_TYPE_F16) {
         qt->data = a_calloc(elements * sizeof(_Float16));
         qt->s = NULL;
         fread(qt->data, sizeof(_Float16), elements, f);
-    } else if (qt->type == Q_TYPE_Q8) {
+    }
+    else if (qt->type == Q_TYPE_Q8) {
         qt->data = a_calloc(elements * sizeof(int8_t));
         qt->s = a_calloc((size_t)qt->rows * num_groups * sizeof(float));
         fread(qt->data, sizeof(int8_t), elements, f);
@@ -294,9 +302,11 @@ void write_qt(FILE *f, qtensor *qt) {
 
     if (qt->type == Q_TYPE_F32) {
         fwrite(qt->data, sizeof(float), elements, f);
-    } else if (qt->type == Q_TYPE_F16) {
+    }
+    else if (qt->type == Q_TYPE_F16) {
         fwrite(qt->data, sizeof(_Float16), elements, f);
-    } else if (qt->type == Q_TYPE_Q8) {
+    }
+    else if (qt->type == Q_TYPE_Q8) {
         fwrite(qt->data, sizeof(int8_t), elements, f);
         fwrite(qt->s, sizeof(float), (size_t)qt->rows * num_groups, f);
     }

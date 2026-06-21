@@ -105,7 +105,8 @@ int sample(Sampler *sampler, float *logits) {
 
     if (sampler->temperature == 0.0f) {
         next = sample_argmax(logits, sampler->vocab_size);
-    } else {
+    }
+    else {
 #pragma omp parallel for if (sampler->vocab_size > 4096)
         for (int q = 0; q < sampler->vocab_size; q++) {
             logits[q] /= sampler->temperature;
@@ -117,7 +118,8 @@ int sample(Sampler *sampler, float *logits) {
         if (sampler->topp <= 0 ||
                 sampler->topp >= 1) {
             next = sample_mult(logits, sampler->vocab_size, coin);
-        } else {
+        }
+        else {
             next = sample_top(logits, sampler->vocab_size, sampler->topk, sampler->topp, sampler->probindex, coin);
         }
     }

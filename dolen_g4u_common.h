@@ -33,7 +33,7 @@ typedef struct {
 } config_g4u;
 
 typedef struct {
-    qtensor embed_tokens;
+    qtensor embed_tokens_weight;
     qtensor *rms_input_layernorm;
     qtensor *rms_post_attn_layernorm;
     qtensor *rms_pre_ffn_layernorm;

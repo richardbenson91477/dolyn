@@ -83,11 +83,13 @@ int load_config_g4u(G4U *model, const char *model_dir) {
             if (lt &&
                     (lt->type == JSON_STRING)) {
                 model->layer_types[i] = (strcmp(lt->data.string, "full_attention")) ? 0 : 1;
-            } else {
+            }
+            else {
                 model->layer_types[i] = 0;
             }
         }
-    } else {
+    }
+    else {
         for (int i = 0; i < p->n_layers; i++) {
             model->layer_types[i] = ((i + 1) % 6) ? 0 : 1;
         }
@@ -225,7 +227,8 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
                 failed = 1;
                 goto cleanup;
             }
-        } else {
+        }
+        else {
             if (write_layer_qt(&ctx, out, l, "self_attn.v_proj.weight", kv_heads * hd, p->dim)) {
                 failed = 1;
                 goto cleanup;
@@ -275,7 +278,7 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0) {
+    if (fclose(out)) {
         failed = 1;
     }
 

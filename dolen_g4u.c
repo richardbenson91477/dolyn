@@ -19,7 +19,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    if (magic != 0x55344D47) {
+    if (magic != 0x55344D47) { // GM4U
         log_msg(stderr, "ERROR: Invalid magic number\n");
         fclose(f);
         return -1;
@@ -39,7 +39,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    if (seq_n_max != 0) {
+    if (seq_n_max) {
         p->seq_len = seq_n_max;
     }
 
@@ -70,7 +70,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    read_qt(f, &w->embed_tokens);
+    read_qt(f, &w->embed_tokens_weight);
 
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->rms_input_layernorm[i]);
@@ -172,7 +172,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
         exit(EXIT_FAILURE);
     }
 
-    dequantize_row(x, &w->embed_tokens, token);
+    dequantize_row(x, &w->embed_tokens_weight, token);
 
 #pragma omp simd
     for (int i = 0; i < dim; i++) {
@@ -206,7 +206,8 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         if (use_alternative_attention) {
             memcpy(s->v, s->k_raw, kv_dim * sizeof(float));
-        } else {
+        }
+        else {
             matmul_qq(s->v, &s->xq, &w->v_proj[l]);
         }
 
@@ -322,7 +323,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
     rmsnorm_g4u(x, x, (float *)w->rms_final_norm.data, dim, eps, 1);
 
     quantize_vec(&s->xq, x, dim);
-    matmul_qq(s->logits, &s->xq, &w->embed_tokens);
+    matmul_qq(s->logits, &s->xq, &w->embed_tokens_weight);
 
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;

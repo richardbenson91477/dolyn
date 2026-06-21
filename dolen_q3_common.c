@@ -44,7 +44,8 @@ void alloc_state_q3(state_q3 *s, config_q3 *p) {
                 s->sin_cache[pos * rotary_half + i] = sinf(val);
             }
         }
-    } else {
+    }
+    else {
         s->cos_cache = NULL;
         s->sin_cache = NULL;
     }
@@ -109,7 +110,7 @@ void free_q3(Q3 *model_q3) {
     weights_q3 *w = &model_q3->weights;
     int n_layer = model_q3->config.n_layers;
 
-    free_qt(&w->token_embedding_table);
+    free_qt(&w->embed_tokens_weight);
     free_qt_array(w->rms_att_weight, n_layer);
     free_qt_array(w->rms_ffn_weight, n_layer);
     free_qt(&w->rms_final_weight);

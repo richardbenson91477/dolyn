@@ -31,26 +31,30 @@ int quantize_write_bytes(FILE *f, const void *data, size_t size, size_t count) {
 
 static size_t dtype_size(st_dtype dtype) {
     switch (dtype) {
-    case ST_DTYPE_F16:
-    case ST_DTYPE_BF16:
-        return sizeof(uint16_t);
-    case ST_DTYPE_F32:
-        return sizeof(float);
-    default:
-        return 0;
+        case ST_DTYPE_F16:
+        case ST_DTYPE_BF16:
+            return sizeof(uint16_t);
+        case ST_DTYPE_F32:
+            return sizeof(float);
+        default:
+            return 0;
     }
 }
 
 static st_dtype parse_dtype(const char *dtype) {
     if (! dtype) {
         return ST_DTYPE_UNSUPPORTED;
-    } else if (! strcmp(dtype, "F16")) {
+    }
+    else if (! strcmp(dtype, "F16")) {
         return ST_DTYPE_F16;
-    } else if (! strcmp(dtype, "BF16")) {
+    }
+    else if (! strcmp(dtype, "BF16")) {
         return ST_DTYPE_BF16;
-    } else if (! strcmp(dtype, "F32")) {
+    }
+    else if (! strcmp(dtype, "F32")) {
         return ST_DTYPE_F32;
-    } else {
+    }
+    else {
         return ST_DTYPE_UNSUPPORTED;
     }
 }
@@ -503,17 +507,20 @@ static int read_f32_range(quantize_ctx *ctx, const weightmap_entry *entry, uint6
 
     if (entry->dtype == ST_DTYPE_F32) {
         memcpy(f32, raw, elements * sizeof(float));
-    } else if (entry->dtype == ST_DTYPE_F16) {
+    }
+    else if (entry->dtype == ST_DTYPE_F16) {
         const uint16_t *src = (const uint16_t *)raw;
         for (size_t i = 0; i < elements; i++) {
             f32[i] = csafetensors_f16_to_f32(src[i]);
         }
-    } else if (entry->dtype == ST_DTYPE_BF16) {
+    }
+    else if (entry->dtype == ST_DTYPE_BF16) {
         const uint16_t *src = (const uint16_t *)raw;
         for (size_t i = 0; i < elements; i++) {
             f32[i] = csafetensors_bf16_to_f32(src[i]);
         }
-    } else {
+    }
+    else {
         return -1;
     }
     return 0;
@@ -582,7 +589,8 @@ int quantize_write_tensor_entry(
         free(raw);
         free(f32);
         return 0;
-    } else if (type == Q_TYPE_F16) {
+    }
+    else if (type == Q_TYPE_F16) {
         size_t item_size = dtype_size(entry->dtype);
         size_t per_element = item_size + sizeof(_Float16);
         size_t chunk_elements = ctx->chunk_bytes / per_element;
@@ -637,7 +645,8 @@ int quantize_write_tensor_entry(
         free(f32);
         free(f16);
         return 0;
-    } else if (type == Q_TYPE_Q8) {
+    }
+    else if (type == Q_TYPE_Q8) {
         int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         uint64_t q_bytes = (uint64_t)rows * (uint64_t)cols;
         uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);

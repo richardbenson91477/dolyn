@@ -148,7 +148,8 @@ void load_q3_5_layer_types(Q3_5 *model_q3_5, const char *model_path) {
         model_q3_5->layer_types[i] = get_layer_type(i, layer_types_json);
         if (model_q3_5->layer_types[i] == 1) {
             model_q3_5->deltanet_layer_indices[i] = ld++;
-        } else {
+        }
+        else {
             model_q3_5->attn_layer_indices[i] = la++;
         }
     }
@@ -244,7 +245,7 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (model.layer_types[l] != 0) {
+        if (model.layer_types[l]) {
             continue;
         }
         if (write_layer_qt(&ctx, out, l, "self_attn.q_proj.weight", q_dim, p->dim) ||
@@ -361,7 +362,7 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     }
 
 cleanup:
-    if (fclose(out) != 0) {
+    if (fclose(out)) {
         failed = 1;
     }
     quantize_ctx_close(&ctx);

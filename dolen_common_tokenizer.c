@@ -39,7 +39,8 @@ void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n) {
         if (best_id != -1) {
             tokens[(*tokens_n)++] = best_id;
             pos += best_len;
-        } else {
+        }
+        else {
             tokens[(*tokens_n)++] = (unsigned char)*pos + 3;
             pos++;
         }

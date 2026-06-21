@@ -65,7 +65,8 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     for (int i = 0; i < p->n_layer; i++) {
         if (model_q3_5->layer_types[i] == 1) {
             model_q3_5->deltanet_layer_indices[i] = ld++;
-        } else {
+        }
+        else {
             model_q3_5->attn_layer_indices[i] = la++;
         }
     }
@@ -84,7 +85,7 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
         return -1;
     }
 
-    read_qt(f, &w->token_embedding_table);
+    read_qt(f, &w->embed_tokens_weight);
 
     for (int i = 0; i < p->n_layer; i++) {
         read_qt(f, &w->rms_att_weight[i]);
@@ -194,8 +195,9 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
 
     if (! p->tie_word_embeddings) {
         read_qt(f, &w->wcls);
-    } else {
-        w->wcls = w->token_embedding_table;
+    }
+    else {
+        w->wcls = w->embed_tokens_weight;
     }
 
     fclose(f);
@@ -503,12 +505,13 @@ float *forward_q3_5(Q3_5 *model_q3_5, int token, int pos) {
     float *x = s->x;
     int dim = p->dim;
 
-    dequantize_row(x, &w->token_embedding_table, token);
+    dequantize_row(x, &w->embed_tokens_weight, token);
 
     for (int l = 0; l < p->n_layer; l++) {
         if (model_q3_5->layer_types[l] == 1) {
             forward_q3_5_linear_attention_layer(model_q3_5, l, model_q3_5->deltanet_layer_indices[l], pos);
-        } else {
+        }
+        else {
             forward_q3_5_attention_layer(model_q3_5, l, model_q3_5->attn_layer_indices[l], pos);
         }
         forward_q3_5_mlp_layer(model_q3_5, l);
@@ -517,7 +520,7 @@ float *forward_q3_5(Q3_5 *model_q3_5, int token, int pos) {
     rmsnorm_gemma(x, x, (float *)w->rms_final_weight.data, dim, p->rms_norm_eps);
 
     if (p->tie_word_embeddings) {
-        matmul_qt(s->logits, x, &w->token_embedding_table);
+        matmul_qt(s->logits, x, &w->embed_tokens_weight);
     }
     else {
         matmul_qt(s->logits, x, &w->wcls);
@@ -583,7 +586,7 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think
         .model = model,
         .forward = forward_q3_5_wrap,
         .free_model = free_q3_5_wrap,
-        .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
+        .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 0,
         .eos_token_id = 248046,

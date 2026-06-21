@@ -55,7 +55,7 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
         p->seq_len = seq_n_max;
     }
 
-    read_qt(f, &w->token_embedding_table);
+    read_qt(f, &w->embed_tokens_weight);
 
     w->rms_att_weight = (qtensor *)a_calloc((size_t)p->n_layer * sizeof(qtensor));
     if (! w->rms_att_weight) {
@@ -102,8 +102,9 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
 
     if (! p->tie_word_embeddings) {
         read_qt(f, &w->wcls);
-    } else {
-        w->wcls = w->token_embedding_table;
+    }
+    else {
+        w->wcls = w->embed_tokens_weight;
     }
 
     fclose(f);
@@ -253,7 +254,7 @@ float *forward_ig4_1(IG4_1 *model_ig4_1, int token, int pos) {
     float *x = s->x;
     int dim = p->dim;
 
-    dequantize_row(x, &w->token_embedding_table, token);
+    dequantize_row(x, &w->embed_tokens_weight, token);
 
     float emb_mult = p->embedding_multiplier;
     if (emb_mult != 1.0f) {
@@ -271,7 +272,7 @@ float *forward_ig4_1(IG4_1 *model_ig4_1, int token, int pos) {
     rmsnorm(x, x, (float *)w->rms_final_weight.data, dim, p->rms_norm_eps);
 
     if (p->tie_word_embeddings) {
-        matmul_qt(s->logits, x, &w->token_embedding_table);
+        matmul_qt(s->logits, x, &w->embed_tokens_weight);
     }
     else {
         matmul_qt(s->logits, x, &w->wcls);
@@ -329,7 +330,7 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _thin
     *model_i = (model_iface){ .model = model,
         .forward = forward_ig4_1_wrap,
         .free_model = free_ig4_1_wrap,
-        .seq_n_max = (seq_n_max != 0) ? seq_n_max : model->config.seq_len,
+        .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 0,
         .eos_token_id = 100257,

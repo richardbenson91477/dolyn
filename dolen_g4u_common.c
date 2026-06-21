@@ -59,7 +59,8 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
                     float val = (float)pos * freq;
                     cos_val = cosf(val);
                     sin_val = sinf(val);
-                } else {
+                }
+                else {
                     cos_val = 1.0f;
                     sin_val = 0.0f;
                 }
@@ -152,7 +153,7 @@ void free_g4u(G4U *model) {
 
     free(model->layer_types);
 
-    free_qt(&w->embed_tokens);
+    free_qt(&w->embed_tokens_weight);
     free_qt(&w->rms_final_norm);
     free_qt(&w->rope_freqs_full);
 

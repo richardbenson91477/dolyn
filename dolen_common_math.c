@@ -70,7 +70,8 @@ void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int wit
         for (int j = 0; j < size; j++) {
             o[j] = x[j] * ss * weight[j];
         }
-    } else {
+    }
+    else {
 #pragma omp simd
         for (int j = 0; j < size; j++) {
             o[j] = x[j] * ss;

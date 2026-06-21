@@ -23,7 +23,8 @@ void log_msg(FILE *stream, const char *format, ...) {
         if (log_file) {
             vfprintf(log_file, format, args2);
             fclose(log_file);
-        } else {
+        }
+        else {
             fprintf(stderr, "ERROR: can't open log file\n");
             exit(EXIT_FAILURE);
         }
@@ -62,7 +63,8 @@ void read_msg(char *buf, size_t buf_len) {
             p[len - 2] = '\n';
             p += len - 1;
             rem -= len - 1;
-        } else {
+        }
+        else {
             break;
         }
     }
@@ -88,7 +90,7 @@ int seek_abs(FILE *f, uint64_t offset) {
         log_msg(stderr, "ERROR: File offset is too large\n");
         return -1;
     }
-    if (fseeko(f, (off_t)offset, SEEK_SET) != 0) {
+    if (fseeko(f, (off_t)offset, SEEK_SET)) {
         log_msg(stderr, "ERROR: Seek failed: %s\n", strerror(errno));
         return -1;
     }

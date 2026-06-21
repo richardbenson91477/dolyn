@@ -110,7 +110,7 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
     weights_ig4_1 *w = &model_ig4_1->weights;
     int n_layer = model_ig4_1->config.n_layer;
 
-    free_qt(&w->token_embedding_table);
+    free_qt(&w->embed_tokens_weight);
     free_qt_array(w->rms_att_weight, n_layer);
     free_qt_array(w->wq, n_layer);
     free_qt_array(w->wk, n_layer);

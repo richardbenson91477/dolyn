@@ -25,7 +25,7 @@ typedef struct {
 } config_q3;
 
 typedef struct {
-    qtensor token_embedding_table;
+    qtensor embed_tokens_weight;
     qtensor *rms_att_weight; 
     qtensor *rms_ffn_weight;
     qtensor *wq;
