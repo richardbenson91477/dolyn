@@ -508,8 +508,8 @@ static int read_f32_range(quantize_ctx *ctx, const weightmap_entry *entry, uint6
     return 0;
 }
 
-int quantize_write_tensor_entry(
-        quantize_ctx *ctx, FILE *out, const weightmap_entry *entry, int rows, int cols, q_type_t type) {
+int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry,
+        int rows, int cols, q_type_t type) {
     if (rows <= 0 ||
             cols <= 0) {
         log_msg(stderr, "ERROR: Invalid quantized tensor shape %d x %d\n", rows, cols);
@@ -723,11 +723,13 @@ int quantize_write_tensor_entry(
     return -1;
 }
 
-int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols, q_type_t type) {
+int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name,
+        int rows, int cols, q_type_t type) {
     return quantize_write_tensor_entry(ctx, out, quantize_find_tensor(ctx, name), rows, cols, type);
 }
 
-int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols, q_type_t type) {
+int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name,
+        int rows, int cols, q_type_t type) {
     const weightmap_entry *entry = quantize_find_tensor(ctx, name);
     if (! entry) {
         return quantize_write_empty_tensor(out);
@@ -743,8 +745,8 @@ int quantize_write_empty_tensor(FILE *out) {
             quantize_write_bytes(out, &zero, sizeof(zero), 1)) ? -1 : 0;
 }
 
-int quantize_write_scalar_or_default(
-        quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names, float default_value) {
+int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names,
+        float default_value) {
     const weightmap_entry *entry = quantize_find_last_tensor(ctx, names, n_names);
     if (! entry) {
         return quantize_write_bytes(out, &default_value, sizeof(default_value), 1);

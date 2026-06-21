@@ -156,8 +156,8 @@ void load_q3_5_layer_types(Q3_5 *model_q3_5, const char *model_path) {
     json_free(root);
 }
 
-static int write_layer_tensor(
-        quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols, q_type_t type) {
+static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const char *suffix,
+        int rows, int cols, q_type_t type) {
     char name[256];
     snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, suffix);
     if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, type)) {
@@ -231,7 +231,8 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_tensor(&ctx, out, l, "input_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&ctx, out, l, "input_layernorm.weight",
+                    1, p->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
@@ -241,10 +242,14 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
         if (model.layer_types[l]) {
             continue;
         }
-        if (write_layer_tensor(&ctx, out, l, "self_attn.q_proj.weight", q_dim, p->dim, Q_TYPE_Q8) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.k_proj.weight", kv_dim, p->dim, Q_TYPE_Q8) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.v_proj.weight", kv_dim, p->dim, Q_TYPE_Q8) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.o_proj.weight", p->dim, attn_out_dim, Q_TYPE_Q8)) {
+        if (write_layer_tensor(&ctx, out, l, "self_attn.q_proj.weight",
+                    q_dim, p->dim, Q_TYPE_Q8) ||
+                write_layer_tensor(&ctx, out, l, "self_attn.k_proj.weight",
+                    kv_dim, p->dim, Q_TYPE_Q8) ||
+                write_layer_tensor(&ctx, out, l, "self_attn.v_proj.weight",
+                    kv_dim, p->dim, Q_TYPE_Q8) ||
+                write_layer_tensor(&ctx, out, l, "self_attn.o_proj.weight",
+                    p->dim, attn_out_dim, Q_TYPE_Q8)) {
             failed = 1;
             goto cleanup;
         }
@@ -252,14 +257,16 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
 
     for (int l = 0; l < p->n_layer; l++) {
         if ((! model.layer_types[l]) &&
-                write_layer_tensor(&ctx, out, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
+                write_layer_tensor(&ctx, out, l, "self_attn.q_norm.weight",
+                    1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < p->n_layer; l++) {
         if ((! model.layer_types[l]) &&
-                write_layer_tensor(&ctx, out, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
+                write_layer_tensor(&ctx, out, l, "self_attn.k_norm.weight",
+                    1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
@@ -270,57 +277,66 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
             if (model.layer_types[l] != 1) {
                 continue;
             }
-            if (write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_qkv.weight", conv_dim, p->dim, Q_TYPE_Q8) ||
-                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_z.weight", value_dim, p->dim, Q_TYPE_Q8)) {
+            if (write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_qkv.weight",
+                        conv_dim, p->dim, Q_TYPE_Q8) ||
+                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_z.weight",
+                        value_dim, p->dim, Q_TYPE_Q8)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_b.weight", 1, p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_b.weight",
+                        1, p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_a.weight", 1, p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_a.weight",
+                        1, p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.conv1d.weight", 1, conv_dim * p->linear_conv_kernel, Q_TYPE_F32)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.conv1d.weight",
+                        1, conv_dim * p->linear_conv_kernel, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.dt_bias", 1, p->n_linear_v_heads, Q_TYPE_F32)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.dt_bias",
+                        1, p->n_linear_v_heads, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.A_log", 1, p->n_linear_v_heads, Q_TYPE_F32)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.A_log",
+                        1, p->n_linear_v_heads, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.norm.weight", 1, p->d_linear_v, Q_TYPE_F32)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.norm.weight",
+                        1, p->d_linear_v, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
             if ((model.layer_types[l] == 1) &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.out_proj.weight", p->dim, value_dim, Q_TYPE_Q8)) {
+                    write_layer_tensor(&ctx, out, l, "linear_attn.out_proj.weight",
+                        p->dim, value_dim, Q_TYPE_Q8)) {
                 failed = 1;
                 goto cleanup;
             }
@@ -328,28 +344,34 @@ int quantize_q3_5_to_file(const char *model_dir, const char *output_file) {
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_tensor(&ctx, out, l, "post_attention_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&ctx, out, l, "post_attention_layernorm.weight",
+                    1, p->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
     for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_tensor(&ctx, out, l, "mlp.gate_proj.weight", p->n_mlp, p->dim, Q_TYPE_Q8) ||
-                write_layer_tensor(&ctx, out, l, "mlp.down_proj.weight", p->dim, p->n_mlp, Q_TYPE_Q8) ||
-                write_layer_tensor(&ctx, out, l, "mlp.up_proj.weight", p->n_mlp, p->dim, Q_TYPE_Q8)) {
+        if (write_layer_tensor(&ctx, out, l, "mlp.gate_proj.weight",
+                    p->n_mlp, p->dim, Q_TYPE_Q8) ||
+                write_layer_tensor(&ctx, out, l, "mlp.down_proj.weight",
+                    p->dim, p->n_mlp, Q_TYPE_Q8) ||
+                write_layer_tensor(&ctx, out, l, "mlp.up_proj.weight",
+                    p->n_mlp, p->dim, Q_TYPE_Q8)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    if (quantize_write_tensor_or_empty(&ctx, out, "model.language_model.norm.weight", 1, p->dim, Q_TYPE_F32)) {
+    if (quantize_write_tensor_or_empty(&ctx, out, "model.language_model.norm.weight",
+                1, p->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
 
     if ((! p->tie_word_embeddings) &&
-            quantize_write_tensor(&ctx, out, "lm_head.weight", p->vocab_size, p->dim, Q_TYPE_Q8)) {
+            quantize_write_tensor(&ctx, out, "lm_head.weight",
+                p->vocab_size, p->dim, Q_TYPE_Q8)) {
         failed = 1;
         goto cleanup;
     }

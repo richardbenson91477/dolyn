@@ -130,32 +130,6 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
         }
     }
 }
-//void quantize_vec(qtensor *xq, const float *x, int n) {
-//    int num_groups = (n + GROUP_SIZE - 1) / GROUP_SIZE;
-//    xq->rows = 1;
-//    xq->cols = n;
-//    xq->type = Q_TYPE_Q8;
-//
-//#pragma omp parallel for schedule(static) if (num_groups > 32)
-//    for (int g = 0; g < num_groups; g++) {
-//        int start = g * GROUP_SIZE;
-//        int end = start + GROUP_SIZE < n ? start + GROUP_SIZE : n;
-//        float wmax = 0.0f;
-//        for (int i = start; i < end; i++) {
-//            float v = fabsf(x[i]);
-//            if (v > wmax) {
-//                wmax = v;
-//            }
-//        }
-//        float scale = wmax < 1e-9f ? 1e-9f : wmax / 127.0f;
-//        xq->s[g] = scale;
-//        float inv_scale = 1.0f / scale;
-//        int8_t *q_data = (int8_t *)xq->data;
-//        for (int i = start; i < end; i++) {
-//            q_data[i] = (int8_t)roundf(x[i] * inv_scale);
-//        }
-//    }
-//}
 
 void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor *restrict w) {
     int n = x->cols;

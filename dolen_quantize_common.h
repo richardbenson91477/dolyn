@@ -64,16 +64,19 @@ const weightmap_entry *quantize_find_tensor(const quantize_ctx *ctx, const char 
 
 const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *ctx, const char *const *names, size_t n_names);
 
-int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols, q_type_t type);
+int quantize_write_tensor(quantize_ctx *ctx, FILE *out, const char *name,
+        int rows, int cols, q_type_t type);
 
-int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name, int rows, int cols, q_type_t type);
+int quantize_write_tensor_or_empty(quantize_ctx *ctx, FILE *out, const char *name,
+        int rows, int cols, q_type_t type);
 
-int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry, int rows, int cols, q_type_t type);
+int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const weightmap_entry *entry,
+        int rows, int cols, q_type_t type);
 
 int quantize_write_empty_tensor(FILE *out);
 
-int quantize_write_scalar_or_default(
-        quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names, float default_value);
+int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names,
+        float default_value);
 
 
 #endif // DOLEN_Q_COMMON_H

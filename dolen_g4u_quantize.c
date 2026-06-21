@@ -100,8 +100,8 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     return 0;
 }
 
-static int write_layer_tensor(
-        quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols, q_type_t type) {
+static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const char *suffix,
+        int rows, int cols, q_type_t type) {
     char name[256];
     snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, suffix);
     if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, type)) {
@@ -194,7 +194,8 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
             goto cleanup;
         }
     }
-    if (quantize_write_tensor_or_empty(&ctx, out, "model.language_model.norm.weight", 1, p->dim, Q_TYPE_F32)) {
+    if (quantize_write_tensor_or_empty(&ctx, out, "model.language_model.norm.weight",
+                1, p->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
@@ -262,8 +263,8 @@ int quantize_g4u_to_file(const char *model_dir, const char *output_file) {
     }
 
     if (p->use_rope_freqs) {
-        if (quantize_write_tensor(&ctx, out, "model.language_model.layers.0.self_attn.rope_freqs.weight", 1,
-                    p->global_head_dim / 2, Q_TYPE_F32)) {
+        if (quantize_write_tensor(&ctx, out, "model.language_model.layers.0.self_attn.rope_freqs.weight",
+                    1, p->global_head_dim / 2, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
