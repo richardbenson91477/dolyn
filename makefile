@@ -175,6 +175,9 @@ strip: $(BINS)
 format:
 	clang-format -i $(SRCS)
 
+tags_rebuild:
+	./_tags_rebuild
+
 clean:
 	rm -vf $(BINS) $(BINS_DBG)
 

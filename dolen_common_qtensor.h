@@ -51,8 +51,6 @@ void free_qt_array(qtensor *arr, int n);
 
 void read_qt(FILE *f, qtensor *qt);
 
-void write_qt(FILE *f, qtensor *qt);
-
 
 #endif // DOLEN_COMMON_QTENSOR_H
 
