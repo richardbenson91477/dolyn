@@ -794,3 +794,22 @@ int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out, const char *c
     return res;
 }
 
+q_type_t parse_q_type(const char *str) {
+    if (! str) {
+        log_msg(stderr, "WARNING: Missing tensor type name. Defaulting to Q8.\n");
+        return Q_TYPE_Q8;
+    }
+    if ((! strcmp(str, "F32")) || (! strcmp(str, "f32"))) {
+        return Q_TYPE_F32;
+    }
+    if ((! strcmp(str, "F16")) || (! strcmp(str, "f16"))) {
+        return Q_TYPE_F16;
+    }
+    if ((! strcmp(str, "Q8")) || (! strcmp(str, "q8"))) {
+        return Q_TYPE_Q8;
+    }
+
+    log_msg(stderr, "WARNING: Unknown tensor type '%s'. Defaulting to Q8.\n", str);
+    return Q_TYPE_Q8;
+}
+
