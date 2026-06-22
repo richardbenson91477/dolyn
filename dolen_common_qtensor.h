@@ -11,8 +11,9 @@
 typedef enum {
     Q_TYPE_F32 = 0,
     Q_TYPE_F16 = 1,
-    Q_TYPE_Q8  = 2,
-    Q_TYPE_Q4  = 3
+    Q_TYPE_Q8 = 2,
+    Q_TYPE_Q6 = 3,
+    Q_TYPE_Q4 = 4,
 } q_type_t;
 
 typedef struct {

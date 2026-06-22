@@ -38,6 +38,43 @@ void dequantize_row(float *output, const qtensor *qt, int row_idx) {
             }
         }
     }
+    else if (qt->type == Q_TYPE_Q6) {
+        int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+        const float *row_s = qt->s + row_idx * num_groups;
+        const uint8_t *row_q = (const uint8_t *)qt->data + ((size_t)row_idx * cols * 3) / 4;
+
+        for (int g = 0; g < num_groups; g++) {
+            int start = g * GROUP_SIZE;
+            int end = start + GROUP_SIZE;
+            if (end > cols) {
+                end = cols;
+            }
+            float scale = row_s[g];
+            for (int j = start; j < end; j += 4) {
+                // FIX: Use absolute index 'j', not relative '(j - start)'
+                int idx = j / 4 * 3; 
+                uint8_t b0 = row_q[idx];
+                uint8_t b1 = row_q[idx + 1];
+                uint8_t b2 = row_q[idx + 2];
+
+                uint8_t u0 = b0 & 0x3F;
+                uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
+                uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
+                uint8_t u3 = (b2 >> 2) & 0x3F;
+
+                output[j] = (float)((int32_t)((u0 ^ 0x20) - 0x20)) * scale;
+                if (j + 1 < end) {
+                    output[j + 1] = (float)((int32_t)((u1 ^ 0x20) - 0x20)) * scale;
+                }
+                if (j + 2 < end) {
+                    output[j + 2] = (float)((int32_t)((u2 ^ 0x20) - 0x20)) * scale;
+                }
+                if (j + 3 < end) {
+                    output[j + 3] = (float)((int32_t)((u3 ^ 0x20) - 0x20)) * scale;
+                }
+            }
+        }
+    }
     else if (qt->type == Q_TYPE_Q4) {
         int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         const float *row_s = qt->s + row_idx * num_groups;
@@ -120,6 +157,79 @@ void matmul_qt(float *restrict output, const float *restrict input, const qtenso
 #pragma omp simd reduction(+ : group_sum)
                 for (int j = rem_start; j < cols; j++) {
                     group_sum += input[j] * (float)row_q[j];
+                }
+                sum += group_sum * row_s[full_groups];
+            }
+            output[i] = sum;
+        }
+    }
+    else if (qt->type == Q_TYPE_Q6) {
+        int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+        int full_groups = cols / GROUP_SIZE;
+
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < rows; i++) {
+            float sum = 0.0f;
+            const uint8_t *row_q = (const uint8_t *)qt->data + ((size_t)i * cols * 3) / 4;
+            const float *row_s = qt->s + (size_t)i * num_groups;
+
+            for (int g = 0; g < full_groups; g++) {
+                float group_sum = 0.0f;
+                const int offset = g * GROUP_SIZE;
+#pragma omp simd reduction(+ : group_sum)
+                for (int j = 0; j < GROUP_SIZE; j += 4) {
+                    int idx = (offset + j) / 4 * 3;
+                    uint8_t b0 = row_q[idx];
+                    uint8_t b1 = row_q[idx + 1];
+                    uint8_t b2 = row_q[idx + 2];
+
+                    uint8_t u0 = b0 & 0x3F;
+                    uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
+                    uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
+                    uint8_t u3 = (b2 >> 2) & 0x3F;
+
+                    int32_t w0 = (int32_t)((u0 ^ 0x20) - 0x20);
+                    int32_t w1 = (int32_t)((u1 ^ 0x20) - 0x20);
+                    int32_t w2 = (int32_t)((u2 ^ 0x20) - 0x20);
+                    int32_t w3 = (int32_t)((u3 ^ 0x20) - 0x20);
+
+                    group_sum += input[offset + j]     * (float)w0;
+                    group_sum += input[offset + j + 1] * (float)w1;
+                    group_sum += input[offset + j + 2] * (float)w2;
+                    group_sum += input[offset + j + 3] * (float)w3;
+                }
+                sum += group_sum * row_s[g];
+            }
+
+            int rem_start = full_groups * GROUP_SIZE;
+            if (rem_start < cols) {
+                float group_sum = 0.0f;
+                for (int j = rem_start; j < cols; j += 4) {
+                    int idx = j / 4 * 3;
+                    uint8_t b0 = row_q[idx];
+                    uint8_t b1 = row_q[idx + 1];
+                    uint8_t b2 = row_q[idx + 2];
+
+                    uint8_t u0 = b0 & 0x3F;
+                    uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
+                    uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
+                    uint8_t u3 = (b2 >> 2) & 0x3F;
+
+                    int32_t w0 = (int32_t)((u0 ^ 0x20) - 0x20);
+                    int32_t w1 = (int32_t)((u1 ^ 0x20) - 0x20);
+                    int32_t w2 = (int32_t)((u2 ^ 0x20) - 0x20);
+                    int32_t w3 = (int32_t)((u3 ^ 0x20) - 0x20);
+
+                    group_sum += input[j] * (float)w0;
+                    if (j + 1 < cols) {
+                        group_sum += input[j + 1] * (float)w1;
+                    }
+                    if (j + 2 < cols) {
+                        group_sum += input[j + 2] * (float)w2;
+                    }
+                    if (j + 3 < cols) {
+                        group_sum += input[j + 3] * (float)w3;
+                    }
                 }
                 sum += group_sum * row_s[full_groups];
             }
@@ -299,6 +409,77 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
             output[i] = val;
         }
     }
+    else if (w->type == Q_TYPE_Q6) {
+        const uint8_t *w_q = (const uint8_t *)w->data;
+        const float *w_s = w->s;
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < d; i++) {
+            float val = 0.0f;
+            const uint8_t *w_row = w_q + ((size_t)i * n * 3) / 4;
+            const float *w_row_s = w_s + (size_t)i * n_groups;
+
+            for (int g = 0; g < full_groups; g++) {
+                int32_t acc = 0;
+                const int offset = g * GROUP_SIZE;
+#pragma omp simd reduction(+ : acc)
+                for (int k = 0; k < GROUP_SIZE; k += 4) {
+                    int idx = (offset + k) / 4 * 3;
+                    uint8_t b0 = w_row[idx];
+                    uint8_t b1 = w_row[idx + 1];
+                    uint8_t b2 = w_row[idx + 2];
+
+                    uint8_t u0 = b0 & 0x3F;
+                    uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
+                    uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
+                    uint8_t u3 = (b2 >> 2) & 0x3F;
+
+                    int32_t w0 = (int32_t)((u0 ^ 0x20) - 0x20);
+                    int32_t w1 = (int32_t)((u1 ^ 0x20) - 0x20);
+                    int32_t w2 = (int32_t)((u2 ^ 0x20) - 0x20);
+                    int32_t w3 = (int32_t)((u3 ^ 0x20) - 0x20);
+
+                    acc += (int32_t)x_q[offset + k]     * w0;
+                    acc += (int32_t)x_q[offset + k + 1] * w1;
+                    acc += (int32_t)x_q[offset + k + 2] * w2;
+                    acc += (int32_t)x_q[offset + k + 3] * w3;
+                }
+                val += (float)acc * w_row_s[g] * x_s[g];
+            }
+            int rem_start = full_groups * GROUP_SIZE;
+            if (rem_start < n) {
+                int32_t acc = 0;
+                for (int k = rem_start; k < n; k += 4) {
+                    int idx = k / 4 * 3;
+                    uint8_t b0 = w_row[idx];
+                    uint8_t b1 = w_row[idx + 1];
+                    uint8_t b2 = w_row[idx + 2];
+
+                    uint8_t u0 = b0 & 0x3F;
+                    uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
+                    uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
+                    uint8_t u3 = (b2 >> 2) & 0x3F;
+
+                    int32_t w0 = (int32_t)((u0 ^ 0x20) - 0x20);
+                    int32_t w1 = (int32_t)((u1 ^ 0x20) - 0x20);
+                    int32_t w2 = (int32_t)((u2 ^ 0x20) - 0x20);
+                    int32_t w3 = (int32_t)((u3 ^ 0x20) - 0x20);
+
+                    acc += (int32_t)x_q[k] * w0;
+                    if (k + 1 < n) {
+                        acc += (int32_t)x_q[k + 1] * w1;
+                    }
+                    if (k + 2 < n) {
+                        acc += (int32_t)x_q[k + 2] * w2;
+                    }
+                    if (k + 3 < n) {
+                        acc += (int32_t)x_q[k + 3] * w3;
+                    }
+                }
+                val += (float)acc * w_row_s[full_groups] * x_s[full_groups];
+            }
+            output[i] = val;
+        }
+    }
     else if (w->type == Q_TYPE_Q4) {
         const uint8_t *w_q = (const uint8_t *)w->data;
         const float *w_s = w->s;
@@ -397,6 +578,13 @@ void read_qt(FILE *f, qtensor *qt) {
         qt->data = a_calloc(elements * sizeof(int8_t));
         qt->s = a_calloc((size_t)qt->rows * num_groups * sizeof(float));
         fread(qt->data, sizeof(int8_t), elements, f);
+        fread(qt->s, sizeof(float), (size_t)qt->rows * num_groups, f);
+    }
+    else if (qt->type == Q_TYPE_Q6) {
+        size_t data_bytes = (size_t)(((uint64_t)elements * 3 + 3) / 4);
+        qt->data = a_calloc(data_bytes);
+        qt->s = a_calloc((size_t)qt->rows * num_groups * sizeof(float));
+        fread(qt->data, 1, data_bytes, f);
         fread(qt->s, sizeof(float), (size_t)qt->rows * num_groups, f);
     }
     else if (qt->type == Q_TYPE_Q4) {
