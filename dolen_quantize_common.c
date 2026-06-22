@@ -247,6 +247,50 @@ static void quantize_group_into(int8_t *q, float *s, const float *weights, int r
     }
 }
 
+static void quantize_group_into_q4(uint8_t *q, float *s, const float *weights, int rows, int cols) {
+    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+    for (int i = 0; i < rows; i++) {
+        const float *row = weights + (size_t)i * cols;
+        float *row_s = s + (size_t)i * num_groups;
+        uint8_t *row_q = q + ((size_t)i * cols) / 2;
+
+        for (int g = 0; g < num_groups; g++) {
+            int start = g * GROUP_SIZE;
+            int end = start + GROUP_SIZE;
+            if (end > cols) {
+                end = cols;
+            }
+
+            float wmax = 0.0f;
+            for (int j = start; j < end; j++) {
+                float val = fabsf(row[j]);
+                if (val > wmax) {
+                    wmax = val;
+                }
+            }
+            if (wmax < 1e-9f) {
+                wmax = 1e-9f;
+            }
+
+            float scale = wmax / 7.0f;
+            row_s[g] = scale;
+
+            for (int j = start; j < end; j += 2) {
+                float v0 = row[j] / scale;
+                float v1 = (j + 1 < end) ? row[j + 1] / scale : 0.0f;
+
+                int q0 = (int)roundf(v0);
+                int q1 = (int)roundf(v1);
+
+                q0 = q0 < -7 ? -7 : (q0 > 7 ? 7 : q0);
+                q1 = q1 < -7 ? -7 : (q1 > 7 ? 7 : q1);
+
+                row_q[j / 2] = ((uint8_t)(q1 & 0x0F) << 4) | (uint8_t)(q0 & 0x0F);
+            }
+        }
+    }
+}
+
 int load_safetensors_index(safetensors_idx *idx, const char *model_dir) {
     memset(idx, 0, sizeof(*idx));
 
@@ -722,6 +766,99 @@ int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const char *name, 
         free(s);
         return seek_abs(out, end_offset);
     }
+    else if (type == Q_TYPE_Q4) {
+        int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+        uint64_t q_bytes = ((uint64_t)rows * (uint64_t)cols + 1) / 2;
+        uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);
+
+        off_t current = ftello(out);
+        if (current < 0) {
+            return -1;
+        }
+        uint64_t q_offset = (uint64_t)current;
+        uint64_t s_offset, end_offset;
+        if (checked_add_u64(q_offset, q_bytes, &s_offset) ||
+                checked_add_u64(s_offset, s_bytes, &end_offset)) {
+            return -1;
+        }
+
+        if (end_offset > 0) {
+            if (seek_abs(out, end_offset - 1) ||
+                    fputc(0, out) == EOF) {
+                return -1;
+            }
+        }
+
+        size_t item_size = dtype_size(entry->dtype);
+        size_t row_work_bytes =
+                (size_t)cols * (item_size + sizeof(float)) + (size_t)cols / 2 + (size_t)num_groups * sizeof(float);
+        size_t rows_per_chunk = row_work_bytes ? ctx->chunk_bytes / row_work_bytes : 1;
+        if (!rows_per_chunk) {
+            rows_per_chunk = 1;
+        }
+        if (rows_per_chunk > (size_t)rows) {
+            rows_per_chunk = (size_t)rows;
+        }
+
+        size_t max_elements;
+        if (checked_mul_size(rows_per_chunk, (size_t)cols, &max_elements)) {
+            return -1;
+        }
+        size_t raw_bytes;
+        if (checked_mul_size(max_elements, item_size, &raw_bytes)) {
+            return -1;
+        }
+
+        void *raw = a_calloc(raw_bytes);
+        float *f32 = (float *)a_calloc(max_elements * sizeof(float));
+        uint8_t *q = (uint8_t *)a_calloc((max_elements + 1) / 2);
+        float *s = (float *)a_calloc(rows_per_chunk * (size_t)num_groups * sizeof(float));
+        if ((!raw) ||
+                (!f32) ||
+                (!q) ||
+                (!s)) {
+            free(raw);
+            free(f32);
+            free(q);
+            free(s);
+            return -1;
+        }
+
+        for (int row = 0; row < rows;) {
+            int chunk_rows = rows - row;
+            if ((size_t)chunk_rows > rows_per_chunk) {
+                chunk_rows = (int)rows_per_chunk;
+            }
+            size_t chunk_elements = (size_t)chunk_rows * cols;
+
+            if (read_f32_range(ctx, entry, (uint64_t)row * cols, chunk_elements, raw, f32)) {
+                free(raw);
+                free(f32);
+                free(q);
+                free(s);
+                return -1;
+            }
+            quantize_group_into_q4(q, s, f32, chunk_rows, cols);
+
+            if (seek_abs(out, q_offset + ((uint64_t)row * cols) / 2) ||
+                    quantize_write_bytes(out, q, 1, (chunk_elements + 1) / 2) ||
+                    seek_abs(out, s_offset + (uint64_t)row * num_groups * sizeof(float)) ||
+                    quantize_write_bytes(out, s, sizeof(float), (size_t)chunk_rows * num_groups)) {
+                free(raw);
+                free(f32);
+                free(q);
+                free(s);
+                return -1;
+            }
+            row += chunk_rows;
+        }
+        free(raw);
+        free(f32);
+        free(q);
+        free(s);
+        return seek_abs(out, end_offset);
+    }
+
     return -1;
 }
 
@@ -812,6 +949,9 @@ q_type_t parse_q_type(const char *str) {
     }
     if ((! strcmp(str, "Q8")) || (! strcmp(str, "q8"))) {
         return Q_TYPE_Q8;
+    }
+    if ((!strcmp(str, "Q4")) || (!strcmp(str, "q4"))) {
+        return Q_TYPE_Q4;
     }
 
     log_msg(stderr, "WARNING: Unknown tensor type '%s'. Defaulting to Q8.\n", str);

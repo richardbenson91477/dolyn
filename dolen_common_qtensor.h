@@ -6,24 +6,22 @@
 #include <stdio.h>
 #include <limits.h>
 
-
 #define GROUP_SIZE 64 // Group Size
-
 
 typedef enum {
     Q_TYPE_F32 = 0,
     Q_TYPE_F16 = 1,
-    Q_TYPE_Q8  = 2
+    Q_TYPE_Q8  = 2,
+    Q_TYPE_Q4  = 3
 } q_type_t;
 
 typedef struct {
-    void *data;     // Points to float*, _Float16*, or int8_t* depending on type
-    float *s;       // Scales for Q8 (NULL for F32/F16)
+    void *data;     // Points to float*, _Float16*, int8_t*, or uint8_t* (for Q4) depending on type
+    float *s;       // Scales for Q8/Q4 (NULL for F32/F16)
     int rows;
     int cols;
     q_type_t type;
 } qtensor;
-
 
 void dequantize_row(float *output, const qtensor *qt, int row_idx);
 
@@ -39,6 +37,4 @@ void free_qt_array(qtensor *arr, int n);
 
 void read_qt(FILE *f, qtensor *qt);
 
-
 #endif // DOLEN_COMMON_QTENSOR_H
-
