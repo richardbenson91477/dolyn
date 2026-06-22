@@ -2,8 +2,8 @@
 
 . "${dolen_path}/dolen_run_defaults/dolen_run_defaults.chat"
 
-. "${dolen_path}/dolen_run_defaults/dolen_run_defaults.g4u"
+. "${dolen_path}/dolen_run_defaults/dolen_run_defaults.g4"
 
 
-dolen_run_model_default="${dolen_model_path}/gemma4_12b_a_q8"
+dolen_run_model_default="${dolen_model_path}/gemma4_12b_a_q8.dolq"
 

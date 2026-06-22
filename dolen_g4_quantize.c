@@ -1,9 +1,9 @@
 #include "dolen_quantize_common.h"
-#include "dolen_g4u_common.h"
+#include "dolen_g4_common.h"
 
 
-int load_config_g4u(G4U *model, const char *model_dir) {
-    config_g4u *p = &model->config;
+int load_config_g4(G4 *model, const char *model_dir) {
+    config_g4 *p = &model->config;
 
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
@@ -39,7 +39,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
         cfg = root;
     }
 
-    memset(p, 0, sizeof(config_g4u));
+    memset(p, 0, sizeof(config_g4));
     p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
     p->hidden_dim = json_get_int(json_object_get(cfg, "intermediate_size"), 0);
     p->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 0);
@@ -100,7 +100,7 @@ int load_config_g4u(G4U *model, const char *model_dir) {
     }
 
     json_free(root);
-    log_msg(stdout, "INFO: G4U config loaded\n");
+    log_msg(stdout, "INFO: G4 config loaded\n");
     return 0;
 }
 
@@ -115,11 +115,11 @@ static int write_layer_tensor(
     return 0;
 }
 
-int quantize_g4u_to_file(
+int quantize_g4_to_file(
         const char *model_dir, const char *output_file, q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type) {
-    G4U model;
+    G4 model;
     memset(&model, 0, sizeof(model));
-    if (load_config_g4u(&model, model_dir)) {
+    if (load_config_g4(&model, model_dir)) {
         return -1;
     }
 
@@ -138,7 +138,7 @@ int quantize_g4u_to_file(
         return -1;
     }
 
-    config_g4u *p = &model.config;
+    config_g4 *p = &model.config;
     uint32_t magic = 0x55344D47;
     uint32_t version = 5;
     int failed = 0;
@@ -286,7 +286,7 @@ cleanup:
         return -1;
     }
 
-    log_msg(stdout, "INFO: Quantized G4U saved to %s\n", output_file);
+    log_msg(stdout, "INFO: Quantized G4 saved to %s\n", output_file);
     return 0;
 }
 
@@ -322,6 +322,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    return quantize_g4u_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type) ? EXIT_FAILURE : EXIT_SUCCESS;
+    return quantize_g4_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

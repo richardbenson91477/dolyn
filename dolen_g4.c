@@ -1,14 +1,14 @@
-#include "dolen_g4u_common.h"
+#include "dolen_g4_common.h"
 
 
-int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
+int load_quantized_g4(const char *filepath, G4 *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
         return -1;
     }
 
-    memset(model, 0, sizeof(G4U));
+    memset(model, 0, sizeof(G4));
 
     uint32_t magic, version;
 
@@ -31,9 +31,9 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    config_g4u *p = &model->config;
+    config_g4 *p = &model->config;
 
-    if (fread(p, sizeof(config_g4u), 1, f) != 1) {
+    if (fread(p, sizeof(config_g4), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read config\n");
         fclose(f);
         return -1;
@@ -50,7 +50,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
         return -1;
     }
 
-    weights_g4u *w = &model->weights;
+    weights_g4 *w = &model->weights;
 
     w->rms_input_layernorm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->rms_post_attn_layernorm = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
@@ -123,9 +123,9 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     }
 
     fclose(f);
-    log_msg(stdout, "INFO: Quantized G4U loaded from %s\n", filepath);
+    log_msg(stdout, "INFO: Quantized G4 loaded from %s\n", filepath);
 
-    alloc_state_g4u(&model->state, p, w, model->layer_types);
+    alloc_state_g4(&model->state, p, w, model->layer_types);
 
     return 0;
 }
@@ -148,10 +148,10 @@ static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int v
     }
 }
 
-float *forward_g4u(G4U *model, int token, int pos) {
-    config_g4u *p = &model->config;
-    weights_g4u *w = &model->weights;
-    state_g4u *s = &model->state;
+float *forward_g4(G4 *model, int token, int pos) {
+    config_g4 *p = &model->config;
+    weights_g4 *w = &model->weights;
+    state_g4 *s = &model->state;
     float *x = s->x;
     int dim = p->dim;
     float eps = p->rms_norm_eps;
@@ -195,7 +195,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
         float *rms_q = (float *)w->rms_q_norm[l].data;
         float *rms_k = (float *)w->rms_k_norm[l].data;
 
-        rmsnorm_g4u(s->xb, x, rms_in, dim, eps, 1);
+        rmsnorm_g4(s->xb, x, rms_in, dim, eps, 1);
 
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->q, &s->xq, &w->q_proj[l]);
@@ -211,7 +211,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 #pragma omp parallel for
         for (int h = 0; h < p->n_heads; h++) {
             float *qh = s->q + h * head_dim;
-            rmsnorm_g4u(qh, qh, rms_q, head_dim, eps, 1);
+            rmsnorm_g4(qh, qh, rms_q, head_dim, eps, 1);
             if ((rotary_dim > 0) &&
                     cos_cache) {
                 apply_rope(qh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
@@ -221,7 +221,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 #pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
             float *kh = s->k_raw + h * head_dim;
-            rmsnorm_g4u(kh, kh, rms_k, head_dim, eps, 1);
+            rmsnorm_g4(kh, kh, rms_k, head_dim, eps, 1);
             if ((rotary_dim > 0) &&
                     cos_cache) {
                 apply_rope(kh, cos_cache, sin_cache, rotary_dim, head_dim, pos);
@@ -232,7 +232,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
 #pragma omp parallel for
         for (int h = 0; h < kv_heads; h++) {
-            rmsnorm_g4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
+            rmsnorm_g4(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
 
         // Write into per‑layer KV cache
@@ -279,14 +279,14 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         quantize_vec(&s->xq, s->hb, layer_attn_out_dim);
         matmul_qq(s->xb, &s->xq, &w->o_proj[l]);
-        rmsnorm_g4u(s->xb, s->xb, rms_post_a, dim, eps, 1);
+        rmsnorm_g4(s->xb, s->xb, rms_post_a, dim, eps, 1);
 
 #pragma omp simd
         for (int i = 0; i < dim; i++) {
             x[i] += s->xb[i];
         }
 
-        rmsnorm_g4u(s->xb, x, rms_pre_f, dim, eps, 1);
+        rmsnorm_g4(s->xb, x, rms_pre_f, dim, eps, 1);
 
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->gate_proj[l]);
@@ -301,7 +301,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
         quantize_vec(&s->hq, s->hb, ffn_dim);
         matmul_qq(s->xb, &s->hq, &w->down_proj[l]);
-        rmsnorm_g4u(s->xb, s->xb, rms_post_f, dim, eps, 1);
+        rmsnorm_g4(s->xb, s->xb, rms_post_f, dim, eps, 1);
 
 #pragma omp simd
         for (int i = 0; i < dim; i++) {
@@ -317,7 +317,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
         }
     }
 
-    rmsnorm_g4u(x, x, (float *)w->rms_final_norm.data, dim, eps, 1);
+    rmsnorm_g4(x, x, (float *)w->rms_final_norm.data, dim, eps, 1);
 
     matmul_qt(s->logits, s->x, &w->embed_tokens_weight);
 
@@ -334,16 +334,16 @@ float *forward_g4u(G4U *model, int token, int pos) {
     return s->logits;
 }
 
-static float *forward_g4u_wrap(void *model, int token, int pos) {
-    return forward_g4u((G4U *)model, token, pos);
+static float *forward_g4_wrap(void *model, int token, int pos) {
+    return forward_g4((G4 *)model, token, pos);
 }
 
-static void free_g4u_wrap(void *model) {
-    free_g4u((G4U *)model);
+static void free_g4_wrap(void *model) {
+    free_g4((G4 *)model);
     free(model);
 }
 
-static const chat_template CHAT_TEMPLATE_G4U = {
+static const chat_template CHAT_TEMPLATE_G4 = {
     .system = "<|turn\x3e" "system\n%s<turn|\x3e" "\n",
     .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
             "<|turn\x3e" "model\n"
@@ -351,35 +351,35 @@ static const chat_template CHAT_TEMPLATE_G4U = {
     .end_turn = "<turn|\x3e" "\n",
 };
 
-static const chat_template CHAT_TEMPLATE_THINK_G4U = {
+static const chat_template CHAT_TEMPLATE_THINK_G4 = {
     .system = "<|turn\x3e" "system\n<|think|\x3e" "%s<turn|\x3e" "\n",
     .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
             "<|turn\x3e" "model\n",
     .end_turn = "<turn|\x3e" "\n",
 };
 
-static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think) {
-    G4U *model = a_calloc(1 * sizeof(G4U));
-    if (load_quantized_g4u(model_path, model, seq_n_max)) {
-        free_g4u(model);
+static model_iface *init_g4(const char *model_path, int seq_n_max, bool _think) {
+    G4 *model = a_calloc(1 * sizeof(G4));
+    if (load_quantized_g4(model_path, model, seq_n_max)) {
+        free_g4(model);
         free(model);
         return NULL;
     }
 
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface){ .model = model,
-        .forward = forward_g4u_wrap,
-        .free_model = free_g4u_wrap,
+        .forward = forward_g4_wrap,
+        .free_model = free_g4_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
         .vocab_size = model->config.vocab_size,
         .bos_token_id = 2,
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4U : &CHAT_TEMPLATE_G4U };
+        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4 };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_g4u, "dolen_g4u");
+    return common_main(argc, argv, init_g4, "dolen_g4");
 }

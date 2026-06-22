@@ -1,5 +1,5 @@
-#ifndef DOLEN_G4U_COMMON_H
-#define DOLEN_G4U_COMMON_H
+#ifndef DOLEN_G4_COMMON_H
+#define DOLEN_G4_COMMON_H
 
 
 #include "dolen_common_cmi.h"
@@ -30,7 +30,7 @@ typedef struct {
     int attention_k_eq_v;
     int original_max_seq_len;
     int use_rope_freqs;
-} config_g4u;
+} config_g4;
 
 typedef struct {
     qtensor embed_tokens_weight;
@@ -50,7 +50,7 @@ typedef struct {
     qtensor *down_proj;
     float *layer_scalars;
     qtensor rope_freqs_full;
-} weights_g4u;
+} weights_g4;
 
 typedef struct {
     float *x;
@@ -73,25 +73,25 @@ typedef struct {
     float *sin_cache_sliding;
     int allocated;
     int n_layers;        // needed for freeing per-layer caches
-} state_g4u;
+} state_g4;
 
 typedef struct {
-    config_g4u config;
-    weights_g4u weights;
-    state_g4u state;
+    config_g4 config;
+    weights_g4 weights;
+    state_g4 state;
     int *layer_types;
-} G4U;
+} G4;
 
 
-void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w, const int *layer_types);
+void alloc_state_g4(state_g4 *s, config_g4 *p, weights_g4 *w, const int *layer_types);
 
-void free_state_g4u(state_g4u *s);
+void free_state_g4(state_g4 *s);
 
-void free_g4u(G4U *model);
+void free_g4(G4 *model);
 
-int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max);
+int load_quantized_g4(const char *filepath, G4 *model, int seq_n_max);
 
-float *forward_g4u(G4U *model, int token, int pos);
+float *forward_g4(G4 *model, int token, int pos);
 
 
-#endif // DOLEN_G4U_COMMON_H
+#endif // DOLEN_G4_COMMON_H

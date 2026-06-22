@@ -5,5 +5,5 @@
 . "${dolen_path}/dolen_run_defaults/dolen_run_defaults.ig4_1"
 
 
-dolen_run_model_default="${dolen_model_path}/granite4_1_8b_a_q8"
+dolen_run_model_default="${dolen_model_path}/granite4_1_8b_a_q8.dolq"
 

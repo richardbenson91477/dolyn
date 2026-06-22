@@ -11,7 +11,7 @@ void rmsnorm_gemma(float *o, float *x, float *weight, int size, float eps);
 
 void rmsnorm_gated(float *o, float *x, float *gate, float *weight, int n_heads, int d_v, float eps);
 
-void rmsnorm_g4u(float *o, float *x, float *weight, int size, float eps, int with_scale);
+void rmsnorm_g4(float *o, float *x, float *weight, int size, float eps, int with_scale);
 
 float gelu(float x);
 

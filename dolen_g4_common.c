@@ -1,7 +1,7 @@
-#include "dolen_g4u_common.h"
+#include "dolen_g4_common.h"
 
 
-void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w, const int *layer_types) {
+void alloc_state_g4(state_g4 *s, config_g4 *p, weights_g4 *w, const int *layer_types) {
     (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
     int max_kv_heads = p->n_kv_heads > p->n_global_kv_heads ? p->n_kv_heads : p->n_global_kv_heads;
@@ -127,7 +127,7 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w, const int *lay
     s->allocated = 1;
 }
 
-void free_state_g4u(state_g4u *s) {
+void free_state_g4(state_g4 *s) {
     if (! s->allocated)
         return;
 
@@ -168,12 +168,12 @@ void free_state_g4u(state_g4u *s) {
     s->allocated = 0;
 }
 
-void free_g4u(G4U *model) {
+void free_g4(G4 *model) {
     if (! model)
         return;
 
-    config_g4u *p = &model->config;
-    weights_g4u *w = &model->weights;
+    config_g4 *p = &model->config;
+    weights_g4 *w = &model->weights;
 
     free(model->layer_types);
 
@@ -199,8 +199,8 @@ void free_g4u(G4U *model) {
     free(w->layer_scalars);
 
     if (model->state.allocated == 1) {
-        free_state_g4u(&model->state);
+        free_state_g4(&model->state);
     }
 
-    memset(model, 0, sizeof(G4U));
+    memset(model, 0, sizeof(G4));
 }
