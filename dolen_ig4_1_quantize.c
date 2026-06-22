@@ -46,7 +46,8 @@ int load_config_ig4_1(IG4_1 *model, const char *model_dir) {
 
     JsonValue *rope_theta_value = NULL;
     JsonValue *rope_params = json_object_get(root, "rope_parameters");
-    if (rope_params && (rope_params->type == JSON_OBJECT)) {
+    if (rope_params &&
+            (rope_params->type == JSON_OBJECT)) {
         rope_theta_value = json_object_get(rope_params, "rope_theta");
     }
     if (! rope_theta_value) {
@@ -193,19 +194,24 @@ int main(int argc, char *argv[]) {
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(argv[i], "--type")) && (i + 1 < argc)) {
+        if ((! strcmp(argv[i], "--type")) &&
+                (i + 1 < argc)) {
             i += 1;
             q_type_t t = parse_q_type(argv[i]);
             embed_type = attn_type = mlp_type = t;
-        } else if ((! strcmp(argv[i], "--embed")) && (i + 1 < argc)) {
+        }
+        else if ((! strcmp(argv[i], "--embed")) &&
+                (i + 1 < argc)) {
             i += 1;
             embed_type = parse_q_type(argv[i]);
         }
-        else if ((! strcmp(argv[i], "--attn")) && (i + 1 < argc)) {
+        else if ((! strcmp(argv[i], "--attn")) &&
+                (i + 1 < argc)) {
             i += 1;
             attn_type = parse_q_type(argv[i]);
         }
-        else if ((! strcmp(argv[i], "--mlp")) && (i + 1 < argc)) {
+        else if ((! strcmp(argv[i], "--mlp")) &&
+                (i + 1 < argc)) {
             i += 1;
             mlp_type = parse_q_type(argv[i]);
         }

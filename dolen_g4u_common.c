@@ -81,7 +81,8 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
                 s->sin_cache_sliding[pos * cache_stride_sliding + i] = sinf(val);
             }
         }
-    } else {
+    }
+    else {
         s->cos_cache_sliding = NULL;
         s->sin_cache_sliding = NULL;
     }

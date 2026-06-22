@@ -2,6 +2,7 @@
 #include "dolen_common_io.h"
 #include "dolen_common_mem.h"
 
+
 void dequantize_row(float *output, const qtensor *qt, int row_idx) {
     if ((row_idx >= qt->rows) ||
             (row_idx < 0)) {
@@ -343,7 +344,7 @@ void matmul_qq(float *restrict output, const qtensor *restrict x, const qtensor 
 }
 
 void free_qt(qtensor *qt) {
-    if (!qt) {
+    if (! qt) {
         return;
     }
 
@@ -358,7 +359,7 @@ void free_qt(qtensor *qt) {
 }
 
 void free_qt_array(qtensor *arr, int n) {
-    if (!arr) {
+    if (! arr) {
         return;
     }
     for (int i = 0; i < n; i++) {
@@ -406,3 +407,4 @@ void read_qt(FILE *f, qtensor *qt) {
         fread(qt->s, sizeof(float), (size_t)qt->rows * num_groups, f);
     }
 }
+

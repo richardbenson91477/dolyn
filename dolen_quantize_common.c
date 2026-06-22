@@ -212,7 +212,7 @@ static int load_shard_metadata(safetensors_idx *idx, const char *filename) {
     return 0;
 }
 
-static void quantize_group_into(int8_t *q, float *s, const float *weights, int rows, int cols) {
+static void quantize_group_into_q8(int8_t *q, float *s, const float *weights, int rows, int cols) {
     int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     for (int i = 0; i < rows; i++) {
         const float *row = weights + (size_t)i * cols;
@@ -746,7 +746,7 @@ int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const char *name, 
                 free(s);
                 return -1;
             }
-            quantize_group_into(q, s, f32, chunk_rows, cols);
+            quantize_group_into_q8(q, s, f32, chunk_rows, cols);
 
             if (seek_abs(out, q_offset + (uint64_t)row * cols) ||
                     quantize_write_bytes(out, q, sizeof(int8_t), chunk_elements) ||
@@ -793,7 +793,7 @@ int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const char *name, 
         size_t row_work_bytes =
                 (size_t)cols * (item_size + sizeof(float)) + (size_t)cols / 2 + (size_t)num_groups * sizeof(float);
         size_t rows_per_chunk = row_work_bytes ? ctx->chunk_bytes / row_work_bytes : 1;
-        if (!rows_per_chunk) {
+        if (! rows_per_chunk) {
             rows_per_chunk = 1;
         }
         if (rows_per_chunk > (size_t)rows) {
@@ -813,10 +813,10 @@ int quantize_write_tensor_entry(quantize_ctx *ctx, FILE *out, const char *name, 
         float *f32 = (float *)a_calloc(max_elements * sizeof(float));
         uint8_t *q = (uint8_t *)a_calloc((max_elements + 1) / 2);
         float *s = (float *)a_calloc(rows_per_chunk * (size_t)num_groups * sizeof(float));
-        if ((!raw) ||
-                (!f32) ||
-                (!q) ||
-                (!s)) {
+        if ((! raw) ||
+                (! f32) ||
+                (! q) ||
+                (! s)) {
             free(raw);
             free(f32);
             free(q);
@@ -950,7 +950,7 @@ q_type_t parse_q_type(const char *str) {
     if ((! strcmp(str, "Q8")) || (! strcmp(str, "q8"))) {
         return Q_TYPE_Q8;
     }
-    if ((!strcmp(str, "Q4")) || (!strcmp(str, "q4"))) {
+    if ((! strcmp(str, "Q4")) || (! strcmp(str, "q4"))) {
         return Q_TYPE_Q4;
     }
 

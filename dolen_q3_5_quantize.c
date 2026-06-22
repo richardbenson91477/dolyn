@@ -111,7 +111,8 @@ int load_config_q3_5(Q3_5 *model, const char *model_dir) {
         if (is_linear == 1) {
             model->deltanet_layer_indices[i] = ld++;
             p->n_linear_attn_layers++;
-        } else {
+        }
+        else {
             model->attn_layer_indices[i] = la++;
             p->n_full_attn_layers++;
         }
@@ -229,22 +230,25 @@ int quantize_q3_5_to_file(
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 && write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_b.weight", 1,
-                    p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
+            if ((model.layer_types[l] == 1) && 
+                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_b.weight", 1,
+                            p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 && write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_a.weight", 1,
-                    p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
+            if (model.layer_types[l] == 1 &&
+                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_a.weight", 1,
+                            p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 && write_layer_tensor(&ctx, out, l, "linear_attn.conv1d.weight", 1,
-                    conv_dim * p->linear_conv_kernel, Q_TYPE_F32)) {
+            if (model.layer_types[l] == 1 &&
+                    write_layer_tensor(&ctx, out, l, "linear_attn.conv1d.weight", 1,
+                            conv_dim * p->linear_conv_kernel, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
@@ -301,7 +305,8 @@ int quantize_q3_5_to_file(
     }
 
     if ((! p->tie_word_embeddings) &&
-            quantize_write_tensor(&ctx, out, "lm_head.weight", p->vocab_size, p->dim, embed_type)) {
+            quantize_write_tensor(&ctx, out, "lm_head.weight",
+                    p->vocab_size, p->dim, embed_type)) {
         failed = 1;
         goto cleanup;
     }
@@ -333,19 +338,24 @@ int main(int argc, char *argv[]) {
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(argv[i], "--type")) && ((i + 1) < argc)) {
+        if ((! strcmp(argv[i], "--type")) &&
+                ((i + 1) < argc)) {
             i += 1;
             q_type_t t = parse_q_type(argv[i]);
             embed_type = attn_type = mlp_type = t;
-        } else if ((! strcmp(argv[i], "--embed")) && ((i + 1) < argc)) {
+        }
+        else if ((! strcmp(argv[i], "--embed")) &&
+                ((i + 1) < argc)) {
             i += 1;
             embed_type = parse_q_type(argv[i]);
         }
-        else if ((! strcmp(argv[i], "--attn")) && ((i + 1) < argc)) {
+        else if ((! strcmp(argv[i], "--attn")) &&
+                ((i + 1) < argc)) {
             i += 1;
             attn_type = parse_q_type(argv[i]);
         }
-        else if ((! strcmp(argv[i], "--mlp")) && ((i + 1) < argc)) {
+        else if ((! strcmp(argv[i], "--mlp")) &&
+                ((i + 1) < argc)) {
             i += 1;
             mlp_type = parse_q_type(argv[i]);
         }

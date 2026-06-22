@@ -67,7 +67,8 @@ int load_config_g4u(G4U *model, const char *model_dir) {
 
     const char *rope_type = json_get_string(json_object_get(full_rope, "rope_type"), "proportional");
     p->use_rope_freqs = 0;
-    if (rope_type && (! strcmp(rope_type, "proportional"))) {
+    if (rope_type &&
+            (! strcmp(rope_type, "proportional"))) {
         log_msg(stdout, "INFO: Full attention uses config-derived proportional RoPE\n");
     }
 
@@ -79,16 +80,20 @@ int load_config_g4u(G4U *model, const char *model_dir) {
         return -1;
     }
 
-    if (layer_types_json && layer_types_json->type == JSON_ARRAY) {
+    if (layer_types_json &&
+            layer_types_json->type == JSON_ARRAY) {
         for (int i = 0; i < p->n_layers; i++) {
             JsonValue *lt = json_array_get(layer_types_json, i);
-            if (lt && (lt->type == JSON_STRING)) {
+            if (lt &&
+                    (lt->type == JSON_STRING)) {
                 model->layer_types[i] = (strcmp(lt->data.string, "full_attention")) ? 0 : 1;
-            } else {
+            }
+            else {
                 model->layer_types[i] = 0;
             }
         }
-    } else {
+    }
+    else {
         for (int i = 0; i < p->n_layers; i++) {
             model->layer_types[i] = ((i + 1) % 6) ? 0 : 1;
         }
@@ -219,7 +224,8 @@ int quantize_g4u_to_file(
                 failed = 1;
                 goto cleanup;
             }
-        } else {
+        }
+        else {
             if (write_layer_tensor(&ctx, out, l, "self_attn.v_proj.weight", kv_heads * hd, p->dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
@@ -293,19 +299,24 @@ int main(int argc, char *argv[]) {
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(argv[i], "--type")) && ((i + 1) < argc)) {
+        if ((! strcmp(argv[i], "--type")) &&
+                ((i + 1) < argc)) {
             i += 1;
             q_type_t t = parse_q_type(argv[i]);
             embed_type = attn_type = mlp_type = t;
-        } else if ((! strcmp(argv[i], "--embed")) && ((i + 1) < argc)) {
+        }
+        else if ((! strcmp(argv[i], "--embed")) &&
+                ((i + 1) < argc)) {
             i += 1;
             embed_type = parse_q_type(argv[i]);
         }
-        else if ((! strcmp(argv[i], "--attn")) && ((i + 1) < argc)) {
+        else if ((! strcmp(argv[i], "--attn")) &&
+                ((i + 1) < argc)) {
             i += 1;
             attn_type = parse_q_type(argv[i]);
         }
-        else if ((! strcmp(argv[i], "--mlp")) && ((i + 1) < argc)) {
+        else if ((! strcmp(argv[i], "--mlp")) &&
+                ((i + 1) < argc)) {
             i += 1;
             mlp_type = parse_q_type(argv[i]);
         }
