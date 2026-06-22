@@ -51,7 +51,6 @@ void dequantize_row(float *output, const qtensor *qt, int row_idx) {
             }
             float scale = row_s[g];
             for (int j = start; j < end; j += 4) {
-                // FIX: Use absolute index 'j', not relative '(j - start)'
                 int idx = j / 4 * 3; 
                 uint8_t b0 = row_q[idx];
                 uint8_t b1 = row_q[idx + 1];
