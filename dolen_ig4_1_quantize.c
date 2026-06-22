@@ -111,12 +111,15 @@ int quantize_ig4_1_to_file(
     }
 
     config_ig4_1 *p = &model.config;
-    uint32_t magic = 0x31344749;
-    uint32_t version = 2;
-    int failed = 0;
+
     int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
     int kv_dim = p->n_kv_heads * head_size;
     int attn_out_dim = p->n_heads * head_size;
+
+    uint64_t magic = MAGIC_IG4_1;
+    uint32_t version = 2;
+
+    int failed = 0;
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(out, &version, sizeof(version), 1) ||

@@ -100,12 +100,15 @@ int quantize_q3_to_file(
     }
 
     config_q3 *p = &model.config;
-    uint32_t magic = 0x30335751;
-    uint32_t version = 2;
-    int failed = 0;
+
     int head_size = p->head_dim;
     int kv_dim = p->n_kv_heads * head_size;
     int all_heads_dim = p->n_heads * head_size;
+
+    uint64_t magic = MAGIC_Q3;
+    uint32_t version = 2;
+
+    int failed = 0;
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(out, &version, sizeof(version), 1) ||

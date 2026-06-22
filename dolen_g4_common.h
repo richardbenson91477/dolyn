@@ -95,3 +95,4 @@ float *forward_g4(G4 *model, int token, int pos);
 
 
 #endif // DOLEN_G4_COMMON_H
+

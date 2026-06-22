@@ -10,16 +10,17 @@ int load_quantized_g4(const char *filepath, G4 *model, int seq_n_max) {
 
     memset(model, 0, sizeof(G4));
 
-    uint32_t magic, version;
+    uint64_t magic;
+    uint32_t version;
 
-    if (fread(&magic, sizeof(uint32_t), 1, f) != 1 ||
-            fread(&version, sizeof(uint32_t), 1, f) != 1) {
+    if (fread(&magic, sizeof(magic), 1, f) != 1 ||
+            fread(&version, sizeof(version), 1, f) != 1) {
         log_msg(stderr, "ERROR: Failed to read header\n");
         fclose(f);
         return -1;
     }
 
-    if (magic != 0x55344D47) { // GM4U
+    if (magic != MAGIC_G4) {
         log_msg(stderr, "ERROR: Invalid magic number\n");
         fclose(f);
         return -1;

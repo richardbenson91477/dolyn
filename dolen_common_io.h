@@ -14,6 +14,11 @@
 #include "ext/json.h"
 
 
+#define MAGIC_Q3 (0x30335751514c4f44) // DOLQQW30
+#define MAGIC_Q3_5 (0x35335751514c4f44) // DOLQQW35
+#define MAGIC_G4 (0x344d4547514c4f44) // DOLQGEM4
+#define MAGIC_IG4_1 (0x31344749514c4f44) //DOLQIG41
+
 extern char *log_path;
 
 

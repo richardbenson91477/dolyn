@@ -10,15 +10,17 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
 
     memset(model_ig4_1, 0, sizeof(IG4_1));
 
-    uint32_t magic, version;
-    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) ||
+    uint64_t magic;
+    uint32_t version;
+
+    if ((fread(&magic, sizeof(uint64_t), 1, f) != 1) ||
             (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
     }
 
-    if (magic != 0x31344749) { // 'IG41'
+    if (magic != MAGIC_IG4_1) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
         fclose(f);
         return -1;

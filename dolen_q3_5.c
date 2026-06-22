@@ -10,15 +10,17 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
 
     memset(model_q3_5, 0, sizeof(Q3_5));
 
-    uint32_t magic, version;
-    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) ||
+    uint64_t magic;
+    uint32_t version;
+
+    if ((fread(&magic, sizeof(uint64_t), 1, f) != 1) ||
             (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
     }
 
-    if (magic != 0x35335751) { // 'QW35'
+    if (magic != MAGIC_Q3_5) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
         fclose(f);
         return -1;

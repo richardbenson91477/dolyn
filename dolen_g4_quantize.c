@@ -139,7 +139,8 @@ int quantize_g4_to_file(
     }
 
     config_g4 *p = &model.config;
-    uint32_t magic = 0x55344D47;
+
+    uint64_t magic = MAGIC_G4;
     uint32_t version = 5;
     int failed = 0;
 

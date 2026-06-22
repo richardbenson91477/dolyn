@@ -10,15 +10,17 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
 
     memset(model_q3, 0, sizeof(Q3));
 
-    uint32_t magic, version;
-    if ((fread(&magic, sizeof(uint32_t), 1, f) != 1) ||
+    uint64_t magic;
+    uint32_t version;
+
+    if ((fread(&magic, sizeof(uint64_t), 1, f) != 1) ||
             (fread(&version, sizeof(uint32_t), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", filepath);
         fclose(f);
         return -1;
     }
 
-    if (magic != 0x30335751) { // 'QW30'
+    if (magic != MAGIC_Q3) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", filepath);
         fclose(f);
         return -1;

@@ -162,9 +162,7 @@ int quantize_q3_5_to_file(
     }
 
     config_q3_5 *p = &model.config;
-    uint32_t magic = 0x35335751;
-    uint32_t version = 2;
-    int failed = 0;
+
     int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
     int kv_dim = p->n_kv_heads * head_size;
     int key_dim = p->n_linear_k_heads * p->d_linear_k;
@@ -172,6 +170,11 @@ int quantize_q3_5_to_file(
     int conv_dim = key_dim * 2 + value_dim;
     int q_dim = p->n_heads * head_size * 2;
     int attn_out_dim = p->n_heads * head_size;
+
+    uint64_t magic = MAGIC_Q3_5;
+    uint32_t version = 2;
+
+    int failed = 0;
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(out, &version, sizeof(version), 1) ||
