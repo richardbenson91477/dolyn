@@ -5,5 +5,5 @@
 . "${dolen_path}/dolen_run_defaults/dolen_run_defaults.g4u"
 
 
-dolen_run_model_default="${dolen_model_path}/gemma4_12b_a"
+dolen_run_model_default="${dolen_model_path}/gemma4_12b_a_q8"
 

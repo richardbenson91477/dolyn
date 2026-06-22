@@ -63,8 +63,8 @@ typedef struct {
     float *v;
     float *att;
     float *logits;
-    float *key_cache;
-    float *value_cache;
+    float **key_cache;   // one pointer per layer
+    float **value_cache; // one pointer per layer
     qtensor xq;
     qtensor hq; 
     float *cos_cache_full;
@@ -72,6 +72,7 @@ typedef struct {
     float *cos_cache_sliding;
     float *sin_cache_sliding;
     int allocated;
+    int n_layers;        // needed for freeing per-layer caches
 } state_g4u;
 
 typedef struct {
@@ -82,7 +83,7 @@ typedef struct {
 } G4U;
 
 
-void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w);
+void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w, const int *layer_types);
 
 void free_state_g4u(state_g4u *s);
 
@@ -94,4 +95,3 @@ float *forward_g4u(G4U *model, int token, int pos);
 
 
 #endif // DOLEN_G4U_COMMON_H
-

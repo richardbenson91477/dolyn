@@ -125,7 +125,7 @@ int load_quantized_g4u(const char *filepath, G4U *model, int seq_n_max) {
     fclose(f);
     log_msg(stdout, "INFO: Quantized G4U loaded from %s\n", filepath);
 
-    alloc_state_g4u(&model->state, p, w);
+    alloc_state_g4u(&model->state, p, w, model->layer_types);
 
     return 0;
 }
@@ -156,9 +156,6 @@ float *forward_g4u(G4U *model, int token, int pos) {
     int dim = p->dim;
     float eps = p->rms_norm_eps;
     float embed_scale = sqrtf((float)dim);
-    int max_head_dim = p->global_head_dim > p->head_dim ? p->global_head_dim : p->head_dim;
-    int max_kv_heads = p->n_global_kv_heads > p->n_kv_heads ? p->n_global_kv_heads : p->n_kv_heads;
-    int max_kv_dim = max_kv_heads * max_head_dim;
 
     if (token < 0 ||
             token >= p->vocab_size) {
@@ -238,9 +235,9 @@ float *forward_g4u(G4U *model, int token, int pos) {
             rmsnorm_g4u(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
 
-        long long loff = (long long)l * p->seq_len * max_kv_dim;
-        memcpy(s->key_cache + loff + (long long)pos * max_kv_dim, s->k, kv_dim * sizeof(float));
-        memcpy(s->value_cache + loff + (long long)pos * max_kv_dim, s->v, kv_dim * sizeof(float));
+        // Write into per‑layer KV cache
+        memcpy(s->key_cache[l] + (long long)pos * kv_dim, s->k, kv_dim * sizeof(float));
+        memcpy(s->value_cache[l] + (long long)pos * kv_dim, s->v, kv_dim * sizeof(float));
 
         int start_t = is_full ? 0 : fmax(0, pos - p->sliding_window + 1);
 
@@ -256,7 +253,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
             float attn_scale = 1.0f;
             for (int t = start_t; t <= pos; t++) {
-                float *k = s->key_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
+                float *k = s->key_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_dim;
                 float score = 0.0f;
 
 #pragma omp simd reduction(+ : score)
@@ -270,7 +267,7 @@ float *forward_g4u(G4U *model, int token, int pos) {
             float *out = s->hb + h * head_dim;
             memset(out, 0, head_dim * sizeof(float));
             for (int t = start_t; t <= pos; t++) {
-                float *v = s->value_cache + loff + (long long)t * max_kv_dim + (long long)kv_head * head_dim;
+                float *v = s->value_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_dim;
                 float a = att[t];
 
 #pragma omp simd
@@ -386,4 +383,3 @@ static model_iface *init_g4u(const char *model_path, int seq_n_max, bool _think)
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_g4u, "dolen_g4u");
 }
-

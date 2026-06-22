@@ -5,5 +5,5 @@
 . "${dolen_path}/dolen_run_defaults/dolen_run_defaults.q3"
 
 
-dolen_run_model_default="${dolen_model_path}/qwen3_4b_i_a"
+dolen_run_model_default="${dolen_model_path}/qwen3_4b_i_a_q8"
 

@@ -1,7 +1,7 @@
 #include "dolen_g4u_common.h"
 
 
-void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
+void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w, const int *layer_types) {
     (void)w;
     int max_head_dim = p->head_dim > p->global_head_dim ? p->head_dim : p->global_head_dim;
     int max_kv_heads = p->n_kv_heads > p->n_global_kv_heads ? p->n_kv_heads : p->n_global_kv_heads;
@@ -28,8 +28,18 @@ void alloc_state_g4u(state_g4u *s, config_g4u *p, weights_g4u *w) {
     s->att = a_calloc((size_t)p->n_heads * p->seq_len * sizeof(float));
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
 
-    s->key_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
-    s->value_cache = a_calloc((size_t)p->n_layers * p->seq_len * max_kv_dim * sizeof(float));
+    // Per‑layer KV caches sized for exact kv_dim of each layer
+    s->n_layers = p->n_layers;
+    s->key_cache = (float **)a_calloc((size_t)p->n_layers * sizeof(float *));
+    s->value_cache = (float **)a_calloc((size_t)p->n_layers * sizeof(float *));
+    for (int l = 0; l < p->n_layers; l++) {
+        int is_full = layer_types ? layer_types[l] : 0;
+        int kv_heads = is_full ? p->n_global_kv_heads : p->n_kv_heads;
+        int head_dim = is_full ? p->global_head_dim : p->head_dim;
+        int kv_dim = kv_heads * head_dim;
+        s->key_cache[l] = a_calloc((size_t)p->seq_len * kv_dim * sizeof(float));
+        s->value_cache[l] = a_calloc((size_t)p->seq_len * kv_dim * sizeof(float));
+    }
 
     int num_groups_xq = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     s->xq.data = a_calloc((size_t)max_act_dim * sizeof(int8_t));
@@ -131,8 +141,21 @@ void free_state_g4u(state_g4u *s) {
     free(s->v);
     free(s->att);
     free(s->logits);
-    free(s->key_cache);
-    free(s->value_cache);
+
+    // Free per‑layer KV caches
+    if (s->key_cache) {
+        for (int i = 0; i < s->n_layers; i++) {
+            free(s->key_cache[i]);
+        }
+        free(s->key_cache);
+    }
+    if (s->value_cache) {
+        for (int i = 0; i < s->n_layers; i++) {
+            free(s->value_cache[i]);
+        }
+        free(s->value_cache);
+    }
+
     free(s->xq.data);
     free(s->xq.s);
     free(s->hq.data);
@@ -181,4 +204,3 @@ void free_g4u(G4U *model) {
 
     memset(model, 0, sizeof(G4U));
 }
-
