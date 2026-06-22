@@ -322,8 +322,8 @@ float *forward_g4u(G4U *model, int token, int pos) {
 
     rmsnorm_g4u(x, x, (float *)w->rms_final_norm.data, dim, eps, 1);
 
-    quantize_vec(&s->xq, x, dim);
-    matmul_qq(s->logits, &s->xq, &w->embed_tokens_weight);
+    matmul_qt(s->logits, s->x, &w->embed_tokens_weight);
+
 
     if (p->final_logit_softcapping > 0.0f) {
         float cap = p->final_logit_softcapping;
