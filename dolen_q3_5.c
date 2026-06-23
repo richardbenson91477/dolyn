@@ -574,7 +574,7 @@ static token_map SPECIAL_TOKENS_Q3_5[] = {
     {NULL, 0} 
 };
 
-static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think) {
+static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_) {
     Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
 
     if (load_quantized_q3_5(model_path, model, seq_n_max)) {
@@ -594,7 +594,7 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool _think
         .eos_token_id = 248046,
         .im_end_id = 248046,
         .special_tokens = SPECIAL_TOKENS_Q3_5,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_Q3_5 : &CHAT_TEMPLATE_Q3_5,
+        .chat_template = think_ ? &CHAT_TEMPLATE_THINK_Q3_5 : &CHAT_TEMPLATE_Q3_5,
     };
     return model_i;
 }

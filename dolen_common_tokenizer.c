@@ -126,7 +126,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
     free(segment);
 }
 
-char *decode(Tokenizer *t, int token, bool _debug) {
+char *decode(Tokenizer *t, int token, bool debug_) {
     char *piece = t->vocab[token];
 
     unsigned char byte_val;
@@ -134,7 +134,7 @@ char *decode(Tokenizer *t, int token, bool _debug) {
         piece = (char *)t->byte_pieces + byte_val * 2;
     }
 
-    if (_debug) {
+    if (debug_) {
         log_msg(stdout, "\nDEBUG: token: %u piece:", token);
         for (int c = 0; c < strlen(piece); c++) {
             log_msg(stdout, "<%x>", (unsigned char)(piece[c]));

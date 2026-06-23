@@ -324,7 +324,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
     .end_turn = "<|im_end|\x3e" "\n",
 };
 
-static model_iface *init_q3(const char *model_path, int seq_n_max, bool _think) {
+static model_iface *init_q3(const char *model_path, int seq_n_max, bool think_) {
     Q3 *model = a_calloc(1 * sizeof(Q3));
 
     if (load_quantized_q3(model_path, model, seq_n_max)) {
@@ -345,7 +345,7 @@ static model_iface *init_q3(const char *model_path, int seq_n_max, bool _think) 
         .eos_token_id = 151645,
         .im_end_id = 151645,
         .special_tokens = SPECIAL_TOKENS_Q3,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_Q3 : &CHAT_TEMPLATE_Q3,
+        .chat_template = think_ ? &CHAT_TEMPLATE_THINK_Q3 : &CHAT_TEMPLATE_Q3,
     };
     return model_i;
 }

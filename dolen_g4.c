@@ -359,7 +359,7 @@ static const chat_template CHAT_TEMPLATE_THINK_G4 = {
     .end_turn = "<turn|\x3e" "\n",
 };
 
-static model_iface *init_g4(const char *model_path, int seq_n_max, bool _think) {
+static model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) {
     G4 *model = a_calloc(1 * sizeof(G4));
     if (load_quantized_g4(model_path, model, seq_n_max)) {
         free_g4(model);
@@ -377,7 +377,7 @@ static model_iface *init_g4(const char *model_path, int seq_n_max, bool _think) 
         .eos_token_id = 1,
         .im_end_id = 106,
         .special_tokens = NULL,
-        .chat_template = _think ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4 };
+        .chat_template = think_ ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4 };
     return model_i;
 }
 

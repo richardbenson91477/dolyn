@@ -4,7 +4,7 @@
 _bin_name="dolen_run"
 _prefix="${_bin_name}"
 _defaults_base="${dolen_path}/${_bin_name}_defaults/${_bin_name}_defaults"
-_suffixes="bin model tokenizer system_prompt mode seq_n log seed temp top_p top_k prompt_n threads_n"
+_suffixes="bin model tokenizer prompt_n prompt system_prompt mode seq_n log seed temp top_p top_k threads_n"
 
 envarg_parse "$_bin_name" "$_prefix" "$_defaults_base" "$_suffixes" "$@" &&\
   shift $envarg_parse_shift_count
@@ -18,8 +18,9 @@ export OMP_PROC_BIND="close"
 "${dolen_run_bin}" \
     --model "${dolen_run_model}" \
     --tokenizer "${dolen_run_tokenizer}" \
-    --system_prompt "${dolen_run_system_prompt}" \
     --prompt_n "${dolen_run_prompt_n}" \
+    --prompt "${dolen_run_prompt}" \
+    --system_prompt "${dolen_run_system_prompt}" \
     --mode "${dolen_run_mode}" \
     --seq_n "${dolen_run_seq_n}" \
     --log "${dolen_run_log}" \

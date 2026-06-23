@@ -309,10 +309,10 @@ static token_map SPECIAL_TOKENS_IG4_1[] = {
     { NULL, 0 },
 };
 
-static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool _think) {
+static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think_) {
     IG4_1 *model = a_calloc(1 * sizeof(IG4_1));
 
-    if (_think) {
+    if (think_) {
         log_msg(stderr, "WARNING: Think mode requested but not supported.\n");
     }
 
