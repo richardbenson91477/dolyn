@@ -333,8 +333,11 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         }
         else if ((! strcmp(argv[i], "-sp")) ||
                 (! strcmp(argv[i], "--system_prompt"))) {
-            system_prompt = a_calloc(strlen(argv[i + 1]) + 1);
-            strcpy(system_prompt, argv[i + 1]);
+            int system_prompt_len = strlen(argv[i + 1]);
+            if (system_prompt_len > 0) {
+                system_prompt = a_calloc(system_prompt_len + 1);
+                strcpy(system_prompt, argv[i + 1]);
+            }
         }
         else if ((! strcmp(argv[i], "-l")) ||
                 (! strcmp(argv[i], "--log"))) {
