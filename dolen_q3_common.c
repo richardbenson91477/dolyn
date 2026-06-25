@@ -133,5 +133,6 @@ void free_q3(Q3 *model_q3) {
     if (model_q3->state.allocated == 1) {
         free_state_q3(&model_q3->state);
     }
-}
 
+    free_tokenizer(&model_q3->tokenizer);
+}

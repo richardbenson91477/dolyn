@@ -129,5 +129,6 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
     if (model_ig4_1->state.allocated) {
         free_state_ig4_1(&model_ig4_1->state);
     }
-}
 
+    free_tokenizer(&model_ig4_1->tokenizer);
+}

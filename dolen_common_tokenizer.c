@@ -61,6 +61,7 @@ void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, in
             t->sorted_vocab[i].id = i;
         }
         qsort(t->sorted_vocab, t->vocab_size, sizeof(token_map), compare_tokens);
+        t->is_sorted = 1;
     }
 
     *tokens_n = 0;
@@ -144,10 +145,11 @@ char *decode(Tokenizer *t, int token, bool debug_) {
     return piece;
 }
 
-void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_map *special_tokens) {
+void build_tokenizer(Tokenizer *t, const char *tokenizer_path, int vocab_size, token_map *special_tokens) {
     t->vocab_size = vocab_size;
     t->vocab = (char **)a_calloc(vocab_size * sizeof(char *));
     t->sorted_vocab = NULL;
+    t->is_sorted = 0;
     t->special_tokens = special_tokens;
 
     t->n_special_tokens = 0;
@@ -194,6 +196,7 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size, token_m
 }
 
 void free_tokenizer(Tokenizer *t) {
+    if (! t) return;
     for (int i = 0; i < t->vocab_size; i++) {
         free(t->vocab[i]);
     }
@@ -202,3 +205,34 @@ void free_tokenizer(Tokenizer *t) {
     free(t->sorted_vocab);
 }
 
+int tokenizer_write_to_file(FILE *f, const Tokenizer *t) {
+    if (fwrite(&t->max_token_length, sizeof(int), 1, f) != 1) return -1;
+    for (int i = 0; i < t->vocab_size; i++) {
+        int len = (int)strlen(t->vocab[i]);
+        if (fwrite(&len, sizeof(int), 1, f) != 1) return -1;
+        if (len > 0 && fwrite(t->vocab[i], len, 1, f) != 1) return -1;
+    }
+    return 0;
+}
+
+int tokenizer_read_from_file(FILE *f, int vocab_size, Tokenizer *t) {
+    if (fread(&t->max_token_length, sizeof(int), 1, f) != 1) return -1;
+    t->vocab = (char **)a_calloc((size_t)vocab_size * sizeof(char *));
+    t->sorted_vocab = NULL;
+    t->is_sorted = 0;
+    t->vocab_size = vocab_size;
+    t->special_tokens = NULL;
+    t->n_special_tokens = 0;
+    for (int i = 0; i < 256; i++) {
+        t->byte_pieces[i * 2] = (unsigned char)i;
+        t->byte_pieces[i * 2 + 1] = '\0';
+    }
+    int len;
+    for (int i = 0; i < vocab_size; i++) {
+        if (fread(&len, sizeof(int), 1, f) != 1) return -1;
+        t->vocab[i] = (char *)a_calloc((size_t)len + 1);
+        if (len > 0 && fread(t->vocab[i], len, 1, f) != 1) return -1;
+        t->vocab[i][len] = '\0';
+    }
+    return 0;
+}

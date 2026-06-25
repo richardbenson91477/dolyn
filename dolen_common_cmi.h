@@ -1,4 +1,3 @@
-// Common Model Interface
 #ifndef DOLEN_COMMON_CMI_H
 #define DOLEN_COMMON_CMI_H
 
@@ -20,35 +19,20 @@ typedef struct {
 
 typedef struct {
     void *model;
-
     float *(*forward)(void *model, int token, int pos);
-
     void (*free_model)(void *model);
-
     int seq_n_max;
-
-    int vocab_size;
-    int bos_token_id;
-    int im_end_id;
-    token_map *special_tokens;
-
-    int eos_token_id;
-
     const chat_template *chat_template;
-
+    Tokenizer *tokenizer;
 } model_iface;
 
 
-void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *prompt, int steps_n_max);
-
-void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *system_prompt, char *init_prompt,
+void generate_common(model_iface *model_i, Sampler *sampler, char *prompt, int steps_n_max);
+void chat_common(model_iface *model_i, Sampler *sampler, char *system_prompt, char *init_prompt,
         int prompt_n_max, int steps_n_max, bool debug_);
-
 void error_usage(const char *prog_name);
-
 int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *model_path, int seq_n_max, bool think_),
         const char *prog_name);
 
 
 #endif // DOLEN_COMMON_CMI_H
-

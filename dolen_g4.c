@@ -40,6 +40,12 @@ int load_quantized_g4(const char *filepath, G4 *model, int seq_n_max) {
         return -1;
     }
 
+    if (tokenizer_read_from_file(f, p->vocab_size, &model->tokenizer)) {
+        log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", filepath);
+        fclose(f);
+        return -1;
+    }
+
     if (seq_n_max) {
         p->seq_len = seq_n_max;
     }
@@ -236,7 +242,6 @@ float *forward_g4(G4 *model, int token, int pos) {
             rmsnorm_g4(s->v + h * head_dim, s->v + h * head_dim, NULL, head_dim, eps, 0);
         }
 
-        // Write into per‑layer KV cache
         memcpy(s->key_cache[l] + (long long)pos * kv_dim, s->k, kv_dim * sizeof(float));
         memcpy(s->value_cache[l] + (long long)pos * kv_dim, s->v, kv_dim * sizeof(float));
 
@@ -367,17 +372,18 @@ static model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) 
         return NULL;
     }
 
+    model->tokenizer.special_tokens = NULL;
+    model->tokenizer.bos_token_id = 2;
+    model->tokenizer.eos_token_id = 1;
+    model->tokenizer.im_end_id = 106;
+
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface){ .model = model,
         .forward = forward_g4_wrap,
         .free_model = free_g4_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
-        .vocab_size = model->config.vocab_size,
-        .bos_token_id = 2,
-        .eos_token_id = 1,
-        .im_end_id = 106,
-        .special_tokens = NULL,
-        .chat_template = think_ ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4 };
+        .chat_template = think_ ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4,
+        .tokenizer = &model->tokenizer };
     return model_i;
 }
 

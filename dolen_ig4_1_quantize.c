@@ -90,7 +90,7 @@ static int write_layer_tensor(
 }
 
 int quantize_ig4_1_to_file(
-        const char *model_dir, const char *output_file, q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type) {
+        const char *model_dir, const char *output_file, q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *tokenizer_path) {
     IG4_1 model;
     memset(&model, 0, sizeof(model));
     if (load_config_ig4_1(&model, model_dir)) {
@@ -123,8 +123,22 @@ int quantize_ig4_1_to_file(
 
     if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(out, &version, sizeof(version), 1) ||
-            quantize_write_bytes(out, p, sizeof(*p), 1) ||
-            quantize_write_tensor(&ctx, out, "model.embed_tokens.weight", p->vocab_size, p->dim, embed_type)) {
+            quantize_write_bytes(out, p, sizeof(*p), 1)) {
+        failed = 1;
+        goto cleanup;
+    }
+
+    Tokenizer tokenizer;
+    memset(&tokenizer, 0, sizeof(tokenizer));
+    build_tokenizer(&tokenizer, tokenizer_path, p->vocab_size, NULL);
+
+    if (tokenizer_write_to_file(out, &tokenizer)) {
+        log_msg(stderr, "ERROR: Failed to write tokenizer\n");
+        failed = 1;
+        goto cleanup;
+    }
+
+    if (quantize_write_tensor(&ctx, out, "model.embed_tokens.weight", p->vocab_size, p->dim, embed_type)) {
         failed = 1;
         goto cleanup;
     }
@@ -174,6 +188,7 @@ int quantize_ig4_1_to_file(
     }
 
 cleanup:
+    free_tokenizer(&tokenizer);
     if (fclose(out)) {
         failed = 1;
     }
@@ -190,12 +205,13 @@ cleanup:
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE]\n",
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n",
                 argv[0]);
         return EXIT_FAILURE;
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
+    char *tokenizer_path = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
         if ((! strcmp(argv[i], "--type")) &&
                 (i + 1 < argc)) {
@@ -218,8 +234,12 @@ int main(int argc, char *argv[]) {
             i += 1;
             mlp_type = parse_q_type(argv[i]);
         }
+        else if ((! strcmp(argv[i], "--tokenizer")) &&
+                (i + 1 < argc)) {
+            i += 1;
+            tokenizer_path = argv[i];
+        }
     }
 
-    return quantize_ig4_1_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type) ? EXIT_FAILURE : EXIT_SUCCESS;
+    return quantize_ig4_1_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, tokenizer_path) ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

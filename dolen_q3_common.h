@@ -64,6 +64,7 @@ typedef struct {
     config_q3 config;
     weights_q3 weights;
     state_q3 state;
+    Tokenizer tokenizer;
 } Q3;
 
 void alloc_state_q3(state_q3 *s, config_q3 *p);
@@ -72,4 +73,3 @@ void free_q3(Q3 *t);
 
 
 #endif // DOLEN_Q3_COMMON_H
-

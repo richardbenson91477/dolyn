@@ -40,6 +40,12 @@ int load_quantized_q3(const char *filepath, Q3 *model_q3, int seq_n_max) {
         return -1;
     }
 
+    if (tokenizer_read_from_file(f, p->vocab_size, &model_q3->tokenizer)) {
+        log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", filepath);
+        fclose(f);
+        return -1;
+    }
+
     weights_q3 *w = &model_q3->weights;
 
     if (seq_n_max) {
@@ -333,19 +339,19 @@ static model_iface *init_q3(const char *model_path, int seq_n_max, bool think_) 
         return NULL;
     }
 
+    model->tokenizer.special_tokens = SPECIAL_TOKENS_Q3;
+    model->tokenizer.bos_token_id = 0;
+    model->tokenizer.eos_token_id = 151645;
+    model->tokenizer.im_end_id = 151645;
+
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface){
         .model = model,
         .forward = forward_q3_wrap,
         .free_model = free_q3_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
-        .vocab_size = model->config.vocab_size,
-        // Q3 tokenizers have no BOS token and add_bos_token is false.
-        .bos_token_id = 0,
-        .eos_token_id = 151645,
-        .im_end_id = 151645,
-        .special_tokens = SPECIAL_TOKENS_Q3,
         .chat_template = think_ ? &CHAT_TEMPLATE_THINK_Q3 : &CHAT_TEMPLATE_Q3,
+        .tokenizer = &model->tokenizer,
     };
     return model_i;
 }
@@ -353,4 +359,3 @@ static model_iface *init_q3(const char *model_path, int seq_n_max, bool think_) 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3, "dolen3");
 }
-

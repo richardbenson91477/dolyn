@@ -199,5 +199,6 @@ void free_q3_5(Q3_5 *model_q3_5) {
     if (model_q3_5->state.allocated) {
         free_state_q3_5(&model_q3_5->state);
     }
-}
 
+    free_tokenizer(&model_q3_5->tokenizer);
+}

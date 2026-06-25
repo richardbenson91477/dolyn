@@ -38,6 +38,12 @@ int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
         return -1;
     }
 
+    if (tokenizer_read_from_file(f, model_q3_5->config.vocab_size, &model_q3_5->tokenizer)) {
+        log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", filepath);
+        fclose(f);
+        return -1;
+    }
+
     config_q3_5 *p = &model_q3_5->config;
     weights_q3_5 *w = &model_q3_5->weights;
 
@@ -583,18 +589,19 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_
         return NULL;
     }
 
+    model->tokenizer.special_tokens = SPECIAL_TOKENS_Q3_5;
+    model->tokenizer.bos_token_id = 0;
+    model->tokenizer.eos_token_id = 248046;
+    model->tokenizer.im_end_id = 248046;
+
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface){
         .model = model,
         .forward = forward_q3_5_wrap,
         .free_model = free_q3_5_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
-        .vocab_size = model->config.vocab_size,
-        .bos_token_id = 0,
-        .eos_token_id = 248046,
-        .im_end_id = 248046,
-        .special_tokens = SPECIAL_TOKENS_Q3_5,
         .chat_template = think_ ? &CHAT_TEMPLATE_THINK_Q3_5 : &CHAT_TEMPLATE_Q3_5,
+        .tokenizer = &model->tokenizer,
     };
     return model_i;
 }
@@ -602,4 +609,3 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3_5, "dolen3_5");
 }
-

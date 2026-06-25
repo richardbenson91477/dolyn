@@ -28,7 +28,6 @@ void alloc_state_g4(state_g4 *s, config_g4 *p, weights_g4 *w, const int *layer_t
     s->att = a_calloc((size_t)p->n_heads * p->seq_len * sizeof(float));
     s->logits = a_calloc((size_t)p->vocab_size * sizeof(float));
 
-    // Per‑layer KV caches sized for exact kv_dim of each layer
     s->n_layers = p->n_layers;
     s->key_cache = (float **)a_calloc((size_t)p->n_layers * sizeof(float *));
     s->value_cache = (float **)a_calloc((size_t)p->n_layers * sizeof(float *));
@@ -142,7 +141,6 @@ void free_state_g4(state_g4 *s) {
     free(s->att);
     free(s->logits);
 
-    // Free per‑layer KV caches
     if (s->key_cache) {
         for (int i = 0; i < s->n_layers; i++) {
             free(s->key_cache[i]);
@@ -201,6 +199,8 @@ void free_g4(G4 *model) {
     if (model->state.allocated == 1) {
         free_state_g4(&model->state);
     }
+
+    free_tokenizer(&model->tokenizer);
 
     memset(model, 0, sizeof(G4));
 }

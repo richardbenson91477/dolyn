@@ -90,6 +90,7 @@ typedef struct {
     config_q3_5 config;
     weights_q3_5 weights;
     state_q3_5 state;
+    Tokenizer tokenizer;
     int *layer_types;
     int *attn_layer_indices;
     int *deltanet_layer_indices;
@@ -97,11 +98,8 @@ typedef struct {
 
 
 void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p);
-
 void free_state_q3_5(state_q3_5 *s);
-
 void free_q3_5(Q3_5 *model_q3_5);
 
 
 #endif // DOLEN_Q3_5_COMMON_H
-

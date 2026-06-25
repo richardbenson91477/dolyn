@@ -38,6 +38,12 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
         return -1;
     }
 
+    if (tokenizer_read_from_file(f, model_ig4_1->config.vocab_size, &model_ig4_1->tokenizer)) {
+        log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", filepath);
+        fclose(f);
+        return -1;
+    }
+
     config_ig4_1 *p = &model_ig4_1->config;
     weights_ig4_1 *w = &model_ig4_1->weights;
 
@@ -104,7 +110,7 @@ int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max
     }
 
     fclose(f);
-    log_msg(stdin, "INFO: Quantized model loaded from %s\n", filepath);
+    log_msg(stdout, "INFO: Quantized model loaded from %s\n", filepath);
     alloc_state_ig4_1(&(model_ig4_1->state), &(model_ig4_1->config));
     return 0;
 }
@@ -322,21 +328,21 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think
         return NULL;
     }
 
+    model->tokenizer.special_tokens = SPECIAL_TOKENS_IG4_1;
+    model->tokenizer.bos_token_id = 0;
+    model->tokenizer.eos_token_id = 100257;
+    model->tokenizer.im_end_id = 100257;
+
     model_iface *model_i = a_calloc(sizeof(model_iface));
     *model_i = (model_iface){ .model = model,
         .forward = forward_ig4_1_wrap,
         .free_model = free_ig4_1_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : model->config.seq_len,
-        .vocab_size = model->config.vocab_size,
-        .bos_token_id = 0,
-        .eos_token_id = 100257,
-        .im_end_id = 100257,
-        .special_tokens = SPECIAL_TOKENS_IG4_1,
-        .chat_template = &CHAT_TEMPLATE_IG4_1 };
+        .chat_template = &CHAT_TEMPLATE_IG4_1,
+        .tokenizer = &model->tokenizer };
     return model_i;
 }
 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
-

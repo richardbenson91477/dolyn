@@ -4,16 +4,15 @@
 #include "dolen_common_mem.h"
 
 
-void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *prompt, int steps_n_max) {
+void generate_common(model_iface *model_i, Sampler *sampler, char *prompt, int steps_n_max) {
     if (prompt == NULL) {
         prompt = "";
     }
 
     int prompt_tokens_n = 0;
-
     int *prompt_tokens = (int *)a_calloc((strlen(prompt) * 4 + 3) * sizeof(int));
 
-    encode(tokenizer, prompt, model_i->bos_token_id, 0, prompt_tokens, &prompt_tokens_n);
+    encode(model_i->tokenizer, prompt, model_i->tokenizer->bos_token_id, 0, prompt_tokens, &prompt_tokens_n);
 
     if (prompt_tokens_n < 1) {
         log_msg(stderr, "ERROR: Expected at least 1 prompt token\n");
@@ -23,7 +22,6 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
     long start = 0;
     int next;
     int token = prompt_tokens[0];
-
     int pos = 0;
     while (pos < steps_n_max) {
         float *logits = model_i->forward(model_i->model, token, pos);
@@ -40,7 +38,7 @@ void generate_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sample
             break;
         }
 
-        char *piece = decode(tokenizer, next, false);
+        char *piece = decode(model_i->tokenizer, next, false);
         log_msg(stdout, "%s", piece);
 
         token = next;
@@ -104,18 +102,18 @@ static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn_, 
 }
 
 static bool is_chat_stop_token(const model_iface *model_i, int token) {
-    if (token == model_i->im_end_id) {
+    if (token == model_i->tokenizer->im_end_id) {
         return true;
     }
-    if ((model_i->eos_token_id > 0) &&
-            (token == model_i->eos_token_id)) {
+    if ((model_i->tokenizer->eos_token_id > 0) &&
+            (token == model_i->tokenizer->eos_token_id)) {
         return true;
     }
 
     return token == 2;
 }
 
-void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, char *system_prompt, char *init_prompt,
+void chat_common(model_iface *model_i, Sampler *sampler, char *system_prompt, char *init_prompt,
         int prompt_n_max, int steps_n_max, bool debug_) {
     const chat_template *chat_tmpl = model_i->chat_template;
     if (! chat_tmpl) {
@@ -166,8 +164,8 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
 
             prompt_tokens = (int *)a_calloc(((size_t)rendered_len * 4 + 3) * sizeof(int));
 
-            int bos_token = first_turn_ ? model_i->bos_token_id : 0;
-            encode(tokenizer, rendered_prompt, bos_token, 0, prompt_tokens, &prompt_tokens_n);
+            int bos_token = first_turn_ ? model_i->tokenizer->bos_token_id : 0;
+            encode(model_i->tokenizer, rendered_prompt, bos_token, 0, prompt_tokens, &prompt_tokens_n);
 
             free(rendered_prompt);
             rendered_prompt = NULL;
@@ -203,7 +201,7 @@ void chat_common(model_iface *model_i, Tokenizer *tokenizer, Sampler *sampler, c
                 user_turn_ = 1;
             }
             else {
-                char *piece = decode(tokenizer, next, debug_);
+                char *piece = decode(model_i->tokenizer, next, debug_);
                 log_msg(stdout, "%s", piece);
                 generated_tokens++;
             }
@@ -230,7 +228,6 @@ void error_usage(const char *prog_name) {
     log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
     log_msg(stdout, " -p  | --prompt <str>:        prompt, default: none\n");
     log_msg(stdout, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
-    log_msg(stdout, " -tk | --tokenizer <str>:     path to tokenizer, default: \"tokenizer.bin\"\n");
     log_msg(stdout, " -M  | --mode <str>:          generate|chat, default: chat\n");
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
     log_msg(stdout, " -d  | --debug:               enable debug output, default: disabled\n");
@@ -241,7 +238,8 @@ void error_usage(const char *prog_name) {
     exit(EXIT_FAILURE);
 }
 
-int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, int, bool), const char *prog_name) {
+int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *model_path, int seq_n_max, bool think_),
+        const char *prog_name) {
     char *model_path = NULL;
     float temperature = TEMP_DEFAULT;
     int topk = TOP_K_DEFAULT;
@@ -251,7 +249,6 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     int prompt_n_max = PROMPT_N_MAX_DEFAULT;
     char *prompt = NULL;
     char *prompt_file = NULL;
-    char *tokenizer_path = "tokenizer.bin";
     char *mode = "chat";
     char *system_prompt = NULL;
     bool debug_ = false;
@@ -323,10 +320,6 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
                 (! strcmp(argv[i], "--prompt_file"))) {
             prompt_file = argv[i + 1];
         }
-        else if ((! strcmp(argv[i], "-tk")) ||
-                (! strcmp(argv[i], "--tokenizer"))) {
-            tokenizer_path = argv[i + 1];
-        }
         else if ((! strcmp(argv[i], "-M")) ||
                 (! strcmp(argv[i], "--mode"))) {
             mode = argv[i + 1];
@@ -397,17 +390,14 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
         exit(EXIT_FAILURE);
     }
 
-    Tokenizer tokenizer;
-    build_tokenizer(&tokenizer, tokenizer_path, model_i->vocab_size, model_i->special_tokens);
-
     Sampler sampler;
-    build_sampler(&sampler, model_i->vocab_size, temperature, topk, topp, rng_seed);
+    build_sampler(&sampler, model_i->tokenizer->vocab_size, temperature, topk, topp, rng_seed);
 
     if (! memcmp(mode, "generate", strlen("generate") + 1)) {
-        generate_common(model_i, &tokenizer, &sampler, prompt, model_i->seq_n_max);
+        generate_common(model_i, &sampler, prompt, model_i->seq_n_max);
     }
     else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
-        chat_common(model_i, &tokenizer, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, debug_);
+        chat_common(model_i, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, debug_);
     }
     else {
         log_msg(stderr, "ERROR: Unknown mode: %s\n", mode);
@@ -415,7 +405,6 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
     }
 
     free_sampler(&sampler);
-    free_tokenizer(&tokenizer);
 
     model_i->free_model(model_i->model);
 
@@ -423,4 +412,3 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *, in
 
     return 0;
 }
-
