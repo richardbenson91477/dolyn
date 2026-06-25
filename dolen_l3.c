@@ -78,14 +78,21 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
     read_qt(f, &w->embed_tokens_weight);
 
     for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_att_weight[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->wq[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->wk[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->wv[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->wo[i]);
+
+    for (int i = 0; i < p->n_layers; i++) {
+        read_qt(f, &w->wq[i]);
+        read_qt(f, &w->wk[i]);
+        read_qt(f, &w->wv[i]);
+        read_qt(f, &w->wo[i]);
+    }    
+
     for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_ffn_weight[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->w1[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->w2[i]);
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->w3[i]);
+
+    for (int i = 0; i < p->n_layers; i++) {
+        read_qt(f, &w->w1[i]);
+        read_qt(f, &w->w2[i]);
+        read_qt(f, &w->w3[i]);
+    }
 
     read_qt(f, &w->rms_final_weight);
 
