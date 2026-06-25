@@ -132,3 +132,4 @@ void free_ig4_1(IG4_1 *model_ig4_1) {
 
     free_tokenizer(&model_ig4_1->tokenizer);
 }
+

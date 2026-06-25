@@ -123,8 +123,8 @@ int load_config_q3_5(Q3_5 *model, const char *model_dir) {
     return 0;
 }
 
-static int write_layer_tensor(
-        quantize_ctx *ctx, FILE *out, int layer, const char *suffix, int rows, int cols, q_type_t type) {
+static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const char *suffix,
+        int rows, int cols, q_type_t type) {
     char name[256];
     snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, suffix);
     if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, type)) {
@@ -134,8 +134,8 @@ static int write_layer_tensor(
     return 0;
 }
 
-int quantize_q3_5_to_file(
-        const char *model_dir, const char *output_file, q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *tokenizer_path) {
+int quantize_q3_5_to_file(const char *model_dir, const char *output_file,
+        q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *tokenizer_path) {
     Q3_5 model;
     memset(&model, 0, sizeof(model));
     if (load_config_q3_5(&model, model_dir)) {
@@ -353,8 +353,7 @@ cleanup:
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n",
-                argv[0]);
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -389,5 +388,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    return quantize_q3_5_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, tokenizer_path) ? EXIT_FAILURE : EXIT_SUCCESS;
+    return quantize_q3_5_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, tokenizer_path) \
+        ? EXIT_FAILURE : EXIT_SUCCESS;
 }
+

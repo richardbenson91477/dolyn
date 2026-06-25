@@ -1,6 +1,21 @@
 #include "dolen_ig4_1_common.h"
 
 
+static token_map SPECIAL_TOKENS_IG4_1[] = {
+    { "<|end_of_text|\x3e", 100257 },
+    { "<|start_of_role|\x3e", 100264 },
+    { "<|end_of_role|\x3e", 100265 },
+    { NULL, 0 },
+};
+
+static const chat_template CHAT_TEMPLATE_IG4_1 = {
+    .system = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n",
+    .main = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n"
+            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
+    .end_turn = "<|end_of_text|\x3e" "\n",
+};
+
+
 int load_quantized_ig4_1(const char *filepath, IG4_1 *model_ig4_1, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -301,20 +316,6 @@ static void free_ig4_1_wrap(void *model) {
     free(model);
 }
 
-static token_map SPECIAL_TOKENS_IG4_1[] = {
-    { "<|end_of_text|\x3e", 100257 },
-    { "<|start_of_role|\x3e", 100264 },
-    { "<|end_of_role|\x3e", 100265 },
-    { NULL, 0 },
-};
-
-static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    .system = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n",
-    .main = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n"
-            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
-    .end_turn = "<|end_of_text|\x3e" "\n",
-};
-
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think_) {
     IG4_1 *model = a_calloc(1 * sizeof(IG4_1));
 
@@ -346,3 +347,4 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
+

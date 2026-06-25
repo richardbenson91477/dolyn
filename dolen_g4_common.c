@@ -12,10 +12,12 @@ void alloc_state_g4(state_g4 *s, config_g4 *p, weights_g4 *w, const int *layer_t
     int cache_stride_sliding = p->head_dim / 2;
 
     int max_act_dim = p->dim;
-    if (attn_out_dim > max_act_dim)
+    if (attn_out_dim > max_act_dim) {
         max_act_dim = attn_out_dim;
-    if (p->hidden_dim > max_act_dim)
+    }
+    if (p->hidden_dim > max_act_dim) {
         max_act_dim = p->hidden_dim;
+    }
 
     s->x = a_calloc((size_t)p->dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -127,8 +129,9 @@ void alloc_state_g4(state_g4 *s, config_g4 *p, weights_g4 *w, const int *layer_t
 }
 
 void free_state_g4(state_g4 *s) {
-    if (! s->allocated)
+    if (! s->allocated) {
         return;
+    }
 
     free(s->x);
     free(s->xb);
@@ -167,8 +170,9 @@ void free_state_g4(state_g4 *s) {
 }
 
 void free_g4(G4 *model) {
-    if (! model)
+    if (! model) {
         return;
+    }
 
     config_g4 *p = &model->config;
     weights_g4 *w = &model->weights;
@@ -204,3 +208,4 @@ void free_g4(G4 *model) {
 
     memset(model, 0, sizeof(G4));
 }
+

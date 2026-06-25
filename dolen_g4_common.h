@@ -85,11 +85,15 @@ typedef struct {
 
 
 void alloc_state_g4(state_g4 *s, config_g4 *p, weights_g4 *w, const int *layer_types);
+
 void free_state_g4(state_g4 *s);
+
 void free_g4(G4 *model);
 
 int load_quantized_g4(const char *filepath, G4 *model, int seq_n_max);
+
 float *forward_g4(G4 *model, int token, int pos);
 
 
 #endif // DOLEN_G4_COMMON_H
+

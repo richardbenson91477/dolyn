@@ -1039,8 +1039,8 @@ int quantize_write_empty_tensor(FILE *out) {
             quantize_write_bytes(out, &zero, sizeof(zero), 1)) ? -1 : 0;
 }
 
-int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out, const char *const *names, size_t n_names,
-        float default_value) {
+int quantize_write_scalar_or_default(quantize_ctx *ctx, FILE *out,
+        const char *const *names, size_t n_names, float default_value) {
     const weightmap_entry *entry = quantize_find_last_tensor(ctx, names, n_names);
     if (! entry) {
         return quantize_write_bytes(out, &default_value, sizeof(default_value), 1);

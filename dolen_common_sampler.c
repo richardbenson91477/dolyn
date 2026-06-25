@@ -126,8 +126,8 @@ int sample(Sampler *sampler, float *logits) {
     return next;
 }
 
-void build_sampler(
-        Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed) {
+void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp,
+        unsigned long long rng_seed) {
     sampler->vocab_size = vocab_size;
     sampler->temperature = temperature;
     sampler->topk = topk;

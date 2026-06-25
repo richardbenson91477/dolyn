@@ -136,3 +136,4 @@ void free_q3(Q3 *model_q3) {
 
     free_tokenizer(&model_q3->tokenizer);
 }
+

@@ -1,6 +1,41 @@
 #include "dolen_q3_5_common.h"
 
 
+static token_map SPECIAL_TOKENS_Q3_5[] = {
+    {"<|endoftext|\x3e", 248044},
+    {"<|im_start|\x3e", 248045},
+    {"<|im_end|\x3e", 248046},
+    {"<|object_ref_start|\x3e", 248047},
+    {"<|object_ref_end|\x3e", 248048},
+    {"<|box_start|\x3e", 248049},
+    {"<|box_end|\x3e", 248050},
+    {"<|quad_start|\x3e", 248051},
+    {"<|quad_end|\x3e", 248052},
+    {"<|vision_start|\x3e", 248053},
+    {"<|vision_end|\x3e", 248054},
+    {"<|vision_pad|\x3e", 24805},
+    {"<|image_pad|\x3e", 248056},
+    {"<|video_pad|\x3e", 248057},
+    {NULL, 0} 
+};
+
+static const chat_template CHAT_TEMPLATE_Q3_5 = {
+    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n"
+            "<think\x3e" "\n\n</think\x3e" "\n\n",
+    .end_turn = "<|im_end|\x3e" "\n",
+};
+
+static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
+    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n"
+            "<think\x3e",
+    .end_turn = "<|im_end|\x3e" "\n",
+};
+
+
 int load_quantized_q3_5(const char *filepath, Q3_5 *model_q3_5, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -546,40 +581,6 @@ static void free_q3_5_wrap(void *model) {
     free(model);
 }
 
-static token_map SPECIAL_TOKENS_Q3_5[] = {
-    {"<|endoftext|\x3e", 248044},
-    {"<|im_start|\x3e", 248045},
-    {"<|im_end|\x3e", 248046},
-    {"<|object_ref_start|\x3e", 248047},
-    {"<|object_ref_end|\x3e", 248048},
-    {"<|box_start|\x3e", 248049},
-    {"<|box_end|\x3e", 248050},
-    {"<|quad_start|\x3e", 248051},
-    {"<|quad_end|\x3e", 248052},
-    {"<|vision_start|\x3e", 248053},
-    {"<|vision_end|\x3e", 248054},
-    {"<|vision_pad|\x3e", 24805},
-    {"<|image_pad|\x3e", 248056},
-    {"<|video_pad|\x3e", 248057},
-    {NULL, 0} 
-};
-
-static const chat_template CHAT_TEMPLATE_Q3_5 = {
-    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n"
-            "<think\x3e" "\n\n</think\x3e" "\n\n",
-    .end_turn = "<|im_end|\x3e" "\n",
-};
-
-static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
-    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n"
-            "<think\x3e",
-    .end_turn = "<|im_end|\x3e" "\n",
-};
-
 static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_) {
     Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
 
@@ -609,3 +610,4 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_q3_5, "dolen3_5");
 }
+

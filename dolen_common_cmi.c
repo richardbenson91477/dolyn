@@ -4,6 +4,14 @@
 #include "dolen_common_mem.h"
 
 
+static const chat_template CHAT_TEMPLATE_CHATML = {
+    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n",
+    .end_turn = "<|im_end|\x3e" "\n",
+};
+
+
 void generate_common(model_iface *model_i, Sampler *sampler, char *prompt, int steps_n_max) {
     if (prompt == NULL) {
         prompt = "";
@@ -56,13 +64,6 @@ void generate_common(model_iface *model_i, Sampler *sampler, char *prompt, int s
 
     free(prompt_tokens);
 }
-
-static const chat_template CHAT_TEMPLATE_CHATML = {
-    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n",
-    .end_turn = "<|im_end|\x3e" "\n",
-};
 
 static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn_, const char *system_prompt,
         const char *prompt, int *rendered_len) {
@@ -412,3 +413,4 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
 
     return 0;
 }
+

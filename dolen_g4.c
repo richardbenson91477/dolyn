@@ -1,6 +1,22 @@
 #include "dolen_g4_common.h"
 
 
+static const chat_template CHAT_TEMPLATE_G4 = {
+    .system = "<|turn\x3e" "system\n%s<turn|\x3e" "\n",
+    .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
+            "<|turn\x3e" "model\n"
+            "<|channel\x3e" "thought\n<channel|\x3e",
+    .end_turn = "<turn|\x3e" "\n",
+};
+
+static const chat_template CHAT_TEMPLATE_THINK_G4 = {
+    .system = "<|turn\x3e" "system\n<|think|\x3e" "%s<turn|\x3e" "\n",
+    .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
+            "<|turn\x3e" "model\n",
+    .end_turn = "<turn|\x3e" "\n",
+};
+
+
 int load_quantized_g4(const char *filepath, G4 *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
     if (! f) {
@@ -349,21 +365,6 @@ static void free_g4_wrap(void *model) {
     free(model);
 }
 
-static const chat_template CHAT_TEMPLATE_G4 = {
-    .system = "<|turn\x3e" "system\n%s<turn|\x3e" "\n",
-    .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
-            "<|turn\x3e" "model\n"
-            "<|channel\x3e" "thought\n<channel|\x3e",
-    .end_turn = "<turn|\x3e" "\n",
-};
-
-static const chat_template CHAT_TEMPLATE_THINK_G4 = {
-    .system = "<|turn\x3e" "system\n<|think|\x3e" "%s<turn|\x3e" "\n",
-    .main = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
-            "<|turn\x3e" "model\n",
-    .end_turn = "<turn|\x3e" "\n",
-};
-
 static model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) {
     G4 *model = a_calloc(1 * sizeof(G4));
     if (load_quantized_g4(model_path, model, seq_n_max)) {
@@ -390,3 +391,4 @@ static model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) 
 int main(int argc, char *argv[]) {
     return common_main(argc, argv, init_g4, "dolen_g4");
 }
+
