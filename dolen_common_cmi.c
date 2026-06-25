@@ -310,10 +310,10 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
         }
         else if ((! strcmp(argv[i], "-p")) ||
                 (! strcmp(argv[i], "--prompt"))) {
-            int prompt_len = strlen(argv[i + 1]);
+            size_t prompt_len = strlen(argv[i + 1]);
             if (prompt_len > 0) {
                 prompt = a_calloc(prompt_len + 1);
-                strcpy(prompt, argv[i + 1]);
+                strncpy(prompt, argv[i + 1], prompt_len + 1);
             }
         }
         else if ((! strcmp(argv[i], "-pf")) ||
@@ -329,7 +329,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
             int system_prompt_len = strlen(argv[i + 1]);
             if (system_prompt_len > 0) {
                 system_prompt = a_calloc(system_prompt_len + 1);
-                strcpy(system_prompt, argv[i + 1]);
+                strncpy(system_prompt, argv[i + 1], system_prompt_len + 1);
             }
         }
         else if ((! strcmp(argv[i], "-l")) ||

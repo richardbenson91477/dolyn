@@ -301,18 +301,18 @@ static void free_ig4_1_wrap(void *model) {
     free(model);
 }
 
-static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    .system = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n",
-    .main = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n"
-            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
-    .end_turn = "<|end_of_text|\x3e" "\n",
-};
-
 static token_map SPECIAL_TOKENS_IG4_1[] = {
     { "<|end_of_text|\x3e", 100257 },
     { "<|start_of_role|\x3e", 100264 },
     { "<|end_of_role|\x3e", 100265 },
     { NULL, 0 },
+};
+
+static const chat_template CHAT_TEMPLATE_IG4_1 = {
+    .system = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n",
+    .main = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n"
+            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
+    .end_turn = "<|end_of_text|\x3e" "\n",
 };
 
 static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think_) {

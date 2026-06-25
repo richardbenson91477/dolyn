@@ -546,22 +546,6 @@ static void free_q3_5_wrap(void *model) {
     free(model);
 }
 
-static const chat_template CHAT_TEMPLATE_Q3_5 = {
-    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n"
-            "<think\x3e" "\n\n</think\x3e" "\n\n",
-    .end_turn = "<|im_end|\x3e" "\n",
-};
-
-static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
-    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n"
-            "<think\x3e",
-    .end_turn = "<|im_end|\x3e" "\n",
-};
-
 static token_map SPECIAL_TOKENS_Q3_5[] = {
     {"<|endoftext|\x3e", 248044},
     {"<|im_start|\x3e", 248045},
@@ -578,6 +562,22 @@ static token_map SPECIAL_TOKENS_Q3_5[] = {
     {"<|image_pad|\x3e", 248056},
     {"<|video_pad|\x3e", 248057},
     {NULL, 0} 
+};
+
+static const chat_template CHAT_TEMPLATE_Q3_5 = {
+    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n"
+            "<think\x3e" "\n\n</think\x3e" "\n\n",
+    .end_turn = "<|im_end|\x3e" "\n",
+};
+
+static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
+    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n"
+            "<think\x3e",
+    .end_turn = "<|im_end|\x3e" "\n",
 };
 
 static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_) {
