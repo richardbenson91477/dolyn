@@ -289,7 +289,7 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
 
     int8_t *q_data = (int8_t *)xq->data;
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (int g = 0; g < num_groups; g++) {
         int start = g * GROUP_SIZE;
         int end = start + GROUP_SIZE < n ? start + GROUP_SIZE : n;
