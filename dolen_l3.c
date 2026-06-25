@@ -130,7 +130,7 @@ float *forward_l3(L3 *model, int token, int pos) {
 
     for (int l = 0; l < p->n_layers; l++) {
         float *rms_att = (float *)w->rms_att_weight[l].data;
-        rmsnorm_gemma(s->xb, x, rms_att, dim, eps);
+        rmsnorm(s->xb, x, rms_att, dim, eps);
 
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->q, &s->xq, &w->wq[l]);
@@ -183,7 +183,7 @@ float *forward_l3(L3 *model, int token, int pos) {
         for (int i = 0; i < dim; i++) x[i] += s->xb2[i];
 
         float *rms_ffn = (float *)w->rms_ffn_weight[l].data;
-        rmsnorm_gemma(s->xb, x, rms_ffn, dim, eps);
+        rmsnorm(s->xb, x, rms_ffn, dim, eps);
 
         quantize_vec(&s->xq, s->xb, dim);
         matmul_qq(s->hb, &s->xq, &w->w1[l]);
@@ -203,7 +203,7 @@ float *forward_l3(L3 *model, int token, int pos) {
         for (int i = 0; i < dim; i++) x[i] += s->xb[i];
     }
 
-    rmsnorm_gemma(x, x, (float *)w->rms_final_weight.data, dim, eps);
+    rmsnorm(x, x, (float *)w->rms_final_weight.data, dim, eps);
 
     if (p->tie_word_embeddings) {
         matmul_qt(s->logits, x, &w->embed_tokens_weight);

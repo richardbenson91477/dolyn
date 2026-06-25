@@ -152,8 +152,8 @@ int quantize_l3_to_file(const char *model_dir, const char *output_file,
 
     for (int l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&ctx, out, l, "mlp.gate_proj.weight", p->hidden_dim, p->dim, mlp_type) ||
-            write_layer_tensor(&ctx, out, l, "mlp.up_proj.weight", p->hidden_dim, p->dim, mlp_type) ||
-            write_layer_tensor(&ctx, out, l, "mlp.down_proj.weight", p->dim, p->hidden_dim, mlp_type)) {
+            write_layer_tensor(&ctx, out, l, "mlp.down_proj.weight", p->dim, p->hidden_dim, mlp_type) ||
+            write_layer_tensor(&ctx, out, l, "mlp.up_proj.weight", p->hidden_dim, p->dim, mlp_type)) {
             failed = 1; goto cleanup;
         }
     }
