@@ -82,10 +82,10 @@ $(BIN_Q3_5_Q_DBG): $(SRC_Q3_5_Q) $(LIB_SRCS) $(INC_Q3_5_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q3_5_Q) $(LIB_SRCS) -lm
 
 test_q3_5: $(BIN_Q3_5)
-	./$(BIN_Q3_5) -m $(MODEL_Q3_5) -tk $(TOKENIZER_Q3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3_5)
+	./$(BIN_Q3_5) -m $(MODEL_Q3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3_5)
 
 test_q3_5_dbg: $(BIN_Q3_5_DBG)
-	./$(BIN_Q3_5_DBG) -m $(MODEL_Q3_5) -tk $(TOKENIZER_Q3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3_5)
+	./$(BIN_Q3_5_DBG) -m $(MODEL_Q3_5) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3_5)
 
 debug_q3_5: $(BIN_Q3_5_DBG)
 	./dolen_gdb $(BIN_Q3_5_DBG) $(MODEL_Q3_5) $(TOKENIZER_Q3_5) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3_5)
@@ -107,10 +107,10 @@ $(BIN_Q3_Q_DBG): $(SRC_Q3_Q) $(LIB_SRCS) $(INC_Q3_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q3_Q) $(LIB_SRCS) -lm
 
 test_q3: $(BIN_Q3)
-	./$(BIN_Q3) -m $(MODEL_Q3) -tk $(TOKENIZER_Q3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3)
+	./$(BIN_Q3) -m $(MODEL_Q3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3)
 
 test_q3_dbg: $(BIN_Q3_DBG)
-	./$(BIN_Q3_DBG) -m $(MODEL_Q3) -tk $(TOKENIZER_Q3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3)
+	./$(BIN_Q3_DBG) -m $(MODEL_Q3) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_Q3)
 
 debug_q3: $(BIN_Q3_DBG)
 	./dolen_gdb $(BIN_Q3_DBG) $(MODEL_Q3) $(TOKENIZER_Q3) $(PROMPT) $(SYS_PROMPT) $(SEQN_Q3)
@@ -132,10 +132,10 @@ $(BIN_G4_Q_DBG): $(SRC_G4_Q) $(LIB_SRCS) $(INC_G4_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_G4_Q) $(LIB_SRCS) -lm
 
 test_g4: $(BIN_G4)
-	./$(BIN_G4) -m $(MODEL_G4) -tk $(TOKENIZER_G4) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_G4)
+	./$(BIN_G4) -m $(MODEL_G4) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_G4)
 
 test_g4_dbg: $(BIN_G4_DBG)
-	./$(BIN_G4_DBG) -m $(MODEL_G4) -tk $(TOKENIZER_G4) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_G4)
+	./$(BIN_G4_DBG) -m $(MODEL_G4) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_G4)
 
 debug_g4: $(BIN_G4_DBG)
 	./dolen_gdb $(BIN_G4_DBG) $(MODEL_G4) $(TOKENIZER_G4) $(PROMPT) $(SYS_PROMPT) $(SEQN_G4)
@@ -157,10 +157,10 @@ $(BIN_IG4_1_Q_DBG): $(SRC_IG4_1_Q) $(LIB_SRCS) $(INC_IG4_1_Q) $(LIB_INCS)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_IG4_1_Q) $(LIB_SRCS) -lm
 
 test_ig4_1: $(BIN_IG4_1)
-	./$(BIN_IG4_1) -m $(MODEL_IG4_1) -tk $(TOKENIZER_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
+	./$(BIN_IG4_1) -m $(MODEL_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
 
 test_ig4_1_dbg: $(BIN_IG4_1_DBG)
-	./$(BIN_IG4_1_DBG) -m $(MODEL_IG4_1) -tk $(TOKENIZER_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
+	./$(BIN_IG4_1_DBG) -m $(MODEL_IG4_1) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN_IG4_1)
 
 debug_ig4_1: $(BIN_IG4_1_DBG)
 	./dolen_gdb $(BIN_IG4_1_DBG) $(MODEL_IG4_1) $(TOKENIZER_IG4_1) $(PROMPT) $(SYS_PROMPT) $(SEQN_IG4_1)
