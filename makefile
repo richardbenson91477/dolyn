@@ -17,7 +17,7 @@ MODEL_Q3_5 := "$(MODEL_PATH)/qwen3_5_1b_q8.dolq"
 MODEL_Q3 := "$(MODEL_PATH)/qwen3_1b_q8.dolq"
 MODEL_G4 := "$(MODEL_PATH)/gemma4_12b_a_q8.dolq"
 MODEL_IG4_1 := "$(MODEL_PATH)/granite4_1_3b_a_q8.dolq"
-MODEL_L3 := "$(MODEL_PATH)/fixme.dolq"
+MODEL_L3 := "/scratch/model"
 
 BIN_Q3_5 = dolen_q3_5
 BIN_Q3_5_Q = dolen_q3_5_quantize

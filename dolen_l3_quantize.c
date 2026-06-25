@@ -120,11 +120,8 @@ int quantize_l3_to_file(const char *model_dir, const char *output_file,
         goto cleanup;
     }
 
-    const char *embed_names[2] = {"model.embed_tokens.weight", "lm_head.weight"};
-    size_t n_embed_names = p->tie_word_embeddings ? 1 : 2;
-    const weightmap_entry *embed = quantize_find_last_tensor(&ctx, embed_names, n_embed_names);
-    if (quantize_write_tensor_entry(&ctx, out, "(?)", embed, p->vocab_size, p->dim, embed_type)) {
-        log_msg(stderr, "ERROR: Failed quantizing embedding/classifier weights\n");
+    if (quantize_write_tensor(&ctx, out, "model.embed_tokens.weight", p->vocab_size, p->dim, embed_type)) {
+        log_msg(stderr, "ERROR: Failed quantizing embedding weights\n");
         failed = 1;
         goto cleanup;
     }
