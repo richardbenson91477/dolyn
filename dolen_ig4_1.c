@@ -316,7 +316,7 @@ static void free_ig4_1_wrap(void *model) {
     free(model);
 }
 
-static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think_) {
+model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think_) {
     IG4_1 *model = a_calloc(1 * sizeof(IG4_1));
 
     if (think_) {
@@ -342,9 +342,5 @@ static model_iface *init_ig4_1(const char *model_path, int seq_n_max, bool think
         .chat_template = &CHAT_TEMPLATE_IG4_1,
         .tokenizer = &model->tokenizer };
     return model_i;
-}
-
-int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_ig4_1, "dolen_ig4_1");
 }
 

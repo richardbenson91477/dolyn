@@ -1,7 +1,4 @@
-#include "dolen_common_sampler.h"
-#include "dolen_common_cmi.h"
-#include "dolen_common_io.h"
-#include "dolen_common_mem.h"
+#include "dolen_main.h"
 
 
 static const chat_template CHAT_TEMPLATE_CHATML = {
@@ -11,8 +8,18 @@ static const chat_template CHAT_TEMPLATE_CHATML = {
     .end_turn = "<|im_end|\x3e" "\n",
 };
 
+const model_registry_entry MODEL_REGISTRY[] = {
+        {MAGIC_G4, "g4", init_g4},
+        {MAGIC_IG4_1, "ig4_1", init_ig4_1},
+        {MAGIC_L3, "l3", init_l3},
+        {MAGIC_Q3_5, "q3_5", init_q3_5},
+        {MAGIC_Q3, "q3", init_q3},
+};
 
-void generate_common(model_iface *model_i, Sampler *sampler, char *prompt, int steps_n_max) {
+const size_t MODEL_REGISTRY_SIZE = sizeof(MODEL_REGISTRY) / sizeof(MODEL_REGISTRY[0]);
+
+
+static void generate(model_iface *model_i, Sampler *sampler, char *prompt, int steps_n_max) {
     if (prompt == NULL) {
         prompt = "";
     }
@@ -114,7 +121,7 @@ static bool is_chat_stop_token(const model_iface *model_i, int token) {
     return token == 2;
 }
 
-void chat_common(model_iface *model_i, Sampler *sampler, char *system_prompt, char *init_prompt,
+static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, char *init_prompt,
         int prompt_n_max, int steps_n_max, bool debug_) {
     const chat_template *chat_tmpl = model_i->chat_template;
     if (! chat_tmpl) {
@@ -217,8 +224,21 @@ void chat_common(model_iface *model_i, Sampler *sampler, char *system_prompt, ch
     free(prompt);
 }
 
-void error_usage(const char *prog_name) {
-    log_msg(stdout, "Usage: %s [options]\n", prog_name);
+static uint64_t peek_model_magic(const char *filepath) {
+    FILE *f = fopen(filepath, "rb");
+    if (! f) {
+        return 0;
+    }
+
+    uint64_t magic = 0;
+    fread(&magic, sizeof(magic), 1, f);
+    fclose(f);
+
+    return magic;
+}
+
+static void error_usage(const char *argv0) {
+    log_msg(stdout, "Usage: %s [options]\n", argv0);
     log_msg(stdout, "Options:\n");
     log_msg(stdout, " -m  | --model <str>:         model path, default: none\n");
     log_msg(stdout, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
@@ -239,8 +259,7 @@ void error_usage(const char *prog_name) {
     exit(EXIT_FAILURE);
 }
 
-int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *model_path, int seq_n_max, bool think_),
-        const char *prog_name) {
+int main(int argc, char *argv[]) {
     char *model_path = NULL;
     float temperature = TEMP_DEFAULT;
     int topk = TOP_K_DEFAULT;
@@ -257,12 +276,12 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
 
     for (int i = 1; i < argc;) {
         if (argv[i][0] != '-') {
-            error_usage(prog_name);
+            error_usage(argv[0]);
         }
 
         if ((! strcmp(argv[i], "-h")) ||
                 (! strcmp(argv[i], "--help"))) {
-            error_usage(prog_name);
+            error_usage(argv[0]);
         }
         else if ((! strcmp(argv[i], "-th")) ||
                 (! strcmp(argv[i], "--think"))) {
@@ -278,7 +297,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
         }
 
         if ((i + 1) >= argc) {
-            error_usage(prog_name);
+            error_usage(argv[0]);
         }
 
         if ((! strcmp(argv[i], "-m")) ||
@@ -338,7 +357,7 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
             log_path = argv[i + 1];
         }
         else {
-            error_usage(prog_name);
+            error_usage(argv[0]);
         }
 
         i += 2;
@@ -386,23 +405,44 @@ int common_main(int argc, char *argv[], model_iface *(*init_fn)(const char *mode
         fclose(pf);
     }
 
+    uint64_t magic = peek_model_magic(model_path);
+
+    const char *model_type_name = "unknown";
+    model_init_fn init_fn = NULL;
+
+    for (size_t i = 0; i < MODEL_REGISTRY_SIZE; i++) {
+        if (MODEL_REGISTRY[i].magic == magic) {
+            init_fn = MODEL_REGISTRY[i].init_fn;
+            model_type_name = MODEL_REGISTRY[i].name;
+            break;
+        }
+    }
+
+    if (! init_fn) {
+        log_msg(stderr, "ERROR: Unknown model magic number 0x%llx in \"%s\"\n", magic, model_path);
+        exit(EXIT_FAILURE);
+    }
+    
+    log_msg(stdout, "INFO: Detected model type: \"%s\"\n", model_type_name);
+
     model_iface *model_i = init_fn(model_path, seq_n_max, think_);
     if (! model_i) {
         exit(EXIT_FAILURE);
     }
 
+
     Sampler sampler;
     build_sampler(&sampler, model_i->tokenizer->vocab_size, temperature, topk, topp, rng_seed);
 
     if (! memcmp(mode, "generate", strlen("generate") + 1)) {
-        generate_common(model_i, &sampler, prompt, model_i->seq_n_max);
+        generate(model_i, &sampler, prompt, model_i->seq_n_max);
     }
     else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
-        chat_common(model_i, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, debug_);
+        chat(model_i, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, debug_);
     }
     else {
         log_msg(stderr, "ERROR: Unknown mode: %s\n", mode);
-        error_usage(prog_name);
+        error_usage(argv[0]);
     }
 
     free_sampler(&sampler);

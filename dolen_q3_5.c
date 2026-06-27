@@ -581,7 +581,7 @@ static void free_q3_5_wrap(void *model) {
     free(model);
 }
 
-static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_) {
+model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_) {
     Q3_5 *model = a_calloc(1 * sizeof(Q3_5));
 
     if (load_quantized_q3_5(model_path, model, seq_n_max)) {
@@ -605,9 +605,5 @@ static model_iface *init_q3_5(const char *model_path, int seq_n_max, bool think_
         .tokenizer = &model->tokenizer,
     };
     return model_i;
-}
-
-int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_q3_5, "dolen3_5");
 }
 

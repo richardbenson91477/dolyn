@@ -365,7 +365,7 @@ static void free_g4_wrap(void *model) {
     free(model);
 }
 
-static model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) {
+model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) {
     G4 *model = a_calloc(1 * sizeof(G4));
     if (load_quantized_g4(model_path, model, seq_n_max)) {
         free_g4(model);
@@ -386,9 +386,5 @@ static model_iface *init_g4(const char *model_path, int seq_n_max, bool think_) 
         .chat_template = think_ ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4,
         .tokenizer = &model->tokenizer };
     return model_i;
-}
-
-int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_g4, "dolen_g4");
 }
 

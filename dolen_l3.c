@@ -230,7 +230,7 @@ static void free_l3_wrap(void *model) {
     free(model);
 }
 
-static model_iface *init_l3(const char *model_path, int seq_n_max, bool think_) {
+model_iface *init_l3(const char *model_path, int seq_n_max, bool think_) {
     L3 *model = a_calloc(sizeof(L3));
     if (load_quantized_l3(model_path, model, seq_n_max)) {
         free_l3(model);
@@ -252,9 +252,7 @@ static model_iface *init_l3(const char *model_path, int seq_n_max, bool think_) 
         .chat_template = think_ ? &CHAT_TEMPLATE_THINK_L3 : &CHAT_TEMPLATE_L3,
         .tokenizer = &model->tokenizer
     };
+
     return model_i;
 }
 
-int main(int argc, char *argv[]) {
-    return common_main(argc, argv, init_l3, "dolen_l3");
-}
