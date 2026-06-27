@@ -1,5 +1,3 @@
 #!/bin/sh
 
-dolen_run_bin_default="${dolen_path}/dolen_ig4_1"
-dolen_run_tokenizer_default="${dolen_model_path}/tokenizer_ig4_1.bin"
 
