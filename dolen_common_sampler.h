@@ -6,35 +6,36 @@
 typedef struct {
     float prob;
     int index;
-} ProbIndex;
+} prob_index;
 
 typedef struct {
     int vocab_size;
-    ProbIndex *probindex;
-    float temperature;
-    int topk;
-    float topp;
+    prob_index *_prob_index;
+    float temp;
+    int top_k;
+    float top_p;
     unsigned long long rng_state;
-} Sampler;
+} sampler;
 
 
-int sample_argmax(float *probs, int n);
+int sample_argmax(float *_probs, int n);
 
-unsigned int random_u32(unsigned long long *state);
+unsigned int random_u32(unsigned long long *_state);
 
-float random_f32(unsigned long long *state);
+float random_f32(unsigned long long *_state);
 
-int sample_mult(float *probs, int n, float coin);
+int sample_mult(float *_probs, int n, float coin);
 
-int compare_prob(const void *a, const void *b);
+int compare_prob(const void *_a, const void *_b);
 
-int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, float coin);
+int sample_top(float *_probs, int n, int top_k, float top_p, prob_index *_prob_index, float coin);
 
-int sample(Sampler *sampler, float *logits);
+int sample(sampler *_sampler, float *_logits);
 
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp, unsigned long long rng_seed);
+void build_sampler(sampler *_sampler, int vocab_size, float temp, int top_k, float top_p,
+        unsigned long long rng_seed);
 
-void free_sampler(Sampler *sampler);
+void free_sampler(sampler *_sampler);
 
 
 #endif // DOLEN_COMMON_SAMPLER_H

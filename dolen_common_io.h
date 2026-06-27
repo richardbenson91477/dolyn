@@ -20,18 +20,18 @@
 #define MAGIC_IG4_1 (0x31344749514c4f44) // DOLQIG41
 #define MAGIC_L3 (0x4d414c4c514c4f44) // DOLQLLAM
 
-extern char *log_path;
+extern char *_log_path;
 
 
-long time_in_ms(void);
+long time_in_ms();
 
-void log_msg(FILE *stream, const char *format, ...);
+void log_msg(FILE *_file, const char *_format, ...);
 
-void read_msg(char *buf, size_t buf_len);
+void read_msg(char *_buf, size_t buf_len);
 
-float get_json_float_val(JsonValue *v, float def);
+float get_json_float_val(JsonValue *_json_val, float def);
 
-int seek_abs(FILE *f, uint64_t offset);
+int seek_abs(FILE *_file, uint64_t offset);
 
 
 #endif // DOLEN_COMMON_IO_H

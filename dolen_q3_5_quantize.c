@@ -2,15 +2,15 @@
 #include "dolen_q3_5_common.h"
 
 
-static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
-    if ((! layer_types) ||
-            (layer_types->type != JSON_ARRAY)) {
+static int get_layer_type(int layer_idx, const JsonValue *_layer_types) {
+    if ((! _layer_types) ||
+            (_layer_types->type != JSON_ARRAY)) {
         return 0;
     }
-    if (layer_idx >= (int)layer_types->data.array.count) {
+    if (layer_idx >= (int)_layer_types->data.array.count) {
         return 0;
     }
-    JsonValue *lt = json_array_get(layer_types, layer_idx);
+    JsonValue *lt = json_array_get(_layer_types, layer_idx);
     if ((! lt) ||
             (lt->type != JSON_STRING)) {
         return 0;
@@ -22,14 +22,14 @@ static int get_layer_type(int layer_idx, const JsonValue *layer_types) {
     return 0;
 }
 
-int load_config_q3_5(Q3_5 *model, const char *model_dir) {
-    config_q3_5 *p = &model->config;
+int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
+    config_q3_5 *_config = &(_model->config);
 
-    char config_path[PATH_MAX];
-    snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
-    FILE *f = fopen(config_path, "rb");
+    char _config_path_s[PATH_MAX];
+    snprintf(_config_path_s, sizeof(_config_path_s), "%s/config.json", _model_dir_s);
+    FILE *f = fopen(_config_path_s, "rb");
     if (! f) {
-        log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
+        log_msg(stderr, "ERROR: Could not open config.json at %s\n", _config_path_s);
         return -1;
     }
     fseek(f, 0, SEEK_END);
@@ -59,62 +59,62 @@ int load_config_q3_5(Q3_5 *model, const char *model_dir) {
         cfg = root;
     }
 
-    memset(p, 0, sizeof(config_q3_5));
+    memset(_config, 0, sizeof(config_q3_5));
 
-    p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 896);
-    p->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 14);
-    p->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), p->n_heads);
-    p->n_layer = json_get_int(json_object_get(cfg, "num_hidden_layers"), 24);
-    p->n_mlp = json_get_int(json_object_get(cfg, "intermediate_size"), 4864);
-    if (! p->n_mlp) {
-        p->n_mlp = json_get_int(json_object_get(cfg, "shared_expert_intermediate_size"), 4864);
+    _config->dim = json_get_int(json_object_get(cfg, "hidden_size"), 896);
+    _config->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 14);
+    _config->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), _config->n_heads);
+    _config->n_layer = json_get_int(json_object_get(cfg, "num_hidden_layers"), 24);
+    _config->n_mlp = json_get_int(json_object_get(cfg, "intermediate_size"), 4864);
+    if (! _config->n_mlp) {
+        _config->n_mlp = json_get_int(json_object_get(cfg, "shared_expert_intermediate_size"), 4864);
     }
-    p->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 151936);
-    p->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
+    _config->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 151936);
+    _config->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
 
     JsonValue *rope_params = json_object_get(cfg, "rope_parameters");
-    p->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
-    p->rope_partial_rotary_factor = json_get_double(json_object_get(rope_params, "partial_rotary_factor"), 1.0);
+    _config->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
+    _config->rope_partial_rotary_factor = json_get_double(json_object_get(rope_params, "partial_rotary_factor"), 1.0);
 
-    p->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
-    p->tie_word_embeddings = json_get_bool(json_object_get(root, "tie_word_embeddings"), 0);
-    p->d_head = json_get_int(json_object_get(cfg, "head_dim"), p->dim / p->n_heads);
-    p->n_linear_k_heads = json_get_int(json_object_get(cfg, "linear_num_key_heads"), 0);
-    p->n_linear_v_heads = json_get_int(json_object_get(cfg, "linear_num_value_heads"), 0);
-    p->d_linear_k = json_get_int(json_object_get(cfg, "linear_key_head_dim"), 0);
-    p->d_linear_v = json_get_int(json_object_get(cfg, "linear_value_head_dim"), 0);
-    p->linear_conv_kernel = json_get_int(json_object_get(cfg, "linear_conv_kernel_dim"), 4);
+    _config->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
+    _config->tie_word_embeddings = json_get_bool(json_object_get(root, "tie_word_embeddings"), 0);
+    _config->d_head = json_get_int(json_object_get(cfg, "head_dim"), _config->dim / _config->n_heads);
+    _config->n_linear_k_heads = json_get_int(json_object_get(cfg, "linear_num_key_heads"), 0);
+    _config->n_linear_v_heads = json_get_int(json_object_get(cfg, "linear_num_value_heads"), 0);
+    _config->d_linear_k = json_get_int(json_object_get(cfg, "linear_key_head_dim"), 0);
+    _config->d_linear_v = json_get_int(json_object_get(cfg, "linear_value_head_dim"), 0);
+    _config->linear_conv_kernel = json_get_int(json_object_get(cfg, "linear_conv_kernel_dim"), 4);
 
-    model->layer_types = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
-    model->attn_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
-    model->deltanet_layer_indices = (int *)a_calloc((size_t)p->n_layer * sizeof(int));
+    _model->_layer_types = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
+    _model->_attn_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
+    _model->_deltanet_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
 
-    if ((! model->layer_types) ||
-            (! model->attn_layer_indices) ||
-            (! model->deltanet_layer_indices)) {
+    if ((! _model->_layer_types) ||
+            (! _model->_attn_layer_indices) ||
+            (! _model->_deltanet_layer_indices)) {
         log_msg(stderr, "ERROR: Failed to allocate layer type arrays\n");
-        free(model->layer_types);
-        free(model->attn_layer_indices);
-        free(model->deltanet_layer_indices);
+        free(_model->_layer_types);
+        free(_model->_attn_layer_indices);
+        free(_model->_deltanet_layer_indices);
         json_free(root);
         return -1;
     }
 
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
     int la = 0, ld = 0;
-    p->n_full_attn_layers = 0;
-    p->n_linear_attn_layers = 0;
+    _config->n_full_attn_layers = 0;
+    _config->n_linear_attn_layers = 0;
 
-    for (int i = 0; i < p->n_layer; i++) {
+    for (int i = 0; i < _config->n_layer; i++) {
         int is_linear = get_layer_type(i, layer_types_json);
-        model->layer_types[i] = is_linear;
+        _model->_layer_types[i] = is_linear;
         if (is_linear == 1) {
-            model->deltanet_layer_indices[i] = ld++;
-            p->n_linear_attn_layers++;
+            _model->_deltanet_layer_indices[i] = ld++;
+            _config->n_linear_attn_layers++;
         }
         else {
-            model->attn_layer_indices[i] = la++;
-            p->n_full_attn_layers++;
+            _model->_attn_layer_indices[i] = la++;
+            _config->n_full_attn_layers++;
         }
     }
 
@@ -123,231 +123,231 @@ int load_config_q3_5(Q3_5 *model, const char *model_dir) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const char *suffix,
+static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
         int rows, int cols, q_type_t type) {
     char name[256];
-    snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, suffix);
-    if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, type)) {
+    snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, _suffix_s);
+    if (quantize_write_tensor_or_empty(_qt_ctx, _file, name, rows, cols, type)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
     }
     return 0;
 }
 
-int quantize_q3_5_to_file(const char *model_dir, const char *output_file,
-        q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *tokenizer_path) {
+int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
+        q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *_tokenizer_path_s) {
     Q3_5 model;
     memset(&model, 0, sizeof(model));
-    if (load_config_q3_5(&model, model_dir)) {
+    if (load_config_q3_5(&model, _model_dir_s)) {
         return -1;
     }
 
-    quantize_ctx ctx;
-    if (quantize_ctx_open(&ctx, model_dir)) {
-        log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", model_dir);
-        free(model.layer_types);
-        free(model.attn_layer_indices);
-        free(model.deltanet_layer_indices);
+    quantize_ctx qt_ctx;
+    if (quantize_ctx_open(&qt_ctx, _model_dir_s)) {
+        log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", _model_dir_s);
+        free(model._layer_types);
+        free(model._attn_layer_indices);
+        free(model._deltanet_layer_indices);
         return -1;
     }
 
-    FILE *out = fopen(output_file, "wb");
-    if (! out) {
-        log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
-        quantize_ctx_close(&ctx);
-        free(model.layer_types);
-        free(model.attn_layer_indices);
-        free(model.deltanet_layer_indices);
+    FILE *_file = fopen(_file_path_s, "wb");
+    if (! _file) {
+        log_msg(stderr, "ERROR: Failed to open %s for writing\n", _file_path_s);
+        quantize_ctx_close(&qt_ctx);
+        free(model._layer_types);
+        free(model._attn_layer_indices);
+        free(model._deltanet_layer_indices);
         return -1;
     }
 
-    config_q3_5 *p = &model.config;
+    config_q3_5 *_config = &model.config;
 
-    int head_size = p->d_head > 0 ? p->d_head : p->dim / p->n_heads;
-    int kv_dim = p->n_kv_heads * head_size;
-    int key_dim = p->n_linear_k_heads * p->d_linear_k;
-    int value_dim = p->n_linear_v_heads * p->d_linear_v;
+    int head_size = _config->d_head > 0 ? _config->d_head : (_config->dim / _config->n_heads);
+    int kv_dim = _config->n_kv_heads * head_size;
+    int key_dim = _config->n_linear_k_heads * _config->d_linear_k;
+    int value_dim = _config->n_linear_v_heads * _config->d_linear_v;
     int conv_dim = key_dim * 2 + value_dim;
-    int q_dim = p->n_heads * head_size * 2;
-    int attn_out_dim = p->n_heads * head_size;
+    int q_dim = _config->n_heads * head_size * 2;
+    int attn_out_dim = _config->n_heads * head_size;
 
     uint64_t magic = MAGIC_Q3_5;
     uint32_t version = 2;
 
     int failed = 0;
 
-    if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
-            quantize_write_bytes(out, &version, sizeof(version), 1) ||
-            quantize_write_bytes(out, p, sizeof(*p), 1)) {
+    if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
+            quantize_write_bytes(_file, &version, sizeof(version), 1) ||
+            quantize_write_bytes(_file, _config, sizeof(config_q3_5), 1)) {
         failed = 1;
         goto cleanup;
     }
 
-    Tokenizer tokenizer;
-    memset(&tokenizer, 0, sizeof(tokenizer));
-    build_tokenizer(&tokenizer, tokenizer_path, p->vocab_size, NULL);
+    tokenizer tokenizer1;
+    memset(&tokenizer1, 0, sizeof(tokenizer1));
+    build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size, NULL);
 
-    if (tokenizer_write_to_file(out, &tokenizer)) {
+    if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
         failed = 1;
         goto cleanup;
     }
 
-    if (quantize_write_bytes(out, model.layer_types, sizeof(int), p->n_layer)) {
+    if (quantize_write_bytes(_file, model._layer_types, sizeof(int), _config->n_layer)) {
         failed = 1;
         goto cleanup;
     }
 
-    if (quantize_write_tensor(&ctx, out, "model.language_model.embed_tokens.weight",
-                p->vocab_size, p->dim, embed_type)) {
+    if (quantize_write_tensor(&qt_ctx, _file, "model.language_model.embed_tokens.weight",
+                _config->vocab_size, _config->dim, embed_type)) {
         failed = 1;
         goto cleanup;
     }
 
-    for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_tensor(&ctx, out, l, "input_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layer; l++) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < p->n_layer; l++) {
-        if (model.layer_types[l]) {
+    for (int l = 0; l < _config->n_layer; l++) {
+        if (model._layer_types[l]) {
             continue;
         }
-        if (write_layer_tensor(&ctx, out, l, "self_attn.q_proj.weight", q_dim, p->dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.k_proj.weight", kv_dim, p->dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.v_proj.weight", kv_dim, p->dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.o_proj.weight", p->dim, attn_out_dim, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight", q_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight", kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight", kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, attn_out_dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < p->n_layer; l++) {
-        if (! model.layer_types[l] &&
-                write_layer_tensor(&ctx, out, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layer; l++) {
+        if (! model._layer_types[l] &&
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < p->n_layer; l++) {
-        if (! model.layer_types[l] &&
-                write_layer_tensor(&ctx, out, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layer; l++) {
+        if (! model._layer_types[l] &&
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    if (p->n_linear_attn_layers > 0) {
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] != 1) {
+    if (_config->n_linear_attn_layers > 0) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] != 1) {
                 continue;
             }
-            if (write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_qkv.weight", conv_dim, p->dim, attn_type) ||
-                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_z.weight", value_dim, p->dim, attn_type)) {
+            if (write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_qkv.weight", conv_dim, _config->dim, attn_type) ||
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_z.weight", value_dim, _config->dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if ((model.layer_types[l] == 1) && 
-                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_b.weight", 1,
-                            p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if ((model._layer_types[l] == 1) && 
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_b.weight", 1,
+                            _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.in_proj_a.weight", 1,
-                            p->n_linear_v_heads * p->dim, Q_TYPE_F32)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] == 1 &&
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_a.weight", 1,
+                            _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.conv1d.weight", 1,
-                            conv_dim * p->linear_conv_kernel, Q_TYPE_F32)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] == 1 &&
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.conv1d.weight", 1,
+                            conv_dim * _config->linear_conv_kernel, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.dt_bias", 1, p->n_linear_v_heads, Q_TYPE_F32)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] == 1 &&
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.dt_bias", 1, _config->n_linear_v_heads, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.A_log", 1, p->n_linear_v_heads, Q_TYPE_F32)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] == 1 &&
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.A_log", 1, _config->n_linear_v_heads, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.norm.weight", 1, p->d_linear_v, Q_TYPE_F32)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] == 1 &&
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.norm.weight", 1, _config->d_linear_v, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
-        for (int l = 0; l < p->n_layer; l++) {
-            if (model.layer_types[l] == 1 &&
-                    write_layer_tensor(&ctx, out, l, "linear_attn.out_proj.weight", p->dim, value_dim, attn_type)) {
+        for (int l = 0; l < _config->n_layer; l++) {
+            if (model._layer_types[l] == 1 &&
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.out_proj.weight", _config->dim, value_dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
         }
     }
 
-    for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_tensor(&ctx, out, l, "post_attention_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layer; l++) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < p->n_layer; l++) {
-        if (write_layer_tensor(&ctx, out, l, "mlp.gate_proj.weight", p->n_mlp, p->dim, mlp_type) ||
-                write_layer_tensor(&ctx, out, l, "mlp.down_proj.weight", p->dim, p->n_mlp, mlp_type) ||
-                write_layer_tensor(&ctx, out, l, "mlp.up_proj.weight", p->n_mlp, p->dim, mlp_type)) {
+    for (int l = 0; l < _config->n_layer; l++) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight", _config->n_mlp, _config->dim, mlp_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->n_mlp, mlp_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight", _config->n_mlp, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    if (quantize_write_tensor_or_empty(&ctx, out, "model.language_model.norm.weight", 1, p->dim, Q_TYPE_F32)) {
+    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
 
-    if ((! p->tie_word_embeddings) &&
-            quantize_write_tensor(&ctx, out, "lm_head.weight",
-                    p->vocab_size, p->dim, embed_type)) {
+    if ((! _config->tie_word_embeddings) &&
+            quantize_write_tensor(&qt_ctx, _file, "lm_head.weight",
+                    _config->vocab_size, _config->dim, embed_type)) {
         failed = 1;
         goto cleanup;
     }
 
 cleanup:
-    free_tokenizer(&tokenizer);
-    if (fclose(out)) {
+    free_tokenizer(&tokenizer1);
+    if (fclose(_file)) {
         failed = 1;
     }
-    quantize_ctx_close(&ctx);
-    free(model.layer_types);
-    free(model.attn_layer_indices);
-    free(model.deltanet_layer_indices);
+    quantize_ctx_close(&qt_ctx);
+    free(model._layer_types);
+    free(model._attn_layer_indices);
+    free(model._deltanet_layer_indices);
 
     if (failed) {
-        remove(output_file);
+        remove(_file_path_s);
         return -1;
     }
 
-    log_msg(stdout, "INFO: Quantized model saved to %s\n", output_file);
+    log_msg(stdout, "INFO: Quantized model saved to %s\n", _file_path_s);
     return 0;
 }
 
@@ -358,7 +358,7 @@ int main(int argc, char *argv[]) {
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
-    char *tokenizer_path = "tokenizer.bin";
+    char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
         if ((! strcmp(argv[i], "--type")) &&
                 ((i + 1) < argc)) {
@@ -384,11 +384,11 @@ int main(int argc, char *argv[]) {
         else if ((! strcmp(argv[i], "--tokenizer")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            tokenizer_path = argv[i];
+            _tokenizer_path_s = argv[i];
         }
     }
 
-    return quantize_q3_5_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, tokenizer_path) \
+    return quantize_q3_5_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

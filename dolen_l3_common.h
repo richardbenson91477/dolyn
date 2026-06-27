@@ -24,36 +24,36 @@ typedef struct {
 
 typedef struct {
     qtensor embed_tokens_weight;
-    qtensor *rms_att_weight;
-    qtensor *wq;
-    qtensor *wk;
-    qtensor *wv;
-    qtensor *wo;
-    qtensor *rms_ffn_weight;
-    qtensor *w1;
-    qtensor *w2;
-    qtensor *w3;
+    qtensor *_rms_att_weight;
+    qtensor *_wq;
+    qtensor *_wk;
+    qtensor *_wv;
+    qtensor *_wo;
+    qtensor *_rms_ffn_weight;
+    qtensor *_w1;
+    qtensor *_w2;
+    qtensor *_w3;
     qtensor rms_final_weight;
     qtensor wcls;
 } weights_l3;
 
 typedef struct {
-    float *x;
-    float *xb;
-    float *xb2;
-    float *hb;
-    float *hb2;
-    float *q;
-    float *k;
-    float *v;
-    float *att;
-    float *logits;
-    float **key_cache;
-    float **value_cache;
+    float *_x;
+    float *_xb;
+    float *_xb2;
+    float *_hb;
+    float *_hb2;
+    float *_q;
+    float *_k;
+    float *_v;
+    float *_att;
+    float *_logits;
+    float **__key_cache;
+    float **__value_cache;
     qtensor xq;
     qtensor hq;
-    float *cos_cache;
-    float *sin_cache;
+    float *_cos_cache;
+    float *_sin_cache;
     int allocated;
     int n_layers;
 } state_l3;
@@ -62,19 +62,19 @@ typedef struct {
     config_l3 config;
     weights_l3 weights;
     state_l3 state;
-    Tokenizer tokenizer;
+    tokenizer tokenizer1;
 } L3;
 
 
-void alloc_state_l3(state_l3 *s, config_l3 *p);
+void alloc_state_l3(state_l3 *_state, config_l3 *_config);
 
-void free_state_l3(state_l3 *s);
+void free_state_l3(state_l3 *_state);
 
-void free_l3(L3 *model);
+void free_l3(L3 *_model);
 
-int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max);
+int load_quantized_l3(const char *_path_s, L3 *_model, int seq_n_max);
 
-float *forward_l3(L3 *model, int token, int pos);
+float *forward_l3(L3 *_model, int token, int pos);
 
 
 #endif // DOLEN_L3_COMMON_H

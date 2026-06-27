@@ -2,10 +2,10 @@
 
 
 static const chat_template CHAT_TEMPLATE_CHATML = {
-    .system = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    .main = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+    ._system_s = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    ._main_s = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
             "<|im_start|\x3e" "assistant\n",
-    .end_turn = "<|im_end|\x3e" "\n",
+    ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 
 const model_registry_entry MODEL_REGISTRY[] = {
@@ -19,15 +19,15 @@ const model_registry_entry MODEL_REGISTRY[] = {
 const size_t MODEL_REGISTRY_SIZE = sizeof(MODEL_REGISTRY) / sizeof(MODEL_REGISTRY[0]);
 
 
-static void generate(model_iface *model_i, Sampler *sampler, char *prompt, int steps_n_max) {
-    if (prompt == NULL) {
-        prompt = "";
+static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int steps_n_max) {
+    if (_prompt_s == NULL) {
+        _prompt_s = "";
     }
 
     int prompt_tokens_n = 0;
-    int *prompt_tokens = (int *)a_calloc((strlen(prompt) * 4 + 3) * sizeof(int));
+    int *prompt_tokens = (int *)a_calloc((strlen(_prompt_s) * 4 + 3) * sizeof(int));
 
-    encode(model_i->tokenizer, prompt, model_i->tokenizer->bos_token_id, 0, prompt_tokens, &prompt_tokens_n);
+    encode(_model_i->_tokenizer, _prompt_s, _model_i->_tokenizer->bos_id, 0, prompt_tokens, &prompt_tokens_n);
 
     if (prompt_tokens_n < 1) {
         log_msg(stderr, "ERROR: Expected at least 1 prompt token\n");
@@ -39,13 +39,13 @@ static void generate(model_iface *model_i, Sampler *sampler, char *prompt, int s
     int token = prompt_tokens[0];
     int pos = 0;
     while (pos < steps_n_max) {
-        float *logits = model_i->forward(model_i->model, token, pos);
+        float *logits = _model_i->forward(_model_i->_model, token, pos);
 
         if (pos < (prompt_tokens_n - 1)) {
             next = prompt_tokens[pos + 1];
         }
         else {
-            next = sample(sampler, logits);
+            next = sample(_sampler, logits);
         }
 
         pos++;
@@ -53,7 +53,7 @@ static void generate(model_iface *model_i, Sampler *sampler, char *prompt, int s
             break;
         }
 
-        char *piece = decode(model_i->tokenizer, next, false);
+        char *piece = decode(_model_i->_tokenizer, next, false);
         log_msg(stdout, "%s", piece);
 
         token = next;
@@ -72,20 +72,20 @@ static void generate(model_iface *model_i, Sampler *sampler, char *prompt, int s
     free(prompt_tokens);
 }
 
-static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn_, const char *system_prompt,
-        const char *prompt, int *rendered_len) {
+static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn_, const char *_system_prompt_s,
+        const char *_prompt_s, int *rendered_len) {
     const char *format = NULL;
     int len1, len2;
 
     if (first_turn_ &&
-            system_prompt &&
-            system_prompt[0]) {
-        len1 = snprintf(NULL, 0, chat_tmpl->system, system_prompt);
-        len2 = snprintf(NULL, 0, chat_tmpl->main, prompt);
+            _system_prompt_s &&
+            _system_prompt_s[0]) {
+        len1 = snprintf(NULL, 0, chat_tmpl->_system_s, _system_prompt_s);
+        len2 = snprintf(NULL, 0, chat_tmpl->_main_s, _prompt_s);
     }
     else {
-        len1 = snprintf(NULL, 0, chat_tmpl->end_turn);
-        len2 = snprintf(NULL, 0, chat_tmpl->main, prompt);
+        len1 = snprintf(NULL, 0, chat_tmpl->_end_turn_s);
+        len2 = snprintf(NULL, 0, chat_tmpl->_main_s, _prompt_s);
     }
 
     char *rendered = a_calloc(len1 + len2 + 1);
@@ -95,41 +95,41 @@ static char *render_chat_turn(const chat_template *chat_tmpl, bool first_turn_, 
     }
 
     if (first_turn_ &&
-            system_prompt &&
-            system_prompt[0]) {
-        snprintf(rendered, len1 + 1, chat_tmpl->system, system_prompt);
-        snprintf(rendered + len1, len2 + 1, chat_tmpl->main, prompt);
+            _system_prompt_s &&
+            _system_prompt_s[0]) {
+        snprintf(rendered, len1 + 1, chat_tmpl->_system_s, _system_prompt_s);
+        snprintf(rendered + len1, len2 + 1, chat_tmpl->_main_s, _prompt_s);
     }
     else {
-        snprintf(rendered, len1 + 1, chat_tmpl->end_turn);
-        snprintf(rendered + len1, len2 + 1, chat_tmpl->main, prompt);
+        snprintf(rendered, len1 + 1, chat_tmpl->_end_turn_s);
+        snprintf(rendered + len1, len2 + 1, chat_tmpl->_main_s, _prompt_s);
     }
 
     *rendered_len = len1 + len2;
     return rendered;
 }
 
-static bool is_chat_stop_token(const model_iface *model_i, int token) {
-    if (token == model_i->tokenizer->im_end_id) {
+static bool is_chat_stop_token(const model_iface *_model_i, int token) {
+    if (token == _model_i->_tokenizer->im_end_id) {
         return true;
     }
-    if ((model_i->tokenizer->eos_token_id > 0) &&
-            (token == model_i->tokenizer->eos_token_id)) {
+    if ((_model_i->_tokenizer->eos_id > 0) &&
+            (token == _model_i->_tokenizer->eos_id)) {
         return true;
     }
 
     return token == 2;
 }
 
-static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, char *init_prompt,
+static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_s, char *init_prompt,
         int prompt_n_max, int steps_n_max, bool debug_) {
-    const chat_template *chat_tmpl = model_i->chat_template;
+    const chat_template *chat_tmpl = _model_i->_chat_template;
     if (! chat_tmpl) {
         chat_tmpl = &CHAT_TEMPLATE_CHATML;
     }
-    if ((! chat_tmpl->system) ||
-            (! chat_tmpl->main) ||
-            (! chat_tmpl->end_turn)) {
+    if ((! chat_tmpl->_system_s) ||
+            (! chat_tmpl->_main_s) ||
+            (! chat_tmpl->_end_turn_s)) {
         log_msg(stderr, "ERROR: Model supplied an incomplete chat template\n");
         exit(EXIT_FAILURE);
     }
@@ -147,24 +147,24 @@ static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, ch
     long start = 0;
     int generated_tokens = 0;
 
-    char *prompt = (char *)a_calloc((prompt_n_max + 1) * sizeof(char));
+    char *_prompt_s = (char *)a_calloc((prompt_n_max + 1) * sizeof(char));
 
     while (pos < steps_n_max) {
         if (user_turn_) {
             if (first_turn_ &&
                     init_prompt) {
-                strncpy(prompt, init_prompt, prompt_n_max);
-                prompt[prompt_n_max] = '\0';
+                strncpy(_prompt_s, init_prompt, prompt_n_max);
+                _prompt_s[prompt_n_max] = '\0';
             }
             else {
                 log_msg(stdout, "In: ");
-                read_msg(prompt, prompt_n_max);
+                read_msg(_prompt_s, prompt_n_max);
             }
-            if (prompt[0] == '\0') {
+            if (_prompt_s[0] == '\0') {
                 continue;
             }
 
-            rendered_prompt = render_chat_turn(chat_tmpl, first_turn_, system_prompt, prompt, &rendered_len);
+            rendered_prompt = render_chat_turn(chat_tmpl, first_turn_, _system_prompt_s, _prompt_s, &rendered_len);
 
             if (prompt_tokens) {
                 free(prompt_tokens);
@@ -172,8 +172,8 @@ static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, ch
 
             prompt_tokens = (int *)a_calloc(((size_t)rendered_len * 4 + 3) * sizeof(int));
 
-            int bos_token = first_turn_ ? model_i->tokenizer->bos_token_id : 0;
-            encode(model_i->tokenizer, rendered_prompt, bos_token, 0, prompt_tokens, &prompt_tokens_n);
+            int bos_token = first_turn_ ? _model_i->_tokenizer->bos_id : 0;
+            encode(_model_i->_tokenizer, rendered_prompt, bos_token, 0, prompt_tokens, &prompt_tokens_n);
 
             free(rendered_prompt);
             rendered_prompt = NULL;
@@ -194,12 +194,12 @@ static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, ch
             token = next;
         }
 
-        float *logits = model_i->forward(model_i->model, token, pos);
-        next = sample(sampler, logits);
+        float *logits = _model_i->forward(_model_i->_model, token, pos);
+        next = sample(_sampler, logits);
         pos++;
 
         if (user_idx >= prompt_tokens_n) {
-            if (is_chat_stop_token(model_i, next)) {
+            if (is_chat_stop_token(_model_i, next)) {
                 log_msg(stdout, "\n");
                 long end = time_in_ms();
                 if ((generated_tokens > 0) &&
@@ -209,7 +209,7 @@ static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, ch
                 user_turn_ = 1;
             }
             else {
-                char *piece = decode(model_i->tokenizer, next, debug_);
+                char *piece = decode(_model_i->_tokenizer, next, debug_);
                 log_msg(stdout, "%s", piece);
                 generated_tokens++;
             }
@@ -221,11 +221,11 @@ static void chat(model_iface *model_i, Sampler *sampler, char *system_prompt, ch
         free(prompt_tokens);
     }
 
-    free(prompt);
+    free(_prompt_s);
 }
 
-static uint64_t peek_model_magic(const char *filepath) {
-    FILE *f = fopen(filepath, "rb");
+static uint64_t peek_model_magic(const char *_path_s) {
+    FILE *f = fopen(_path_s, "rb");
     if (! f) {
         return 0;
     }
@@ -260,17 +260,17 @@ static void error_usage(const char *argv0) {
 }
 
 int main(int argc, char *argv[]) {
-    char *model_path = NULL;
-    float temperature = TEMP_DEFAULT;
-    int topk = TOP_K_DEFAULT;
-    float topp = TOP_P_DEFAULT;
+    char *_model_path_s = NULL;
+    float temp = TEMP_DEFAULT;
+    int top_k = TOP_K_DEFAULT;
+    float top_p = TOP_P_DEFAULT;
     unsigned long long rng_seed = 0;
     int seq_n_max = 0;
     int prompt_n_max = PROMPT_N_MAX_DEFAULT;
-    char *prompt = NULL;
-    char *prompt_file = NULL;
+    char *_prompt_s = NULL;
+    char *_prompt_file = NULL;
     char *mode = "chat";
-    char *system_prompt = NULL;
+    char *_system_prompt_s = NULL;
     bool debug_ = false;
     bool think_ = false;
 
@@ -302,19 +302,19 @@ int main(int argc, char *argv[]) {
 
         if ((! strcmp(argv[i], "-m")) ||
                 (! strcmp(argv[i], "--model"))) {
-            model_path = argv[i + 1];
+            _model_path_s = argv[i + 1];
         }
         else if ((! strcmp(argv[i], "-t")) ||
                 (! strcmp(argv[i], "--temp"))) {
-            temperature = atof(argv[i + 1]);
+            temp = atof(argv[i + 1]);
         }
         else if ((! strcmp(argv[i], "-k")) ||
                 (! strcmp(argv[i], "--top_k"))) {
-            topk = atoi(argv[i + 1]);
+            top_k = atoi(argv[i + 1]);
         }
         else if ((! strcmp(argv[i], "-tp")) ||
                 (! strcmp(argv[i], "--top_p"))) {
-            topp = atof(argv[i + 1]);
+            top_p = atof(argv[i + 1]);
         }
         else if ((! strcmp(argv[i], "-s")) ||
                 (! strcmp(argv[i], "--seed"))) {
@@ -332,13 +332,13 @@ int main(int argc, char *argv[]) {
                 (! strcmp(argv[i], "--prompt"))) {
             size_t prompt_len = strlen(argv[i + 1]);
             if (prompt_len > 0) {
-                prompt = a_calloc(prompt_len + 1);
-                strncpy(prompt, argv[i + 1], prompt_len + 1);
+                _prompt_s = a_calloc(prompt_len + 1);
+                strncpy(_prompt_s, argv[i + 1], prompt_len + 1);
             }
         }
         else if ((! strcmp(argv[i], "-pf")) ||
                 (! strcmp(argv[i], "--prompt_file"))) {
-            prompt_file = argv[i + 1];
+            _prompt_file = argv[i + 1];
         }
         else if ((! strcmp(argv[i], "-M")) ||
                 (! strcmp(argv[i], "--mode"))) {
@@ -348,13 +348,13 @@ int main(int argc, char *argv[]) {
                 (! strcmp(argv[i], "--system_prompt"))) {
             int system_prompt_len = strlen(argv[i + 1]);
             if (system_prompt_len > 0) {
-                system_prompt = a_calloc(system_prompt_len + 1);
-                strncpy(system_prompt, argv[i + 1], system_prompt_len + 1);
+                _system_prompt_s = a_calloc(system_prompt_len + 1);
+                strncpy(_system_prompt_s, argv[i + 1], system_prompt_len + 1);
             }
         }
         else if ((! strcmp(argv[i], "-l")) ||
                 (! strcmp(argv[i], "--log"))) {
-            log_path = argv[i + 1];
+            _log_path = argv[i + 1];
         }
         else {
             error_usage(argv[0]);
@@ -363,7 +363,7 @@ int main(int argc, char *argv[]) {
         i += 2;
     }
 
-    if (! model_path) {
+    if (! _model_path_s) {
         log_msg(stderr, "ERROR: Model path required.\n");
         exit(EXIT_FAILURE);
     }
@@ -373,14 +373,14 @@ int main(int argc, char *argv[]) {
     }
     log_msg(stdout, "INFO: Using seed %lu\n", rng_seed);
 
-    if (prompt_file) {
-        if (prompt) {
-            free(prompt);
-            prompt = NULL;
+    if (_prompt_file) {
+        if (_prompt_s) {
+            free(_prompt_s);
+            _prompt_s = NULL;
         }
-        FILE *pf = fopen(prompt_file, "r");
+        FILE *pf = fopen(_prompt_file, "r");
         if (! pf) {
-            log_msg(stderr, "ERROR: Couldn't open prompt file %s\n", prompt_file);
+            log_msg(stderr, "ERROR: Couldn't open prompt file %s\n", _prompt_file);
             exit(EXIT_FAILURE);
         }
         fseek(pf, 0, SEEK_END);
@@ -388,24 +388,24 @@ int main(int argc, char *argv[]) {
         fseek(pf, 0, SEEK_SET);
 
         if (f_len < 0) {
-            log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", prompt_file);
+            log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", _prompt_file);
             fclose(pf);
             exit(EXIT_FAILURE);
         }
 
-        prompt = (char *)a_calloc(f_len + 1);
-        if (! prompt) {
+        _prompt_s = (char *)a_calloc(f_len + 1);
+        if (! _prompt_s) {
             log_msg(stderr, "ERROR: Memory allocation failed for prompt file\n");
             fclose(pf);
             exit(EXIT_FAILURE);
         }
 
-        size_t read_bytes = fread(prompt, 1, f_len, pf);
-        prompt[read_bytes] = '\0';
+        size_t read_bytes = fread(_prompt_s, 1, f_len, pf);
+        _prompt_s[read_bytes] = '\0';
         fclose(pf);
     }
 
-    uint64_t magic = peek_model_magic(model_path);
+    uint64_t magic = peek_model_magic(_model_path_s);
 
     const char *model_type_name = "unknown";
     model_init_fn init_fn = NULL;
@@ -413,43 +413,43 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < MODEL_REGISTRY_SIZE; i++) {
         if (MODEL_REGISTRY[i].magic == magic) {
             init_fn = MODEL_REGISTRY[i].init_fn;
-            model_type_name = MODEL_REGISTRY[i].name;
+            model_type_name = MODEL_REGISTRY[i]._name_s;
             break;
         }
     }
 
     if (! init_fn) {
-        log_msg(stderr, "ERROR: Unknown model magic number 0x%llx in \"%s\"\n", magic, model_path);
+        log_msg(stderr, "ERROR: Unknown model magic number 0x%llx in \"%s\"\n", magic, _model_path_s);
         exit(EXIT_FAILURE);
     }
     
     log_msg(stdout, "INFO: Detected model type: \"%s\"\n", model_type_name);
 
-    model_iface *model_i = init_fn(model_path, seq_n_max, think_);
-    if (! model_i) {
+    model_iface *_model_i = init_fn(_model_path_s, seq_n_max, think_);
+    if (! _model_i) {
         exit(EXIT_FAILURE);
     }
 
 
-    Sampler sampler;
-    build_sampler(&sampler, model_i->tokenizer->vocab_size, temperature, topk, topp, rng_seed);
+    sampler _sampler;
+    build_sampler(&_sampler, _model_i->_tokenizer->vocab_size, temp, top_k, top_p, rng_seed);
 
     if (! memcmp(mode, "generate", strlen("generate") + 1)) {
-        generate(model_i, &sampler, prompt, model_i->seq_n_max);
+        generate(_model_i, &_sampler, _prompt_s, _model_i->seq_n_max);
     }
     else if (! memcmp(mode, "chat", strlen("chat") + 1)) {
-        chat(model_i, &sampler, system_prompt, prompt, prompt_n_max, model_i->seq_n_max, debug_);
+        chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, prompt_n_max, _model_i->seq_n_max, debug_);
     }
     else {
         log_msg(stderr, "ERROR: Unknown mode: %s\n", mode);
         error_usage(argv[0]);
     }
 
-    free_sampler(&sampler);
+    free_sampler(&_sampler);
 
-    model_i->free_model(model_i->model);
+    _model_i->free_model(_model_i->_model);
 
-    free(model_i);
+    free(_model_i);
 
     return 0;
 }

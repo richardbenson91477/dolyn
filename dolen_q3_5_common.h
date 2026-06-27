@@ -33,56 +33,56 @@ typedef struct {
 
 typedef struct {
     qtensor embed_tokens_weight;
-    qtensor *rms_att_weight;
-    qtensor *wq;
-    qtensor *wk;
-    qtensor *wv;
-    qtensor *wo;
-    qtensor *q_norm;
-    qtensor *k_norm;
-    qtensor *in_proj_qkv;
-    qtensor *in_proj_z;
-    qtensor *in_proj_b;
-    qtensor *in_proj_a;
-    qtensor *conv1d_weight;
-    qtensor *dt_bias;
-    qtensor *A_log;
-    qtensor *linear_norm;
-    qtensor *out_proj;
-    qtensor *rms_ffn_weight;
-    qtensor *w1;
-    qtensor *w2;
-    qtensor *w3;
+    qtensor *_rms_att_weight;
+    qtensor *_wq;
+    qtensor *_wk;
+    qtensor *_wv;
+    qtensor *_wo;
+    qtensor *_q_norm;
+    qtensor *_k_norm;
+    qtensor *_in_proj_qkv;
+    qtensor *_in_proj_z;
+    qtensor *_in_proj_b;
+    qtensor *_in_proj_a;
+    qtensor *_conv1d_weight;
+    qtensor *_dt_bias;
+    qtensor *_A_log;
+    qtensor *_linear_norm;
+    qtensor *_out_proj;
+    qtensor *_rms_ffn_weight;
+    qtensor *_w1;
+    qtensor *_w2;
+    qtensor *_w3;
     qtensor rms_final_weight;
     qtensor wcls;
 } weights_q3_5;
 
 typedef struct {
-    float *x;
-    float *xb;
-    float *xb2;
-    float *hb;
-    float *hb2;
-    float *q;
-    float *k;
-    float *v;
-    float *att;
-    float *logits;
-    float *gate;
-    float *key_cache;
-    float *value_cache;
-    float *qkv;
-    float *z;
-    float *beta;
-    float *g;
-    float *linear_out;
-    float *conv_state;
-    float *S;
-    float *delta_S;
+    float *_x;
+    float *_xb;
+    float *_xb2;
+    float *_hb;
+    float *_hb2;
+    float *_q;
+    float *_k;
+    float *_v;
+    float *_att;
+    float *_logits;
+    float *_gate;
+    float *_key_cache;
+    float *_value_cache;
+    float *_qkv;
+    float *_z;
+    float *_beta;
+    float *_g;
+    float *_linear_out;
+    float *_conv_state;
+    float *_S;
+    float *_delta_S;
     qtensor xq;
     qtensor hq;
-    float *cos_cache;
-    float *sin_cache;
+    float *_cos_cache;
+    float *_sin_cache;
     int allocated;
 } state_q3_5;
 
@@ -90,18 +90,18 @@ typedef struct {
     config_q3_5 config;
     weights_q3_5 weights;
     state_q3_5 state;
-    Tokenizer tokenizer;
-    int *layer_types;
-    int *attn_layer_indices;
-    int *deltanet_layer_indices;
+    tokenizer tokenizer1;
+    int *_layer_types;
+    int *_attn_layer_indices;
+    int *_deltanet_layer_indices;
 } Q3_5;
 
 
-void alloc_state_q3_5(state_q3_5 *s, config_q3_5 *p);
+void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config);
 
-void free_state_q3_5(state_q3_5 *s);
+void free_state_q3_5(state_q3_5 *_state);
 
-void free_q3_5(Q3_5 *model_q3_5);
+void free_q3_5(Q3_5 *_model_q3_5);
 
 
 #endif // DOLEN_Q3_5_COMMON_H

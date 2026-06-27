@@ -41,8 +41,8 @@ int sample_mult(float *probs, int n, float coin) {
 }
 
 int compare_prob(const void *a, const void *b) {
-    ProbIndex *a_ = (ProbIndex *)a;
-    ProbIndex *b_ = (ProbIndex *)b;
+    prob_index *a_ = (prob_index *)a;
+    prob_index *b_ = (prob_index *)b;
 
     if (a_->prob > b_->prob) {
         return -1;
@@ -55,14 +55,14 @@ int compare_prob(const void *a, const void *b) {
     return 0;
 }
 
-int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, float coin) {
+int sample_top(float *probs, int n, int top_k, float top_p, prob_index *_prob_index, float coin) {
     int n0 = 0;
-    const float cutoff = (1.0f - topp) / (n - 1);
+    const float cutoff = (1.0f - top_p) / (n - 1);
 
     for (int i = 0; i < n; i++) {
         if (probs[i] >= cutoff) {
-            probindex[n0].index = i;
-            probindex[n0].prob = probs[i];
+            _prob_index[n0].index = i;
+            _prob_index[n0].prob = probs[i];
             n0++;
         }
     }
@@ -71,18 +71,18 @@ int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, 
         return sample_argmax(probs, n);
     }
 
-    qsort(probindex, n0, sizeof(ProbIndex), compare_prob);
+    qsort(_prob_index, n0, sizeof(prob_index), compare_prob);
 
-    if ((topk > 0) &&
-            (n0 > topk)) {
-        n0 = topk;
+    if ((top_k > 0) &&
+            (n0 > top_k)) {
+        n0 = top_k;
     }
 
     float cumulative_prob = 0.0f;
     int last_idx = n0 - 1;
     for (int i = 0; i < n0; i++) {
-        cumulative_prob += probindex[i].prob;
-        if (cumulative_prob > topp) {
+        cumulative_prob += _prob_index[i].prob;
+        if (cumulative_prob > top_p) {
             last_idx = i;
             break;
         }
@@ -91,52 +91,52 @@ int sample_top(float *probs, int n, int topk, float topp, ProbIndex *probindex, 
     float r = coin * cumulative_prob;
     float cdf = 0.0f;
     for (int i = 0; i <= last_idx; i++) {
-        cdf += probindex[i].prob;
+        cdf += _prob_index[i].prob;
         if (r < cdf) {
-            return probindex[i].index;
+            return _prob_index[i].index;
         }
     }
 
-    return probindex[last_idx].index;
+    return _prob_index[last_idx].index;
 }
 
-int sample(Sampler *sampler, float *logits) {
+int sample(sampler *_sampler, float *logits) {
     int next;
 
-    if (sampler->temperature == 0.0f) {
-        next = sample_argmax(logits, sampler->vocab_size);
+    if (_sampler->temp == 0.0f) {
+        next = sample_argmax(logits, _sampler->vocab_size);
     }
     else {
 #pragma omp parallel for
-        for (int q = 0; q < sampler->vocab_size; q++) {
-            logits[q] /= sampler->temperature;
+        for (int q = 0; q < _sampler->vocab_size; q++) {
+            logits[q] /= _sampler->temp;
         }
 
-        softmax(logits, sampler->vocab_size);
+        softmax(logits, _sampler->vocab_size);
 
-        float coin = random_f32(&sampler->rng_state);
-        if (sampler->topp <= 0 ||
-                sampler->topp >= 1) {
-            next = sample_mult(logits, sampler->vocab_size, coin);
+        float coin = random_f32(&_sampler->rng_state);
+        if (_sampler->top_p <= 0 ||
+                _sampler->top_p >= 1) {
+            next = sample_mult(logits, _sampler->vocab_size, coin);
         }
         else {
-            next = sample_top(logits, sampler->vocab_size, sampler->topk, sampler->topp, sampler->probindex, coin);
+            next = sample_top(logits, _sampler->vocab_size, _sampler->top_k, _sampler->top_p, _sampler->_prob_index, coin);
         }
     }
     return next;
 }
 
-void build_sampler(Sampler *sampler, int vocab_size, float temperature, int topk, float topp,
+void build_sampler(sampler *_sampler, int vocab_size, float temp, int top_k, float top_p,
         unsigned long long rng_seed) {
-    sampler->vocab_size = vocab_size;
-    sampler->temperature = temperature;
-    sampler->topk = topk;
-    sampler->topp = topp;
-    sampler->rng_state = rng_seed;
-    sampler->probindex = a_calloc(sampler->vocab_size * sizeof(ProbIndex));
+    _sampler->vocab_size = vocab_size;
+    _sampler->temp = temp;
+    _sampler->top_k = top_k;
+    _sampler->top_p = top_p;
+    _sampler->rng_state = rng_seed;
+    _sampler->_prob_index = a_calloc(_sampler->vocab_size * sizeof(prob_index));
 }
 
-void free_sampler(Sampler *sampler) {
-    free(sampler->probindex);
+void free_sampler(sampler *_sampler) {
+    free(_sampler->_prob_index);
 }
 

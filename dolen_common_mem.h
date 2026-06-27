@@ -9,7 +9,7 @@
 
 void *a_calloc(size_t size);
 
-uint64_t read_le64(const uint8_t bytes[8]);
+uint64_t read_le64(const uint8_t _bytes[8]);
 
 
 #endif // DOLEN_COMMON_MEM_H

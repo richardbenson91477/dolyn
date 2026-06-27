@@ -8,42 +8,42 @@
 
 
 typedef struct {
-    char *str;
+    char *_str_s;
     int id;
 } token_map;
 
 typedef struct {
-    char **vocab;
-    token_map *sorted_vocab;
+    char **__vocab;
+    token_map *_vocab_sorted;
     int vocab_size;
     unsigned int max_token_length;
-    unsigned char byte_pieces[512];
-    token_map *special_tokens;
-    int n_special_tokens;
-    int bos_token_id;
-    int eos_token_id;
+    unsigned char _byte_pieces_s[512];
+    token_map *_tokens_special;
+    int token_special_n;
+    int bos_id;
+    int eos_id;
     int im_end_id;
     int is_sorted;
-} Tokenizer;
+} tokenizer;
 
 
-int compare_tokens(const void *a, const void *b);
+int compare_tokens(const void *_a, const void *_b);
 
-int str_lookup(char *str, token_map *sorted_vocab, int vocab_size);
+int str_lookup(char *_str_s, token_map *_vocab_sorted, int vocab_size);
 
-void encode_segment(Tokenizer *t, char *text, int *tokens, int *tokens_n);
+void encode_segment(tokenizer *_tokenizer, char *_text_s, int *_tokens, int *_tokens_n);
 
-void encode(Tokenizer *t, char *text, int bos_token, int8_t eos, int *tokens, int *tokens_n);
+void encode(tokenizer *_tokenizer, char *_text_s, int bos_id, int8_t eos_id, int *_tokens, int *_tokens_n);
 
-char *decode(Tokenizer *t, int token, bool debug_);
+char *decode(tokenizer *_tokenizer, int token, bool debug_);
 
-void build_tokenizer(Tokenizer *t, const char *tokenizer_path, int vocab_size, token_map *special_tokens);
+void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size, token_map *_tokens_special);
 
-void free_tokenizer(Tokenizer *t);
+void free_tokenizer(tokenizer *_tokenizer);
 
-int tokenizer_write_to_file(FILE *f, const Tokenizer *t);
+int tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer);
 
-int tokenizer_read_from_file(FILE *f, int vocab_size, Tokenizer *t);
+int tokenizer_read_from_file(FILE *_file, int vocab_size, tokenizer *_tokenizer);
 
 
 #endif // DOLEN_COMMON_TOKENIZER_H

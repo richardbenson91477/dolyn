@@ -6,21 +6,21 @@
 
 
 typedef struct {
-    const char *system;
-    const char *main;
-    const char *end_turn;
+    const char *_system_s;
+    const char *_main_s;
+    const char *_end_turn_s;
 } chat_template;
 
 typedef struct {
-    void *model;
-    float *(*forward)(void *model, int token, int pos);
-    void (*free_model)(void *model);
+    void *_model;
+    float *(*forward)(void *_model, int token, int pos);
+    void (*free_model)(void *_model);
     int seq_n_max;
-    const chat_template *chat_template;
-    Tokenizer *tokenizer;
+    const chat_template *_chat_template;
+    tokenizer *_tokenizer;
 } model_iface;
 
-typedef model_iface *(*model_init_fn)(const char *model_path, int seq_n_max, bool think_);
+typedef model_iface *(* model_init_fn)(const char *_model_path, int seq_n_max, bool think_);
 
 
 #endif // DOLEN_COMMON_CMI_H

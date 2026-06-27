@@ -3,7 +3,7 @@
 
 
 int load_config_q3(Q3 *model, const char *model_dir) {
-    config_q3 *p = &model->config;
+    config_q3 *_config = &model->config;
 
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
@@ -39,26 +39,26 @@ int load_config_q3(Q3 *model, const char *model_dir) {
         cfg = root;
     }
 
-    memset(p, 0, sizeof(config_q3));
-    p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
-    p->hidden_dim = json_get_int(json_object_get(cfg, "intermediate_size"), 0);
-    p->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 0);
-    p->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 0);
-    p->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), p->n_heads);
-    p->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 0);
-    p->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
-    p->head_dim = json_get_int(json_object_get(cfg, "head_dim"), p->dim / p->n_heads);
-    p->shared_classifier = json_get_bool(json_object_get(cfg, "tie_word_embeddings"), 0);
-    p->rope_theta = get_json_float_val(json_object_get(cfg, "rope_theta"), 1000000.0f);
-    p->rms_norm_eps = get_json_float_val(json_object_get(cfg, "rms_norm_eps"), 1e-6f);
+    memset(_config, 0, sizeof(config_q3));
+    _config->dim = json_get_int(json_object_get(cfg, "hidden_size"), 0);
+    _config->hidden_dim = json_get_int(json_object_get(cfg, "intermediate_size"), 0);
+    _config->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 0);
+    _config->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 0);
+    _config->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), _config->n_heads);
+    _config->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 0);
+    _config->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
+    _config->head_dim = json_get_int(json_object_get(cfg, "head_dim"), _config->dim / _config->n_heads);
+    _config->shared_classifier = json_get_bool(json_object_get(cfg, "tie_word_embeddings"), 0);
+    _config->rope_theta = get_json_float_val(json_object_get(cfg, "rope_theta"), 1000000.0f);
+    _config->rms_norm_eps = get_json_float_val(json_object_get(cfg, "rms_norm_eps"), 1e-6f);
 
     JsonValue *rope_scaling = json_object_get(cfg, "rope_scaling");
     if (rope_scaling &&
             (rope_scaling->type == JSON_OBJECT)) {
-        p->rope_scaling_factor = get_json_float_val(json_object_get(rope_scaling, "factor"), 1.0f);
+        _config->rope_scaling_factor = get_json_float_val(json_object_get(rope_scaling, "factor"), 1.0f);
     }
     else {
-        p->rope_scaling_factor = 1.0f;
+        _config->rope_scaling_factor = 1.0f;
     }
 
     json_free(root);
@@ -66,133 +66,138 @@ int load_config_q3(Q3 *model, const char *model_dir) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *ctx, FILE *out,
+static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file,
         int layer, const char *suffix, int rows, int cols, q_type_t type) {
     char name[256];
     snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
 
-    if (quantize_write_tensor_or_empty(ctx, out, name, rows, cols, type)) {
+    if (quantize_write_tensor_or_empty(_qt_ctx, _file, name, rows, cols, type)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
         return -1;
     }
     return 0;
 }
 
-int quantize_q3_to_file(const char *model_dir, const char *output_file,
-        q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *tokenizer_path) {
+int quantize_q3_to_file(const char *model_dir, const char *_file_path_s,
+        q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *_tokenizer_path_s) {
     Q3 model;
     memset(&model, 0, sizeof(model));
     if (load_config_q3(&model, model_dir)) {
         return -1;
     }
 
-    quantize_ctx ctx;
-    if (quantize_ctx_open(&ctx, model_dir)) {
+    quantize_ctx _qt_ctx;
+    if (quantize_ctx_open(&_qt_ctx, model_dir)) {
         log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", model_dir);
         return -1;
     }
 
-    FILE *out = fopen(output_file, "wb");
-    if (! out) {
-        log_msg(stderr, "ERROR: Failed to open %s for writing\n", output_file);
-        quantize_ctx_close(&ctx);
+    FILE *_file = fopen(_file_path_s, "wb");
+    if (! _file) {
+        log_msg(stderr, "ERROR: Failed to open %s for writing\n", _file_path_s);
+        quantize_ctx_close(&_qt_ctx);
         return -1;
     }
 
-    config_q3 *p = &model.config;
+    config_q3 *_config = &model.config;
 
-    int head_size = p->head_dim;
-    int kv_dim = p->n_kv_heads * head_size;
-    int all_heads_dim = p->n_heads * head_size;
+    int head_size = _config->head_dim;
+    int kv_dim = _config->n_kv_heads * head_size;
+    int all_heads_dim = _config->n_heads * head_size;
 
     uint64_t magic = MAGIC_Q3;
     uint32_t version = 2;
 
     int failed = 0;
 
-    if (quantize_write_bytes(out, &magic, sizeof(magic), 1) ||
-            quantize_write_bytes(out, &version, sizeof(version), 1) ||
-            quantize_write_bytes(out, p, sizeof(*p), 1)) {
+    if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
+            quantize_write_bytes(_file, &version, sizeof(version), 1) ||
+            quantize_write_bytes(_file, _config, sizeof(config_q3), 1)) {
         failed = 1;
         goto cleanup;
     }
 
-    Tokenizer tokenizer;
-    memset(&tokenizer, 0, sizeof(tokenizer));
-    build_tokenizer(&tokenizer, tokenizer_path, p->vocab_size, NULL);
+    tokenizer tokenizer1;
+    memset(&tokenizer1, 0, sizeof(tokenizer));
+    build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size, NULL);
 
-    if (tokenizer_write_to_file(out, &tokenizer)) {
+    if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
         failed = 1;
         goto cleanup;
     }
 
-    if (quantize_write_tensor(&ctx, out, "model.embed_tokens.weight", p->vocab_size, p->dim, embed_type)) {
+    if (quantize_write_tensor(&_qt_ctx, _file, "model.embed_tokens.weight", _config->vocab_size, _config->dim,
+            embed_type)) {
         failed = 1;
         goto cleanup;
     }
 
-    for (int l = 0; l < p->n_layers; l++) {
-        if (write_layer_tensor(&ctx, out, l, "input_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layers; l++) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < p->n_layers; l++) {
-        if (write_layer_tensor(&ctx, out, l, "post_attention_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layers; l++) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    if (quantize_write_tensor_or_empty(&ctx, out, "model.norm.weight", 1, p->dim, Q_TYPE_F32)) {
+    if (quantize_write_tensor_or_empty(&_qt_ctx, _file, "model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
-    for (int l = 0; l < p->n_layers; l++) {
-        if (write_layer_tensor(&ctx, out, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layers; l++) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < p->n_layers; l++) {
-        if (write_layer_tensor(&ctx, out, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layers; l++) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    if ((! p->shared_classifier) &&
-            quantize_write_tensor(&ctx, out, "lm_head.weight", p->vocab_size, p->dim, embed_type)) {
+    if ((! _config->shared_classifier) &&
+            quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight", _config->vocab_size, _config->dim, embed_type)) {
         failed = 1;
         goto cleanup;
     }
 
-    for (int l = 0; l < p->n_layers; l++) {
-        if (write_layer_tensor(&ctx, out, l, "self_attn.q_proj.weight", all_heads_dim, p->dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.k_proj.weight", kv_dim, p->dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.v_proj.weight", kv_dim, p->dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "self_attn.o_proj.weight", p->dim, all_heads_dim, attn_type) ||
-                write_layer_tensor(&ctx, out, l, "mlp.gate_proj.weight", p->hidden_dim, p->dim, mlp_type) ||
-                write_layer_tensor(&ctx, out, l, "mlp.down_proj.weight", p->dim, p->hidden_dim, mlp_type) ||
-                write_layer_tensor(&ctx, out, l, "mlp.up_proj.weight", p->hidden_dim, p->dim, mlp_type)) {
+    for (int l = 0; l < _config->n_layers; l++) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight", all_heads_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight", kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight", kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, all_heads_dim,
+                        attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight", _config->hidden_dim, _config->dim,
+                        mlp_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->hidden_dim,
+                        mlp_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight", _config->hidden_dim, _config->dim,
+                        mlp_type)) {
             failed = 1;
             goto cleanup;
         }
     }
 
 cleanup:
-    free_tokenizer(&tokenizer);
-    if (fclose(out)) {
+    free_tokenizer(&tokenizer1);
+    if (fclose(_file)) {
         failed = 1;
     }
-    quantize_ctx_close(&ctx);
+    quantize_ctx_close(&_qt_ctx);
 
     if (failed) {
-        remove(output_file);
+        remove(_file_path_s);
         return -1;
     }
 
-    log_msg(stdout, "INFO: Quantized model saved to %s\n", output_file);
+    log_msg(stdout, "INFO: Quantized model saved to %s\n", _file_path_s);
     return 0;
 }
 
@@ -203,7 +208,7 @@ int main(int argc, char *argv[]) {
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
-    char *tokenizer_path = "tokenizer.bin";
+    char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
         if ((! strcmp(argv[i], "--type")) &&
                 ((i + 1) < argc)) {
@@ -229,11 +234,11 @@ int main(int argc, char *argv[]) {
         else if ((! strcmp(argv[i], "--tokenizer")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            tokenizer_path = argv[i];
+            _tokenizer_path_s = argv[i];
         }
     }
 
-    return quantize_q3_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, tokenizer_path) \
+    return quantize_q3_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

@@ -19,27 +19,27 @@ typedef enum {
 } q_type_t;
 
 typedef struct {
-    void *data;     // Points to float*, _Float16*, int8_t*, or uint8_t* (for Q4) depending on type
-    float *s;       // Scales for Q8/Q4 (NULL for F32/F16)
+    void *_data;
+    float *_scales;
     int rows;
     int cols;
     q_type_t type;
 } qtensor;
 
 
-void dequantize_row(float *output, const qtensor *qt, int row_idx);
+void dequantize_row(float *_output, const qtensor *_qt, int row_idx);
 
-void matmul_qt(float *output, const float *input, const qtensor *qt);
+void matmul_qt(float *_output, const float *_input, const qtensor *_qt);
 
-void quantize_vec(qtensor *xq, const float *x, int n);
+void quantize_vec(qtensor *_xq, const float *_x, int n);
 
-void matmul_qq(float *output, const qtensor *x, const qtensor *w);
+void matmul_qq(float *_output, const qtensor *_x, const qtensor *_w);
 
-void free_qt(qtensor *qt);
+void free_qt(qtensor *_qt);
 
-void free_qt_array(qtensor *arr, int n);
+void free_qt_array(qtensor *_qt_arr, int arr_n);
 
-void read_qt(FILE *f, qtensor *qt);
+void read_qt(FILE *_file, qtensor *_qt);
 
 
 #endif // DOLEN_COMMON_QTENSOR_H

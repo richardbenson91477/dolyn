@@ -26,37 +26,37 @@ typedef struct {
 
 typedef struct {
     qtensor embed_tokens_weight;
-    qtensor *rms_att_weight; 
-    qtensor *rms_ffn_weight;
-    qtensor *wq;
-    qtensor *wk;
-    qtensor *wv;
-    qtensor *wo;
-    qtensor *q_norm;
-    qtensor *k_norm;
-    qtensor *w1;
-    qtensor *w2;
-    qtensor *w3;
+    qtensor *_rms_att_weight; 
+    qtensor *_rms_ffn_weight;
+    qtensor *_wq;
+    qtensor *_wk;
+    qtensor *_wv;
+    qtensor *_wo;
+    qtensor *_q_norm;
+    qtensor *_k_norm;
+    qtensor *_w1;
+    qtensor *_w2;
+    qtensor *_w3;
     qtensor rms_final_weight;
     qtensor wcls;
 } weights_q3;
 
 typedef struct {
-    float *x;
-    float *xb;
-    float *hb;
-    float *hb2;
+    float *_x;
+    float *_xb;
+    float *_hb;
+    float *_hb2;
     qtensor xq;
     qtensor hq;
-    float *q;
-    float *k;
-    float *v;
-    float *att;
-    float *logits;
-    float *key_cache;
-    float *value_cache;
-    float *cos_cache;
-    float *sin_cache;
+    float *_q;
+    float *_k;
+    float *_v;
+    float *_att;
+    float *_logits;
+    float *_key_cache;
+    float *_value_cache;
+    float *_cos_cache;
+    float *_sin_cache;
     int allocated;
 } state_q3;
 
@@ -64,13 +64,13 @@ typedef struct {
     config_q3 config;
     weights_q3 weights;
     state_q3 state;
-    Tokenizer tokenizer;
+    tokenizer tokenizer1;
 } Q3;
 
 
-void alloc_state_q3(state_q3 *s, config_q3 *p);
+void alloc_state_q3(state_q3 *_state, config_q3 *_config);
 
-void free_state_q3(state_q3 *s);
+void free_state_q3(state_q3 *_state);
 
 void free_q3(Q3 *t);
 

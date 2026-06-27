@@ -2,11 +2,11 @@
 #include "dolen_g4_common.h"
 
 
-int load_config_g4(G4 *model, const char *model_dir) {
-    config_g4 *p = &model->config;
+int load_config_g4(G4 *_model, const char *_model_dir_s) {
+    config_g4 *p = &_model->config;
 
     char config_path[PATH_MAX];
-    snprintf(config_path, sizeof(config_path), "%s/config.json", model_dir);
+    snprintf(config_path, sizeof(config_path), "%s/config.json", _model_dir_s);
     FILE *f = fopen(config_path, "rb");
     if (! f) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
@@ -73,8 +73,8 @@ int load_config_g4(G4 *model, const char *model_dir) {
     }
 
     JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
-    model->layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
-    if (! model->layer_types) {
+    _model->_layer_types = (int *)a_calloc((size_t)p->n_layers * sizeof(int));
+    if (! _model->_layer_types) {
         log_msg(stderr, "ERROR: Failed to allocate layer_types\n");
         json_free(root);
         return -1;
@@ -86,16 +86,16 @@ int load_config_g4(G4 *model, const char *model_dir) {
             JsonValue *lt = json_array_get(layer_types_json, i);
             if (lt &&
                     (lt->type == JSON_STRING)) {
-                model->layer_types[i] = (strcmp(lt->data.string, "full_attention")) ? 0 : 1;
+                _model->_layer_types[i] = (strcmp(lt->data.string, "full_attention")) ? 0 : 1;
             }
             else {
-                model->layer_types[i] = 0;
+                _model->_layer_types[i] = 0;
             }
         }
     }
     else {
         for (int i = 0; i < p->n_layers; i++) {
-            model->layer_types[i] = ((i + 1) % 6) ? 0 : 1;
+            _model->_layer_types[i] = ((i + 1) % 6) ? 0 : 1;
         }
     }
 
@@ -115,18 +115,18 @@ static int write_layer_tensor(quantize_ctx *ctx, FILE *out, int layer, const cha
     return 0;
 }
 
-int quantize_g4_to_file(const char *model_dir, const char *output_file,
+int quantize_g4_to_file(const char *_model_dir_s, const char *output_file,
         q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *tokenizer_path) {
     G4 model;
     memset(&model, 0, sizeof(model));
-    if (load_config_g4(&model, model_dir)) {
+    if (load_config_g4(&model, _model_dir_s)) {
         return -1;
     }
 
     quantize_ctx ctx;
-    if (quantize_ctx_open(&ctx, model_dir)) {
-        log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", model_dir);
-        free(model.layer_types);
+    if (quantize_ctx_open(&ctx, _model_dir_s)) {
+        log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", _model_dir_s);
+        free(model._layer_types);
         return -1;
     }
 
@@ -134,7 +134,7 @@ int quantize_g4_to_file(const char *model_dir, const char *output_file,
     if (! out) {
         log_msg(stderr, "ERROR: Failed to open %s\n", output_file);
         quantize_ctx_close(&ctx);
-        free(model.layer_types);
+        free(model._layer_types);
         return -1;
     }
 
@@ -151,17 +151,17 @@ int quantize_g4_to_file(const char *model_dir, const char *output_file,
         goto cleanup;
     }
 
-    Tokenizer tokenizer;
-    memset(&tokenizer, 0, sizeof(tokenizer));
-    build_tokenizer(&tokenizer, tokenizer_path, p->vocab_size, NULL);
+    tokenizer tokenizer1;
+    memset(&tokenizer1, 0, sizeof(tokenizer));
+    build_tokenizer(&tokenizer1, tokenizer_path, p->vocab_size, NULL);
 
-    if (tokenizer_write_to_file(out, &tokenizer)) {
+    if (tokenizer_write_to_file(out, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
         failed = 1;
         goto cleanup;
     }
 
-    if (quantize_write_bytes(out, model.layer_types, sizeof(int), p->n_layers)) {
+    if (quantize_write_bytes(out, model._layer_types, sizeof(int), p->n_layers)) {
         failed = 1;
         goto cleanup;
     }
@@ -200,14 +200,14 @@ int quantize_g4_to_file(const char *model_dir, const char *output_file,
         }
     }
     for (int l = 0; l < p->n_layers; l++) {
-        int hd = model.layer_types[l] ? p->global_head_dim : p->head_dim;
+        int hd = model._layer_types[l] ? p->global_head_dim : p->head_dim;
         if (write_layer_tensor(&ctx, out, l, "self_attn.q_norm.weight", 1, hd, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < p->n_layers; l++) {
-        int hd = model.layer_types[l] ? p->global_head_dim : p->head_dim;
+        int hd = model._layer_types[l] ? p->global_head_dim : p->head_dim;
         if (write_layer_tensor(&ctx, out, l, "self_attn.k_norm.weight", 1, hd, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
@@ -219,7 +219,7 @@ int quantize_g4_to_file(const char *model_dir, const char *output_file,
     }
 
     for (int l = 0; l < p->n_layers; l++) {
-        int is_full = model.layer_types[l];
+        int is_full = model._layer_types[l];
         int use_alternative_attention = is_full && p->attention_k_eq_v;
         int hd = is_full ? p->global_head_dim : p->head_dim;
         int kv_heads = use_alternative_attention ? p->n_global_kv_heads : p->n_kv_heads;
@@ -289,12 +289,12 @@ int quantize_g4_to_file(const char *model_dir, const char *output_file,
     }
 
 cleanup:
-    free_tokenizer(&tokenizer);
+    free_tokenizer(&tokenizer1);
     if (fclose(out)) {
         failed = 1;
     }
     quantize_ctx_close(&ctx);
-    free(model.layer_types);
+    free(model._layer_types);
 
     if (failed) {
         remove(output_file);
@@ -305,44 +305,44 @@ cleanup:
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *__argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", argv[0]);
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
         return EXIT_FAILURE;
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *tokenizer_path = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(argv[i], "--type")) &&
+        if ((! strcmp(__argv[i], "--type")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            q_type_t t = parse_q_type(argv[i]);
+            q_type_t t = parse_q_type(__argv[i]);
             embed_type = attn_type = mlp_type = t;
         }
-        else if ((! strcmp(argv[i], "--embed")) &&
+        else if ((! strcmp(__argv[i], "--embed")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            embed_type = parse_q_type(argv[i]);
+            embed_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--attn")) &&
+        else if ((! strcmp(__argv[i], "--attn")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            attn_type = parse_q_type(argv[i]);
+            attn_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--mlp")) &&
+        else if ((! strcmp(__argv[i], "--mlp")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            mlp_type = parse_q_type(argv[i]);
+            mlp_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--tokenizer")) &&
+        else if ((! strcmp(__argv[i], "--tokenizer")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            tokenizer_path = argv[i];
+            tokenizer_path = __argv[i];
         }
     }
 
-    return quantize_g4_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, tokenizer_path) \
+    return quantize_g4_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, tokenizer_path) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
