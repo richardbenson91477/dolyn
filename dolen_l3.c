@@ -1,5 +1,6 @@
 #include "dolen_l3_common.h"
 
+
 static const chat_template CHAT_TEMPLATE_L3 = {
     .system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n%s<|eot_id|>",
     .main = "<|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
@@ -12,9 +13,10 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
     .end_turn = "<|eot_id|>",
 };
 
+
 int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
     FILE *f = fopen(filepath, "rb");
-    if (!f) {
+    if (! f) {
         log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
         return -1;
     }
@@ -24,7 +26,8 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
     uint64_t magic;
     uint32_t version;
 
-    if (fread(&magic, sizeof(magic), 1, f) != 1 || fread(&version, sizeof(version), 1, f) != 1) {
+    if ((fread(&magic, sizeof(magic), 1, f) != 1) ||
+            (fread(&version, sizeof(version), 1, f) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header\n");
         fclose(f);
         return -1;
@@ -55,7 +58,9 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
         return -1;
     }
 
-    if (seq_n_max) p->seq_len = seq_n_max;
+    if (seq_n_max) {
+        p->seq_len = seq_n_max;
+    }
 
     weights_l3 *w = &model->weights;
 
@@ -69,7 +74,15 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
     w->w2 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
     w->w3 = (qtensor *)a_calloc((size_t)p->n_layers * sizeof(qtensor));
 
-    if (!w->rms_att_weight || !w->rms_ffn_weight || !w->wq || !w->wk || !w->wv || !w->wo || !w->w1 || !w->w2 || !w->w3) {
+    if ((! w->rms_att_weight) ||
+            (! w->rms_ffn_weight) ||
+            (! w->wq) ||
+            (! w->wk) ||
+            (! w->wv) ||
+            (! w->wo) ||
+            (! w->w1) ||
+            (! w->w2) ||
+            (! w->w3)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(f);
         return -1;
@@ -77,7 +90,9 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
 
     read_qt(f, &w->embed_tokens_weight);
 
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_att_weight[i]);
+    for (int i = 0; i < p->n_layers; i++) {
+        read_qt(f, &w->rms_att_weight[i]);
+    }
 
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->wq[i]);
@@ -86,7 +101,9 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
         read_qt(f, &w->wo[i]);
     }    
 
-    for (int i = 0; i < p->n_layers; i++) read_qt(f, &w->rms_ffn_weight[i]);
+    for (int i = 0; i < p->n_layers; i++) {
+        read_qt(f, &w->rms_ffn_weight[i]);
+    }
 
     for (int i = 0; i < p->n_layers; i++) {
         read_qt(f, &w->w1[i]);
@@ -96,7 +113,7 @@ int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max) {
 
     read_qt(f, &w->rms_final_weight);
 
-    if (!p->tie_word_embeddings) {
+    if (! p->tie_word_embeddings) {
         read_qt(f, &w->wcls);
     } else {
         w->wcls = w->embed_tokens_weight;
@@ -187,7 +204,9 @@ float *forward_l3(L3 *model, int token, int pos) {
         quantize_vec(&s->xq, s->xb, p->n_heads * head_size);
         matmul_qq(s->xb2, &s->xq, &w->wo[l]);
 
-        for (int i = 0; i < dim; i++) x[i] += s->xb2[i];
+        for (int i = 0; i < dim; i++) {
+            x[i] += s->xb2[i];
+        }
 
         float *rms_ffn = (float *)w->rms_ffn_weight[l].data;
         rmsnorm(s->xb, x, rms_ffn, dim, eps);
@@ -207,7 +226,9 @@ float *forward_l3(L3 *model, int token, int pos) {
         quantize_vec(&s->hq, s->hb, p->hidden_dim);
         matmul_qq(s->xb, &s->hq, &w->w2[l]);
 
-        for (int i = 0; i < dim; i++) x[i] += s->xb[i];
+        for (int i = 0; i < dim; i++) {
+            x[i] += s->xb[i];
+        }
     }
 
     rmsnorm(x, x, (float *)w->rms_final_weight.data, dim, eps);

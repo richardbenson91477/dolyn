@@ -7,6 +7,7 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
+
 typedef struct {
     int dim;
     int hidden_dim;
@@ -64,10 +65,17 @@ typedef struct {
     Tokenizer tokenizer;
 } L3;
 
+
 void alloc_state_l3(state_l3 *s, config_l3 *p);
+
 void free_state_l3(state_l3 *s);
+
 void free_l3(L3 *model);
+
 int load_quantized_l3(const char *filepath, L3 *model, int seq_n_max);
+
 float *forward_l3(L3 *model, int token, int pos);
 
+
 #endif // DOLEN_L3_COMMON_H
+

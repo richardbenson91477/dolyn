@@ -9,9 +9,15 @@ void alloc_state_l3(state_l3 *s, config_l3 *p) {
     int attn_out_dim = p->n_heads * head_size;
 
     int max_act_dim = dim;
-    if (q_dim > max_act_dim) max_act_dim = q_dim;
-    if (attn_out_dim > max_act_dim) max_act_dim = attn_out_dim;
-    if (hidden_dim > max_act_dim) max_act_dim = hidden_dim;
+    if (q_dim > max_act_dim) {
+        max_act_dim = q_dim;
+    }
+    if (attn_out_dim > max_act_dim) {
+        max_act_dim = attn_out_dim;
+    }
+    if (hidden_dim > max_act_dim) {
+        max_act_dim = hidden_dim;
+    }
 
     s->x = a_calloc((size_t)dim * sizeof(float));
     s->xb = a_calloc((size_t)max_act_dim * sizeof(float));
@@ -41,7 +47,8 @@ void alloc_state_l3(state_l3 *s, config_l3 *p) {
     s->key_cache = (float **)a_calloc((size_t)p->n_layers * sizeof(float *));
     s->value_cache = (float **)a_calloc((size_t)p->n_layers * sizeof(float *));
     
-    if (!s->key_cache || !s->value_cache) {
+    if ((! s->key_cache) ||
+            (! s->value_cache)) {
         log_msg(stderr, "ERROR: Alloc failed for KV cache pointer arrays\n");
         exit(EXIT_FAILURE);
     }
@@ -52,7 +59,8 @@ void alloc_state_l3(state_l3 *s, config_l3 *p) {
         s->value_cache[l] = a_calloc(cache_size);
         
         // CRITICAL FIX: Check if KV cache allocation failed
-        if (!s->key_cache[l] || !s->value_cache[l]) {
+        if ((! s->key_cache[l]) ||
+                (! s->value_cache[l])) {
             log_msg(stderr, "ERROR: Alloc failed for KV cache layer %d!\n", l);
             log_msg(stderr, "       Requested size: %zu bytes (seq_len=%d, kv_dim=%d)\n", 
                     cache_size, p->seq_len, kv_dim);
@@ -76,9 +84,20 @@ void alloc_state_l3(state_l3 *s, config_l3 *p) {
         }
     }
 
-    if ((!s->x) || (!s->xb) || (!s->xb2) || (!s->hb) || (!s->hb2) ||
-        (!s->q) || (!s->k) || (!s->v) || (!s->att) || (!s->logits) ||
-        (!s->xq.data) || (!s->xq.s) || (!s->hq.data) || (!s->hq.s)) {
+    if ((! s->x) ||
+            (! s->xb) ||
+            (! s->xb2) ||
+            (! s->hb) ||
+            (! s->hb2) ||
+            (! s->q) ||
+            (! s->k) ||
+            (! s->v) ||
+            (! s->att) ||
+            (! s->logits) ||
+            (! s->xq.data) ||
+            (! s->xq.s) ||
+            (! s->hq.data) ||
+            (! s->hq.s)) {
         log_msg(stderr, "ERROR: Alloc failed for state buffers!\n");
         exit(EXIT_FAILURE);
     }
@@ -86,36 +105,56 @@ void alloc_state_l3(state_l3 *s, config_l3 *p) {
 }
 
 void free_state_l3(state_l3 *s) {
-    if (!s->allocated) return;
+    if (! s->allocated) {
+        return;
+    }
 
-    free(s->x); free(s->xb); free(s->xb2);
-    free(s->hb); free(s->hb2);
-    free(s->q); free(s->k); free(s->v);
-    free(s->att); free(s->logits);
+    free(s->x);
+    free(s->xb);
+    free(s->xb2);
+    free(s->hb);
+    free(s->hb2);
+    free(s->q);
+    free(s->k);
+    free(s->v);
+    free(s->att);
+    free(s->logits);
     
     if (s->key_cache) {
         for (int i = 0; i < s->n_layers; i++) {
-            if (s->key_cache[i]) free(s->key_cache[i]);
+            if (s->key_cache[i]) {
+                free(s->key_cache[i]);
+            }
         }
         free(s->key_cache);
     }
     if (s->value_cache) {
         for (int i = 0; i < s->n_layers; i++) {
-            if (s->value_cache[i]) free(s->value_cache[i]);
+            if (s->value_cache[i]) {
+                free(s->value_cache[i]);
+            }
         }
         free(s->value_cache);
     }
 
-    free(s->xq.data); free(s->xq.s);
-    free(s->hq.data); free(s->hq.s);
-    if (s->cos_cache) free(s->cos_cache);
-    if (s->sin_cache) free(s->sin_cache);
+    free(s->xq.data);
+    free(s->xq.s);
+    free(s->hq.data);
+    free(s->hq.s);
+    if (s->cos_cache) {
+        free(s->cos_cache);
+    }
+    if (s->sin_cache) {
+        free(s->sin_cache);
+    }
 
     s->allocated = 0;
 }
 
 void free_l3(L3 *model) {
-    if (!model) return;
+    if (! model) {
+        return;
+    }
     config_l3 *p = &model->config;
     weights_l3 *w = &model->weights;
 
@@ -131,13 +170,16 @@ void free_l3(L3 *model) {
     free_qt_array(w->w3, p->n_layers);
     free_qt(&w->rms_final_weight);
     
-    if (!p->tie_word_embeddings) {
+    if (! p->tie_word_embeddings) {
         free_qt(&w->wcls);
     }
 
     if (model->state.allocated) {
         free_state_l3(&model->state);
     }
+
     free_tokenizer(&model->tokenizer);
+
     memset(model, 0, sizeof(L3));
 }
+
