@@ -281,13 +281,13 @@ void matmul_qt(float *restrict _output, const float *restrict _input, const qten
     }
 }
 
-void quantize_vec(qtensor *xq, const float *x, int n) {
+void quantize_vec(qtensor *_xq, const float *_x, int n) {
     int num_groups = (n + GROUP_SIZE - 1) / GROUP_SIZE;
-    xq->rows = 1;
-    xq->cols = n;
-    xq->type = Q_TYPE_Q8;
+    _xq->rows = 1;
+    _xq->cols = n;
+    _xq->type = Q_TYPE_Q8;
 
-    int8_t *_q_data = (int8_t *)xq->_data;
+    int8_t *_q_data = (int8_t *)_xq->_data;
 
 #pragma omp parallel for schedule(static)
     for (int g = 0; g < num_groups; g++) {
@@ -295,33 +295,33 @@ void quantize_vec(qtensor *xq, const float *x, int n) {
         int end = start + GROUP_SIZE < n ? start + GROUP_SIZE : n;
         float wmax = 0.0f;
         for (int i = start; i < end; i++) {
-            float v = x[i] < 0.0f ? -x[i] : x[i];
+            float v = _x[i] < 0.0f ? -_x[i] : _x[i];
             if (v > wmax) {
                 wmax = v;
             }
         }
         float scale = wmax < 1e-9f ? 1e-9f : wmax / 127.0f;
-        xq->_scales[g] = scale;
+        _xq->_scales[g] = scale;
         float inv_scale = 1.0f / scale;
 
         for (int i = start; i < end; i++) {
-            int32_t q = (int32_t)roundf(x[i] * inv_scale);
+            int32_t q = (int32_t)roundf(_x[i] * inv_scale);
             _q_data[i] = (int8_t)(q < -128 ? -128 : (q > 127 ? 127 : q));
         }
     }
 }
 
-void matmul_qq(float *restrict _output, const qtensor *restrict x, const qtensor *restrict w) {
-    int n = x->cols;
-    int d = w->rows;
+void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtensor *restrict _w) {
+    int n = _x->cols;
+    int d = _w->rows;
 
-    const int8_t *_x_q = (const int8_t *)x->_data;
-    const float *_x_s = x->_scales;
+    const int8_t *_x_q = (const int8_t *)_x->_data;
+    const float *_x_s = _x->_scales;
     int n_groups = (n + GROUP_SIZE - 1) / GROUP_SIZE;
     int full_groups = n / GROUP_SIZE;
 
-    if (w->type == Q_TYPE_F32) {
-        const float *_w_data = (const float *)w->_data;
+    if (_w->type == Q_TYPE_F32) {
+        const float *_w_data = (const float *)_w->_data;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < d; i++) {
             float val = 0.0f;
@@ -349,8 +349,8 @@ void matmul_qq(float *restrict _output, const qtensor *restrict x, const qtensor
             _output[i] = val;
         }
     }
-    else if (w->type == Q_TYPE_F16) {
-        const _Float16 *_w_data = (const _Float16 *)w->_data;
+    else if (_w->type == Q_TYPE_F16) {
+        const _Float16 *_w_data = (const _Float16 *)_w->_data;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < d; i++) {
             float val = 0.0f;
@@ -378,9 +378,9 @@ void matmul_qq(float *restrict _output, const qtensor *restrict x, const qtensor
             _output[i] = val; 
         }
     }
-    else if (w->type == Q_TYPE_Q8) {
-        const int8_t *_w_q = (const int8_t *)w->_data;
-        const float *_w_s = w->_scales;
+    else if (_w->type == Q_TYPE_Q8) {
+        const int8_t *_w_q = (const int8_t *)_w->_data;
+        const float *_w_s = _w->_scales;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < d; i++) {
             float val = 0.0f;
@@ -408,9 +408,9 @@ void matmul_qq(float *restrict _output, const qtensor *restrict x, const qtensor
             _output[i] = val;
         }
     }
-    else if (w->type == Q_TYPE_Q6) {
-        const uint8_t *_w_q = (const uint8_t *)w->_data;
-        const float *_w_s = w->_scales;
+    else if (_w->type == Q_TYPE_Q6) {
+        const uint8_t *_w_q = (const uint8_t *)_w->_data;
+        const float *_w_s = _w->_scales;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < d; i++) {
             float val = 0.0f;
@@ -479,9 +479,9 @@ void matmul_qq(float *restrict _output, const qtensor *restrict x, const qtensor
             _output[i] = val;
         }
     }
-    else if (w->type == Q_TYPE_Q4) {
-        const uint8_t *_w_q = (const uint8_t *)w->_data;
-        const float *_w_s = w->_scales;
+    else if (_w->type == Q_TYPE_Q4) {
+        const uint8_t *_w_q = (const uint8_t *)_w->_data;
+        const float *_w_s = _w->_scales;
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < d; i++) {
             float val = 0.0f;

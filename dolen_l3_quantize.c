@@ -191,7 +191,8 @@ cleanup:
 
 int main(int argc, char *__argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
+        log_msg(stdout, "Usage: %s <model_dir> <output_file>" \
+                "[--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
         return EXIT_FAILURE;
     }
 

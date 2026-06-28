@@ -176,44 +176,51 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
     }
 
     for (int l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight",
+                    1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight",
+                    1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "pre_feedforward_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "pre_feedforward_layernorm.weight",
+                    1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "post_feedforward_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
-            failed = 1;
-            goto cleanup;
-        }
-    }
-    for (int l = 0; l < _config->n_layers; l++) {
-        int hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight", 1, hd, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "post_feedforward_layernorm.weight",
+                    1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < _config->n_layers; l++) {
         int hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight", 1, hd, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
+                    1, hd, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
+    for (int l = 0; l < _config->n_layers; l++) {
+        int hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
+                    1, hd, Q_TYPE_F32)) {
+            failed = 1;
+            goto cleanup;
+        }
+    }
+    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
@@ -224,11 +231,13 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         int hd = is_full ? _config->global_head_dim : _config->head_dim;
         int kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
 
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight", _config->n_heads * hd, _config->dim, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
+                    _config->n_heads * hd, _config->dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight", kv_heads * hd, _config->dim, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight",
+                    kv_heads * hd, _config->dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
@@ -240,25 +249,30 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             }
         }
         else {
-            if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight", kv_heads * hd, _config->dim, attn_type)) {
+            if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight",
+                        kv_heads * hd, _config->dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
         }
 
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, _config->n_heads * hd, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight",
+                    _config->dim, _config->n_heads * hd, attn_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight", _config->hidden_dim, _config->dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
+                    _config->hidden_dim, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight", _config->hidden_dim, _config->dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight",
+                    _config->hidden_dim, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->hidden_dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",
+                    _config->dim, _config->hidden_dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
@@ -281,8 +295,8 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
     }
 
     if (_config->use_rope_freqs) {
-        if (quantize_write_tensor(&qt_ctx, _file, "model.language_model.layers.0.self_attn.rope_freqs.weight", 1,
-                    _config->global_head_dim / 2, Q_TYPE_F32)) {
+        if (quantize_write_tensor(&qt_ctx, _file, "model.language_model.layers.0.self_attn.rope_freqs.weight",
+                    1, _config->global_head_dim / 2, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }

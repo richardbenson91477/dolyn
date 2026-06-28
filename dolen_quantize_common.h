@@ -52,9 +52,9 @@ typedef struct {
 
 int quantize_write_bytes(FILE *_file, const void *_data, size_t size, size_t count);
 
-int load_safetensors_index(safetensors_idx *_idx, const char *_model_dir_s);
+int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s);
 
-void free_safetensors_index(safetensors_idx *idx);
+void free_safetensors_index(safetensors_idx *_st_idx);
 
 int quantize_ctx_open(quantize_ctx *_q_ctx, const char *_model_dir);
 
@@ -65,20 +65,20 @@ const weightmap_entry *quantize_find_tensor(const quantize_ctx *_q_ctx, const ch
 const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *_q_ctx, const char *const *__names, size_t names_n);
 
 int quantize_write_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-        int rows, int cols, q_type_t type);
+        int rows, int cols, q_type_t q_type);
 
 int quantize_write_tensor_or_empty(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-        int rows, int cols, q_type_t type);
+        int rows, int cols, q_type_t q_type);
 
 int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s, const weightmap_entry *_wm_entry,
-        int rows, int cols, q_type_t type);
+        int rows, int cols, q_type_t q_type);
 
 int quantize_write_empty_tensor(FILE *_file);
 
 int quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file, const char *const *__names_s, size_t names_n,
         float default_value);
 
-q_type_t parse_q_type(const char *_str_s);
+q_type_t parse_q_type(const char *_type_s);
 
 
 #endif // DOLEN_Q_COMMON_H

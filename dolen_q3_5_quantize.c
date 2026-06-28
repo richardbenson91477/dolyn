@@ -205,7 +205,8 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     for (int l = 0; l < _config->n_layer; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight",
+                    1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
@@ -215,10 +216,14 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         if (model._layer_types[l]) {
             continue;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight", q_dim, _config->dim, attn_type) ||
-                write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight", kv_dim, _config->dim, attn_type) ||
-                write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight", kv_dim, _config->dim, attn_type) ||
-                write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, attn_out_dim, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
+                    q_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight",
+                    kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight",
+                    kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight",
+                    _config->dim, attn_out_dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
@@ -226,14 +231,16 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
 
     for (int l = 0; l < _config->n_layer; l++) {
         if (! model._layer_types[l] &&
-                write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight", 1, head_size, Q_TYPE_F32)) {
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
+                    1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int l = 0; l < _config->n_layer; l++) {
         if (! model._layer_types[l] &&
-                write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight", 1, head_size, Q_TYPE_F32)) {
+                write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
+                    1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
@@ -244,60 +251,66 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
             if (model._layer_types[l] != 1) {
                 continue;
             }
-            if (write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_qkv.weight", conv_dim, _config->dim, attn_type) ||
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_z.weight", value_dim, _config->dim, attn_type)) {
+            if (write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_qkv.weight",
+                        conv_dim, _config->dim, attn_type) ||
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_z.weight",
+                        value_dim, _config->dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if ((model._layer_types[l] == 1) && 
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_b.weight", 1,
-                            _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_b.weight",
+                        1, _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_a.weight", 1,
-                            _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_a.weight",
+                        1, _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.conv1d.weight", 1,
-                            conv_dim * _config->linear_conv_kernel, Q_TYPE_F32)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.conv1d.weight",
+                        1, conv_dim * _config->linear_conv_kernel, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.dt_bias", 1, _config->n_linear_v_heads, Q_TYPE_F32)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.dt_bias",
+                        1, _config->n_linear_v_heads, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.A_log", 1, _config->n_linear_v_heads, Q_TYPE_F32)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.A_log",
+                        1, _config->n_linear_v_heads, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.norm.weight", 1, _config->d_linear_v, Q_TYPE_F32)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.norm.weight",
+                        1, _config->d_linear_v, Q_TYPE_F32)) {
                 failed = 1;
                 goto cleanup;
             }
         }
         for (int l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
-                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.out_proj.weight", _config->dim, value_dim, attn_type)) {
+                    write_layer_tensor(&qt_ctx, _file, l, "linear_attn.out_proj.weight",
+                        _config->dim, value_dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
@@ -305,16 +318,20 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     for (int l = 0; l < _config->n_layer; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight",
+                    1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
     for (int l = 0; l < _config->n_layer; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight", _config->n_mlp, _config->dim, mlp_type) ||
-                write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->n_mlp, mlp_type) ||
-                write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight", _config->n_mlp, _config->dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
+                    _config->n_mlp, _config->dim, mlp_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",
+                    _config->dim, _config->n_mlp, mlp_type) ||
+                write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight",
+                    _config->n_mlp, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }

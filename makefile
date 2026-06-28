@@ -8,7 +8,7 @@ CFLAGS_OPT = $(CFLAGS) -fopenmp -O3 -pipe -march=x86-64-v4 -fomit-frame-pointer 
 CFLAGS_DBG = $(CFLAGS) -fopenmp -Og -ggdb -fkeep-inline-functions
 
 MODEL_PATH := ${lena_rolocal_path}/models/dolen_models
-MODEL_MAIN := "$(MODEL_PATH)/qwen3_5_1b_q8.dolq"
+MODEL_MAIN := "$(MODEL_PATH)/qwen3_5_4b_a_q8.dolq"
 PROMPT := "Please count from 1 to 10 using a comma separated list. Spell out the numbers in English."
 SYS_PROMPT := "You are a helpful language model."
 SEQN := 1024
