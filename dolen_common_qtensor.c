@@ -88,7 +88,6 @@ void dequantize_row(float *_output, const qtensor *_qt, int row_idx) {
             float scale = _row_s[g];
             for (int j = start; j < end; j += 2) {
                 int8_t p = (int8_t)_row_q[j / 2];
-                // FIX: Cast to int8_t BEFORE the right shift to force 8-bit sign extension
                 int8_t w0 = ((int8_t)(p << 4)) >> 4; 
                 _output[j] = (float)w0 * scale;
                 if (j + 1 < end) {
@@ -251,7 +250,6 @@ void matmul_qt(float *restrict _output, const float *restrict _input, const qten
 #pragma omp simd reduction(+ : group_sum)
                 for (int j = 0; j < GROUP_SIZE; j += 2) {
                     int8_t p = (int8_t)_row_q[(offset + j) / 2];
-                    // FIX: Cast to int8_t BEFORE the right shift
                     int8_t w0 = ((int8_t)(p << 4)) >> 4; 
                     int8_t w1 = (int8_t)(p >> 4);
                     group_sum += _input[offset + j] * (float)w0;
@@ -266,7 +264,6 @@ void matmul_qt(float *restrict _output, const float *restrict _input, const qten
 #pragma omp simd reduction(+ : group_sum)
                 for (int j = rem_start; j < cols; j += 2) {
                     int8_t p = (int8_t)_row_q[j / 2];
-                    // FIX: Cast to int8_t BEFORE the right shift
                     int8_t w0 = ((int8_t)(p << 4)) >> 4; 
                     group_sum += _input[j] * (float)w0;
                     if (j + 1 < cols) {
@@ -494,7 +491,6 @@ void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtenso
 #pragma omp simd reduction(+ : acc)
                 for (int k = 0; k < GROUP_SIZE; k += 2) {
                     int8_t p = (int8_t)_w_row[(offset + k) / 2];
-                    // FIX: Cast to int8_t BEFORE the right shift
                     int8_t w0 = ((int8_t)(p << 4)) >> 4; 
                     int8_t w1 = (int8_t)(p >> 4);
                     acc += (int32_t)_x_q[offset + k] * w0;
@@ -508,7 +504,6 @@ void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtenso
 #pragma omp simd reduction(+ : acc)
                 for (int k = rem_start; k < n; k += 2) {
                     int8_t p = (int8_t)_w_row[k / 2];
-                    // FIX: Cast to int8_t BEFORE the right shift
                     int8_t w0 = ((int8_t)(p << 4)) >> 4; 
                     acc += (int32_t)_x_q[k] * w0;
                     if (k + 1 < n) {

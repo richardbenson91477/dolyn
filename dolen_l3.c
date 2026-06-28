@@ -220,7 +220,8 @@ float *forward_l3(L3 *_model, int token, int pos) {
 #pragma omp parallel for
         for (int i = 0; i < _config->hidden_dim; i++) {
             float val = _state->_hb[i];
-            val *= (1.0f / (1.0f + expf(-val))); // Swish / SiLU Activation
+            // Swish / SiLU Activation
+            val *= (1.0f / (1.0f + expf(-val)));
             val *= _state->_hb2[i];
             _state->_hb[i] = val;
         }
@@ -261,10 +262,9 @@ model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
-    // Llama 3 Token mappings
     _model->tokenizer1.bos_id = 128000; // <|begin_of_text|>
     _model->tokenizer1.eos_id = 128001; // <|end_of_text|>
-    _model->tokenizer1.im_end_id = 128009;    // <|eot_id|>
+    _model->tokenizer1.im_end_id = 128009; // <|eot_id|>
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
     *_model_i = (model_iface){

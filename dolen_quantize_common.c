@@ -275,7 +275,9 @@ static void quantize_group_into_q6(uint8_t *_q, float *_s, const float *_weights
                 wmax = 1e-9f;
             }
 
-            float scale = wmax / 31.0f; // 6-bit signed range is [-32, 31]
+             // 6-bit signed range is [-32, 31]
+            float scale = wmax / 31.0f;
+
             _row_s[g] = scale;
             float inv_scale = 1.0f / scale;
 

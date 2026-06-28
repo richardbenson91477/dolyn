@@ -58,7 +58,6 @@ void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
         _state->__key_cache[l] = a_calloc(cache_size);
         _state->__value_cache[l] = a_calloc(cache_size);
         
-        // CRITICAL FIX: Check if KV cache allocation failed
         if ((! _state->__key_cache[l]) ||
                 (! _state->__value_cache[l])) {
             log_msg(stderr, "ERROR: Alloc failed for KV cache layer %d!\n", l);

@@ -51,7 +51,6 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
     
     p->head_dim = json_get_int(json_object_get(_js_cfg, "head_dim"), p->dim / p->n_heads);
     
-    // Handle different ways RoPE parameters can be stored in config.json
     p->rope_theta = json_get_double(json_object_get(_js_cfg, "rope_theta"), 10000.0);
     if (p->rope_theta == 10000.0) {
         JsonValue *_js_rope_params = json_object_get(_js_cfg, "rope_parameters");
