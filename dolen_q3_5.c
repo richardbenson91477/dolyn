@@ -263,8 +263,8 @@ void forward_q3_5_attention_layer(Q3_5 *_model_q3_5, int l, int la, int pos) {
     int kv_mul = _config->n_heads / _config->n_kv_heads;
     long long loff = (long long)la * _config->seq_len * kv_dim;
     float eps = _config->rms_norm_eps;
-    float *key_cache_row = _state->_key_cache + loff + pos * kv_dim;
-    float *value_cache_row = _state->_value_cache + loff + pos * kv_dim;
+    float *_key_cache_row = _state->_key_cache + loff + pos * kv_dim;
+    float *_value_cache_row = _state->_value_cache + loff + pos * kv_dim;
     float *_rms_att_weight = (float *)_weights->_rms_att_weight[l]._data;
     float *_q_norm = (float *)_weights->_q_norm[la]._data;
     float *_k_norm = (float *)_weights->_k_norm[la]._data;
@@ -277,10 +277,10 @@ void forward_q3_5_attention_layer(Q3_5 *_model_q3_5, int l, int la, int pos) {
     matmul_qq(_state->_v, &_state->xq, &_weights->_wv[la]);
 
     for (int h = 0; h < _config->n_heads; h++) {
-        float *q_ptr = _state->_q + h * head_size;
+        float *_q_ptr = _state->_q + h * head_size;
         float *_gate_ptr = _state->_gate + h * head_size;
         for (int i = 0; i < head_size; i++) {
-            q_ptr[i] = _state->_q[h * head_size * 2 + i];
+            _q_ptr[i] = _state->_q[h * head_size * 2 + i];
             _gate_ptr[i] = _state->_q[h * head_size * 2 + head_size + i];
         }
     }
@@ -301,33 +301,36 @@ void forward_q3_5_attention_layer(Q3_5 *_model_q3_5, int l, int la, int pos) {
 
     if ((rotary_partial > 0) &&
             _state->_cos_cache) {
-        float *cos_row = _state->_cos_cache + pos * rotary_partial;
-        float *sin_row = _state->_sin_cache + pos * rotary_partial;
+        float *_cos_row = _state->_cos_cache + pos * rotary_partial;
+        float *_sin_row = _state->_sin_cache + pos * rotary_partial;
 
 #pragma omp parallel for
         for (int h = 0; h < _config->n_heads; h++) {
-            float *q = _state->_q + h * head_size;
+            float *_q = _state->_q + h * head_size;
             for (int i = 0; i < rotary_partial; i++) {
-                float c = cos_row[i], sn = sin_row[i];
-                float q0 = q[i], q1 = q[i + rotary_partial];
-                q[i] = q0 * c - q1 * sn;
-                q[i + rotary_partial] = q0 * sn + q1 * c;
+                float c = _cos_row[i];
+                float sn = _sin_row[i];
+                float q0 = _q[i];
+                float q1 = _q[i + rotary_partial];
+                _q[i] = q0 * c - q1 * sn;
+                _q[i + rotary_partial] = q0 * sn + q1 * c;
             }
         }
 #pragma omp parallel for
         for (int h = 0; h < _config->n_kv_heads; h++) {
-            float *k = _state->_k + h * head_size;
+            float *_k = _state->_k + h * head_size;
             for (int i = 0; i < rotary_partial; i++) {
-                float c = cos_row[i], sn = sin_row[i];
-                float k0 = k[i], k1 = k[i + rotary_partial];
-                k[i] = k0 * c - k1 * sn;
-                k[i + rotary_partial] = k0 * sn + k1 * c;
+                float c = _cos_row[i], sn = _sin_row[i];
+                float k0 = _k[i];
+                float k1 = _k[i + rotary_partial];
+                _k[i] = k0 * c - k1 * sn;
+                _k[i + rotary_partial] = k0 * sn + k1 * c;
             }
         }
     }
 
-    memcpy(key_cache_row, _state->_k, kv_dim * sizeof(float));
-    memcpy(value_cache_row, _state->_v, kv_dim * sizeof(float));
+    memcpy(_key_cache_row, _state->_k, kv_dim * sizeof(float));
+    memcpy(_value_cache_row, _state->_v, kv_dim * sizeof(float));
 
     float inv_sqrt_head = 1.0f / sqrtf((float)head_size);
 
@@ -337,11 +340,11 @@ void forward_q3_5_attention_layer(Q3_5 *_model_q3_5, int l, int la, int pos) {
         float *_att = _state->_att + h * _config->seq_len;
 
         for (int t = 0; t <= pos; t++) {
-            float *k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float score = 0.0f;
 #pragma omp simd reduction(+ : score)
             for (int i = 0; i < head_size; i++) {
-                score += _q[i] * k[i];
+                score += _q[i] * _k[i];
             }
             _att[t] = score * inv_sqrt_head;
         }
@@ -352,11 +355,11 @@ void forward_q3_5_attention_layer(Q3_5 *_model_q3_5, int l, int la, int pos) {
         memset(_xb, 0, head_size * sizeof(float));
 
         for (int t = 0; t <= pos; t++) {
-            float *v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float a = _att[t];
 #pragma omp simd
             for (int i = 0; i < head_size; i++) {
-                _xb[i] += a * v[i];
+                _xb[i] += a * _v[i];
             }
         }
 
@@ -473,31 +476,31 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model_q3_5, int l, int ld, int p
             _S_h[i] *= g_t;
         }
 
-        float *delta = _state->_delta_S + h * d_v;
+        float *_delta = _state->_delta_S + h * d_v;
         for (int j = 0; j < d_v; j++) {
             float dot = 0.0f;
 #pragma omp simd reduction(+ : dot)
             for (int i = 0; i < d_k; i++) {
                 dot += _S_h[i * d_v + j] * _k_h[i];
             }
-            delta[j] = (_v_h[j] - dot) * beta_t;
+            _delta[j] = (_v_h[j] - dot) * beta_t;
         }
 
         for (int i = 0; i < d_k; i++) {
 #pragma omp simd
             for (int j = 0; j < d_v; j++) {
-                _S_h[i * d_v + j] += _k_h[i] * delta[j];
+                _S_h[i * d_v + j] += _k_h[i] * _delta[j];
             }
         }
 
-        float *out_h = _state->_linear_out + h * d_v;
+        float *_out_h = _state->_linear_out + h * d_v;
         for (int j = 0; j < d_v; j++) {
             float val = 0.0f;
 #pragma omp simd reduction(+ : val)
             for (int i = 0; i < d_k; i++) {
                 val += _S_h[i * d_v + j] * _q_h[i];
             }
-            out_h[j] = val;
+            _out_h[j] = val;
         }
     }
 

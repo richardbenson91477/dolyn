@@ -25,52 +25,52 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
     _json_s[size] = '\0';
     fclose(_file);
 
-    char error[256] = {0};
-    JsonValue *root = json_parse(_json_s, size, error, sizeof(error));
+    char _error_s[256] = {0};
+    JsonValue *_js_root = json_parse(_json_s, size, _error_s, sizeof(_error_s));
     free(_json_s);
-    if (! root) {
-        log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error);
+    if (! _js_root) {
+        log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
 
-    JsonValue *cfg = json_object_get(root, "text_config");
-    if (! cfg) {
-        cfg = root;
+    JsonValue *_js_cfg = json_object_get(_js_root, "text_config");
+    if (! _js_cfg) {
+        _js_cfg = _js_root;
     }
 
     memset(p, 0, sizeof(config_l3));
-    p->dim = json_get_int(json_object_get(cfg, "hidden_size"), 4096);
-    p->hidden_dim = json_get_int(json_object_get(cfg, "intermediate_size"), 11008);
-    p->n_layers = json_get_int(json_object_get(cfg, "num_hidden_layers"), 32);
-    p->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 32);
-    p->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), p->n_heads);
-    p->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 32000);
-    p->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 2048);
-    p->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
-    p->tie_word_embeddings = json_get_bool(json_object_get(cfg, "tie_word_embeddings"), 0);
+    p->dim = json_get_int(json_object_get(_js_cfg, "hidden_size"), 4096);
+    p->hidden_dim = json_get_int(json_object_get(_js_cfg, "intermediate_size"), 11008);
+    p->n_layers = json_get_int(json_object_get(_js_cfg, "num_hidden_layers"), 32);
+    p->n_heads = json_get_int(json_object_get(_js_cfg, "num_attention_heads"), 32);
+    p->n_kv_heads = json_get_int(json_object_get(_js_cfg, "num_key_value_heads"), p->n_heads);
+    p->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 32000);
+    p->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 2048);
+    p->rms_norm_eps = json_get_double(json_object_get(_js_cfg, "rms_norm_eps"), 1e-6);
+    p->tie_word_embeddings = json_get_bool(json_object_get(_js_cfg, "tie_word_embeddings"), 0);
     
-    p->head_dim = json_get_int(json_object_get(cfg, "head_dim"), p->dim / p->n_heads);
+    p->head_dim = json_get_int(json_object_get(_js_cfg, "head_dim"), p->dim / p->n_heads);
     
     // Handle different ways RoPE parameters can be stored in config.json
-    p->rope_theta = json_get_double(json_object_get(cfg, "rope_theta"), 10000.0);
+    p->rope_theta = json_get_double(json_object_get(_js_cfg, "rope_theta"), 10000.0);
     if (p->rope_theta == 10000.0) {
-        JsonValue *rope_params = json_object_get(cfg, "rope_parameters");
-        if (rope_params) {
-            p->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
+        JsonValue *_js_rope_params = json_object_get(_js_cfg, "rope_parameters");
+        if (_js_rope_params) {
+            p->rope_theta = json_get_double(json_object_get(_js_rope_params, "rope_theta"), 10000.0);
         }
     }
 
-    json_free(root);
+    json_free(_js_root);
     log_msg(stdout, "INFO: L3 config loaded\n");
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *suffix,
+static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
         int rows, int cols, q_type_t type) {
-    char name[256];
-    snprintf(name, sizeof(name), "model.layers.%d.%s", layer, suffix);
-    if (quantize_write_tensor_or_empty(_qt_ctx, _file, name, rows, cols, type)) {
-        log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
+    char _name_s[256];
+    snprintf(_name_s, sizeof(_name_s), "model.layers.%d.%s", layer, _suffix_s);
+    if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
+        log_msg(stderr, "ERROR: Failed quantizing %s\n", _name_s);
         return -1;
     }
     return 0;
@@ -189,44 +189,44 @@ cleanup:
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *__argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", argv[0]);
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
         return EXIT_FAILURE;
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(argv[i], "--type")) &&
+        if ((! strcmp(__argv[i], "--type")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            q_type_t t = parse_q_type(argv[i]);
+            q_type_t t = parse_q_type(__argv[i]);
             embed_type = attn_type = mlp_type = t;
         }
-        else if ((! strcmp(argv[i], "--embed") &&
+        else if ((! strcmp(__argv[i], "--embed") &&
                     ((i + 1) < argc))) {
             i += 1;
-            embed_type = parse_q_type(argv[i]);
+            embed_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--attn") &&
+        else if ((! strcmp(__argv[i], "--attn") &&
                     ((i + 1) < argc))) {
             i += 1;
-            attn_type = parse_q_type(argv[i]);
+            attn_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--mlp") &&
+        else if ((! strcmp(__argv[i], "--mlp") &&
                     ((i + 1) < argc))) {
             i += 1;
-            mlp_type = parse_q_type(argv[i]);
+            mlp_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--tokenizer") &&
+        else if ((! strcmp(__argv[i], "--tokenizer") &&
                     ((i + 1) < argc))) {
             i += 1;
-            _tokenizer_path_s = argv[i];
+            _tokenizer_path_s = __argv[i];
         }
     }
 
-    return quantize_l3_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
+    return quantize_l3_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

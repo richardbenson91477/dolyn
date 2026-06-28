@@ -9,11 +9,11 @@ int compare_tokens(const void *_a, const void *_b) {
 
 int str_lookup(char *_str_s, token_map *_vocab_sorted, int vocab_size) {
     token_map tok = {._str_s = _str_s};
-    token_map *res = bsearch(&tok, _vocab_sorted, vocab_size, sizeof(token_map), compare_tokens);
-    return res ? res->id : -1;
+    token_map *_tm_res = bsearch(&tok, _vocab_sorted, vocab_size, sizeof(token_map), compare_tokens);
+    return _tm_res ? _tm_res->id : -1;
 }
 
-void encode_segment(tokenizer *_tokenizer, char *_text_s, int *tokens, int *tokens_n) {
+void encode_segment(tokenizer *_tokenizer, char *_text_s, int *_tokens, int *_tokens_n) {
     if (_text_s[0] == '\0') {
         return;
     }
@@ -37,18 +37,18 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int *tokens, int *toke
             }
         }
         if (best_id != -1) {
-            tokens[(*tokens_n)++] = best_id;
+            _tokens[(*_tokens_n)++] = best_id;
             _p += best_len;
         }
         else {
-            tokens[(*tokens_n)++] = (unsigned char)*_p + 3;
+            _tokens[(*_tokens_n)++] = (unsigned char)*_p + 3;
             _p++;
         }
     }
     free(_buf_s);
 }
 
-void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int *tokens, int *tokens_n) {
+void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int *_tokens, int *_tokens_n) {
     if (! _text_s) {
         log_msg(stderr, "ERROR: Cannot encode NULL text\n");
         exit(EXIT_FAILURE);
@@ -64,22 +64,22 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
         _tokenizer->is_sorted = 1;
     }
 
-    *tokens_n = 0;
+    *_tokens_n = 0;
     char *_input_s = _text_s;
     if (bos_token > 0) {
-        tokens[(*tokens_n)++] = bos_token;
+        _tokens[(*_tokens_n)++] = bos_token;
 
-        const char *bos_piece = _tokenizer->__vocab[bos_token];
-        if (bos_piece) {
-            size_t bos_len = strlen(bos_piece);
+        const char *_bos_piece_s = _tokenizer->__vocab[bos_token];
+        if (_bos_piece_s) {
+            size_t bos_len = strlen(_bos_piece_s);
             if ((bos_len > 0) &&
-                    (! strncmp(_input_s, bos_piece, bos_len))) {
+                    (! strncmp(_input_s, _bos_piece_s, bos_len))) {
                 _input_s += bos_len;
             }
         }
     }
 
-    char *segment = a_calloc(strlen(_input_s) + 1);
+    char *_segment_s = a_calloc(strlen(_input_s) + 1);
 
     char *_p = _input_s;
     while (*_p) {
@@ -87,7 +87,7 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
         for (int i = 0; i < _tokenizer->token_special_n; i++) {
             size_t len = strlen(_tokenizer->_tokens_special[i]._str_s);
             if (! strncmp(_p, _tokenizer->_tokens_special[i]._str_s, len)) {
-                tokens[(*tokens_n)++] = _tokenizer->_tokens_special[i].id;
+                _tokens[(*_tokens_n)++] = _tokenizer->_tokens_special[i].id;
                 _p += len;
                 found_special = 1;
                 break;
@@ -95,11 +95,12 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
         }
         if (! found_special) {
             size_t seg_len = 0;
-            char *seg_start = _p;
+            char *_seg_start_s = _p;
             while (*_p) {
                 int is_special_start = 0;
                 for (int i = 0; i < _tokenizer->token_special_n; i++) {
-                    if (! strncmp(_p, _tokenizer->_tokens_special[i]._str_s, strlen(_tokenizer->_tokens_special[i]._str_s))) {
+                    if (! strncmp(_p, _tokenizer->_tokens_special[i]._str_s,
+                                strlen(_tokenizer->_tokens_special[i]._str_s))) {
                         is_special_start = 1;
                         break;
                     }
@@ -112,37 +113,37 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
                 seg_len++;
             }
             if (seg_len > 0) {
-                strncpy(segment, seg_start, seg_len);
-                segment[seg_len] = '\0';
+                strncpy(_segment_s, _seg_start_s, seg_len);
+                _segment_s[seg_len] = '\0';
 
-                encode_segment(_tokenizer, segment, tokens, tokens_n);
+                encode_segment(_tokenizer, _segment_s, _tokens, _tokens_n);
             }
         }
     }
 
     if (eos) {
-        tokens[(*tokens_n)++] = 2;
+        _tokens[(*_tokens_n)++] = 2;
     }
 
-    free(segment);
+    free(_segment_s);
 }
 
 char *decode(tokenizer *_tokenizer, int token, bool debug_) {
-    char *piece = _tokenizer->__vocab[token];
+    char *_piece_s = _tokenizer->__vocab[token];
 
     unsigned char byte_val;
-    if (sscanf(piece, "<0x%02hhX>", &byte_val) == 1) {
-        piece = (char *)_tokenizer->_byte_pieces_s + byte_val * 2;
+    if (sscanf(_piece_s, "<0x%02hhX>", &byte_val) == 1) {
+        _piece_s = (char *)_tokenizer->_byte_pieces_s + byte_val * 2;
     }
 
     if (debug_) {
         log_msg(stdout, "\nDEBUG: token: %u piece:", token);
-        for (int c = 0; c < strlen(piece); c++) {
-            log_msg(stdout, "<%x>", (unsigned char)(piece[c]));
+        for (int c = 0; c < strlen(_piece_s); c++) {
+            log_msg(stdout, "<%x>", (unsigned char)(_piece_s[c]));
         }
     }
 
-    return piece;
+    return _piece_s;
 }
 
 void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size, token_map *_tokens_special) {
@@ -164,27 +165,27 @@ void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int v
         _tokenizer->_byte_pieces_s[i * 2 + 1] = '\0';
     }
 
-    FILE *file = fopen(_tokenizer_path_s, "rb");
-    if (! file) {
+    FILE *_file = fopen(_tokenizer_path_s, "rb");
+    if (! _file) {
         log_msg(stderr, "ERROR: Couldn't open %s\n", _tokenizer_path_s);
         exit(EXIT_FAILURE);
     }
 
-    if (fread(&_tokenizer->max_token_length, sizeof(int), 1, file) != 1) {
+    if (fread(&_tokenizer->max_token_length, sizeof(int), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed read: max_token_length\n");
         exit(EXIT_FAILURE);
     }
 
     int len;
     for (int i = 0; i < vocab_size; i++) {
-        if (fread(&len, sizeof(int), 1, file) != 1) {
+        if (fread(&len, sizeof(int), 1, _file) != 1) {
             log_msg(stderr, "ERROR: Failed read: len (%u)\n", i);
             exit(EXIT_FAILURE);
         }
 
         _tokenizer->__vocab[i] = (char *)a_calloc(len + 1);
         if (len > 0) {
-            if (fread(_tokenizer->__vocab[i], len, 1, file) != 1) {
+            if (fread(_tokenizer->__vocab[i], len, 1, _file) != 1) {
                 log_msg(stderr, "ERROR: Failed read: vocab (%u)\n", i);
                 exit(EXIT_FAILURE);
             }
@@ -192,7 +193,7 @@ void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int v
         _tokenizer->__vocab[i][len] = '\0';
     }
 
-    fclose(file);
+    fclose(_file);
 }
 
 void free_tokenizer(tokenizer *_tokenizer) {
@@ -208,27 +209,27 @@ void free_tokenizer(tokenizer *_tokenizer) {
     free(_tokenizer->_vocab_sorted);
 }
 
-int tokenizer_write_to_file(FILE *f, const tokenizer *_tokenizer) {
-    if (fwrite(&_tokenizer->max_token_length, sizeof(int), 1, f) != 1) {
+int tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
+    if (fwrite(&_tokenizer->max_token_length, sizeof(int), 1, _file) != 1) {
         return -1;
     }
 
     for (int i = 0; i < _tokenizer->vocab_size; i++) {
         int len = (int)strlen(_tokenizer->__vocab[i]);
 
-        if (fwrite(&len, sizeof(int), 1, f) != 1) {
+        if (fwrite(&len, sizeof(int), 1, _file) != 1) {
             return -1;
         }
 
-        if (len > 0 && fwrite(_tokenizer->__vocab[i], len, 1, f) != 1) {
+        if (len > 0 && fwrite(_tokenizer->__vocab[i], len, 1, _file) != 1) {
             return -1;
         }
     }
     return 0;
 }
 
-int tokenizer_read_from_file(FILE *f, int vocab_size, tokenizer *_tokenizer) {
-    if (fread(&_tokenizer->max_token_length, sizeof(int), 1, f) != 1) {
+int tokenizer_read_from_file(FILE *_file, int vocab_size, tokenizer *_tokenizer) {
+    if (fread(&_tokenizer->max_token_length, sizeof(int), 1, _file) != 1) {
         return -1;
     }
 
@@ -246,13 +247,13 @@ int tokenizer_read_from_file(FILE *f, int vocab_size, tokenizer *_tokenizer) {
 
     int len;
     for (int i = 0; i < vocab_size; i++) {
-        if (fread(&len, sizeof(int), 1, f) != 1) {
+        if (fread(&len, sizeof(int), 1, _file) != 1) {
             return -1;
         }
 
         _tokenizer->__vocab[i] = (char *)a_calloc((size_t)len + 1);
 
-        if (len > 0 && fread(_tokenizer->__vocab[i], len, 1, f) != 1) {
+        if (len > 0 && fread(_tokenizer->__vocab[i], len, 1, _file) != 1) {
             return -1;
         }
 

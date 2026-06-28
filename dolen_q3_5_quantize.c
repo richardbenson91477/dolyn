@@ -10,13 +10,13 @@ static int get_layer_type(int layer_idx, const JsonValue *_layer_types) {
     if (layer_idx >= (int)_layer_types->data.array.count) {
         return 0;
     }
-    JsonValue *lt = json_array_get(_layer_types, layer_idx);
-    if ((! lt) ||
-            (lt->type != JSON_STRING)) {
+    JsonValue *_js_lt = json_array_get(_layer_types, layer_idx);
+    if ((! _js_lt) ||
+            (_js_lt->type != JSON_STRING)) {
         return 0;
     }
-    const char *type_str = lt->data.string;
-    if (! strcmp(type_str, "linear_attention")) {
+    const char *_type_s = _js_lt->data.string;
+    if (! strcmp(_type_s, "linear_attention")) {
         return 1;
     }
     return 0;
@@ -27,63 +27,63 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
 
     char _config_path_s[PATH_MAX];
     snprintf(_config_path_s, sizeof(_config_path_s), "%s/config.json", _model_dir_s);
-    FILE *f = fopen(_config_path_s, "rb");
-    if (! f) {
+    FILE *_file = fopen(_config_path_s, "rb");
+    if (! _file) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", _config_path_s);
         return -1;
     }
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    fseek(_file, 0, SEEK_END);
+    long size = ftell(_file);
+    fseek(_file, 0, SEEK_SET);
 
-    char *json_str = (char *)a_calloc(size + 1);
-    if ((! json_str) ||
-            (fread(json_str, 1, size, f) != (size_t)size)) {
-        free(json_str);
-        fclose(f);
+    char *_json_str = (char *)a_calloc(size + 1);
+    if ((! _json_str) ||
+            (fread(_json_str, 1, size, _file) != (size_t)size)) {
+        free(_json_str);
+        fclose(_file);
         return -1;
     }
-    json_str[size] = '\0';
-    fclose(f);
+    _json_str[size] = '\0';
+    fclose(_file);
 
-    char error[256] = { 0 };
-    JsonValue *root = json_parse(json_str, size, error, sizeof(error));
-    free(json_str);
-    if (! root) {
-        log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", error);
+    char _error_s[256] = { 0 };
+    JsonValue *_js_root = json_parse(_json_str, size, _error_s, sizeof(_error_s));
+    free(_json_str);
+    if (! _js_root) {
+        log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
 
-    JsonValue *cfg = json_object_get(root, "text_config");
-    if (! cfg) {
-        cfg = root;
+    JsonValue *_js_cfg = json_object_get(_js_root, "text_config");
+    if (! _js_cfg) {
+        _js_cfg = _js_root;
     }
 
     memset(_config, 0, sizeof(config_q3_5));
 
-    _config->dim = json_get_int(json_object_get(cfg, "hidden_size"), 896);
-    _config->n_heads = json_get_int(json_object_get(cfg, "num_attention_heads"), 14);
-    _config->n_kv_heads = json_get_int(json_object_get(cfg, "num_key_value_heads"), _config->n_heads);
-    _config->n_layer = json_get_int(json_object_get(cfg, "num_hidden_layers"), 24);
-    _config->n_mlp = json_get_int(json_object_get(cfg, "intermediate_size"), 4864);
+    _config->dim = json_get_int(json_object_get(_js_cfg, "hidden_size"), 896);
+    _config->n_heads = json_get_int(json_object_get(_js_cfg, "num_attention_heads"), 14);
+    _config->n_kv_heads = json_get_int(json_object_get(_js_cfg, "num_key_value_heads"), _config->n_heads);
+    _config->n_layer = json_get_int(json_object_get(_js_cfg, "num_hidden_layers"), 24);
+    _config->n_mlp = json_get_int(json_object_get(_js_cfg, "intermediate_size"), 4864);
     if (! _config->n_mlp) {
-        _config->n_mlp = json_get_int(json_object_get(cfg, "shared_expert_intermediate_size"), 4864);
+        _config->n_mlp = json_get_int(json_object_get(_js_cfg, "shared_expert_intermediate_size"), 4864);
     }
-    _config->vocab_size = json_get_int(json_object_get(cfg, "vocab_size"), 151936);
-    _config->seq_len = json_get_int(json_object_get(cfg, "max_position_embeddings"), 262144);
+    _config->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 151936);
+    _config->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 262144);
 
-    JsonValue *rope_params = json_object_get(cfg, "rope_parameters");
-    _config->rope_theta = json_get_double(json_object_get(rope_params, "rope_theta"), 10000.0);
-    _config->rope_partial_rotary_factor = json_get_double(json_object_get(rope_params, "partial_rotary_factor"), 1.0);
+    JsonValue *_js_rope_params = json_object_get(_js_cfg, "rope_parameters");
+    _config->rope_theta = json_get_double(json_object_get(_js_rope_params, "rope_theta"), 10000.0);
+    _config->rope_partial_rotary_factor = json_get_double(json_object_get(_js_rope_params, "partial_rotary_factor"), 1.0);
 
-    _config->rms_norm_eps = json_get_double(json_object_get(cfg, "rms_norm_eps"), 1e-6);
-    _config->tie_word_embeddings = json_get_bool(json_object_get(root, "tie_word_embeddings"), 0);
-    _config->d_head = json_get_int(json_object_get(cfg, "head_dim"), _config->dim / _config->n_heads);
-    _config->n_linear_k_heads = json_get_int(json_object_get(cfg, "linear_num_key_heads"), 0);
-    _config->n_linear_v_heads = json_get_int(json_object_get(cfg, "linear_num_value_heads"), 0);
-    _config->d_linear_k = json_get_int(json_object_get(cfg, "linear_key_head_dim"), 0);
-    _config->d_linear_v = json_get_int(json_object_get(cfg, "linear_value_head_dim"), 0);
-    _config->linear_conv_kernel = json_get_int(json_object_get(cfg, "linear_conv_kernel_dim"), 4);
+    _config->rms_norm_eps = json_get_double(json_object_get(_js_cfg, "rms_norm_eps"), 1e-6);
+    _config->tie_word_embeddings = json_get_bool(json_object_get(_js_root, "tie_word_embeddings"), 0);
+    _config->d_head = json_get_int(json_object_get(_js_cfg, "head_dim"), _config->dim / _config->n_heads);
+    _config->n_linear_k_heads = json_get_int(json_object_get(_js_cfg, "linear_num_key_heads"), 0);
+    _config->n_linear_v_heads = json_get_int(json_object_get(_js_cfg, "linear_num_value_heads"), 0);
+    _config->d_linear_k = json_get_int(json_object_get(_js_cfg, "linear_key_head_dim"), 0);
+    _config->d_linear_v = json_get_int(json_object_get(_js_cfg, "linear_value_head_dim"), 0);
+    _config->linear_conv_kernel = json_get_int(json_object_get(_js_cfg, "linear_conv_kernel_dim"), 4);
 
     _model->_layer_types = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
     _model->_attn_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
@@ -96,17 +96,17 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         free(_model->_layer_types);
         free(_model->_attn_layer_indices);
         free(_model->_deltanet_layer_indices);
-        json_free(root);
+        json_free(_js_root);
         return -1;
     }
 
-    JsonValue *layer_types_json = json_object_get(cfg, "layer_types");
+    JsonValue *_js_layer_types = json_object_get(_js_cfg, "layer_types");
     int la = 0, ld = 0;
     _config->n_full_attn_layers = 0;
     _config->n_linear_attn_layers = 0;
 
     for (int i = 0; i < _config->n_layer; i++) {
-        int is_linear = get_layer_type(i, layer_types_json);
+        int is_linear = get_layer_type(i, _js_layer_types);
         _model->_layer_types[i] = is_linear;
         if (is_linear == 1) {
             _model->_deltanet_layer_indices[i] = ld++;
@@ -118,17 +118,17 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         }
     }
 
-    json_free(root);
+    json_free(_js_root);
     log_msg(stdout, "INFO: Model config loaded\n");
     return 0;
 }
 
 static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
         int rows, int cols, q_type_t type) {
-    char name[256];
-    snprintf(name, sizeof(name), "model.language_model.layers.%d.%s", layer, _suffix_s);
-    if (quantize_write_tensor_or_empty(_qt_ctx, _file, name, rows, cols, type)) {
-        log_msg(stderr, "ERROR: Failed quantizing %s\n", name);
+    char _name_s[256];
+    snprintf(_name_s, sizeof(_name_s), "model.language_model.layers.%d.%s", layer, _suffix_s);
+    if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
+        log_msg(stderr, "ERROR: Failed quantizing %s\n", _name_s);
         return -1;
     }
     return 0;
@@ -351,44 +351,44 @@ cleanup:
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *__argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", argv[0]);
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> [--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
         return EXIT_FAILURE;
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(argv[i], "--type")) &&
+        if ((! strcmp(__argv[i], "--type")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            q_type_t t = parse_q_type(argv[i]);
+            q_type_t t = parse_q_type(__argv[i]);
             embed_type = attn_type = mlp_type = t;
         }
-        else if ((! strcmp(argv[i], "--embed")) &&
+        else if ((! strcmp(__argv[i], "--embed")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            embed_type = parse_q_type(argv[i]);
+            embed_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--attn")) &&
+        else if ((! strcmp(__argv[i], "--attn")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            attn_type = parse_q_type(argv[i]);
+            attn_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--mlp")) &&
+        else if ((! strcmp(__argv[i], "--mlp")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            mlp_type = parse_q_type(argv[i]);
+            mlp_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(argv[i], "--tokenizer")) &&
+        else if ((! strcmp(__argv[i], "--tokenizer")) &&
                 ((i + 1) < argc)) {
             i += 1;
-            _tokenizer_path_s = argv[i];
+            _tokenizer_path_s = __argv[i];
         }
     }
 
-    return quantize_q3_5_to_file(argv[1], argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
+    return quantize_q3_5_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

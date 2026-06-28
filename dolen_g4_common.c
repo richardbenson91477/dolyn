@@ -168,15 +168,15 @@ void free_state_g4(state_g4 *_state) {
     _state->allocated = 0;
 }
 
-void free_g4(G4 *model) {
-    if (! model) {
+void free_g4(G4 *_model) {
+    if (! _model) {
         return;
     }
 
-    config_g4 *_config = &model->config;
-    weights_g4 *_weights = &model->weights;
+    config_g4 *_config = &(_model->config);
+    weights_g4 *_weights = &(_model->weights);
 
-    free(model->_layer_types);
+    free(_model->_layer_types);
 
     free_qt(&_weights->embed_tokens_weight);
     free_qt(&_weights->rms_final_norm);
@@ -199,12 +199,12 @@ void free_g4(G4 *model) {
 
     free(_weights->_layer_scalars);
 
-    if (model->state.allocated == 1) {
-        free_state_g4(&model->state);
+    if (_model->state.allocated == 1) {
+        free_state_g4(&(_model->state));
     }
 
-    free_tokenizer(&model->tokenizer);
+    free_tokenizer(&(_model->tokenizer));
 
-    memset(model, 0, sizeof(G4));
+    memset(_model, 0, sizeof(G4));
 }
 

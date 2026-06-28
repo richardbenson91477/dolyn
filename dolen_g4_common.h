@@ -84,7 +84,7 @@ typedef struct {
 } G4;
 
 
-void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *layer_types);
+void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *_layer_types);
 
 void free_state_g4(state_g4 *_state);
 

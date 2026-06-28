@@ -194,60 +194,60 @@ float *forward_q3(Q3 *_model_q3, int token, int pos) {
 
 #pragma omp parallel for
             for (int h = 0; h < _config->n_heads; h++) {
-                float *q_ptr = _state->_q + h * _config->head_dim;
+                float *_q = _state->_q + h * _config->head_dim;
 
-                rmsnorm(q_ptr, q_ptr, (float *)_weights->_q_norm[l]._data, _config->head_dim, eps);
+                rmsnorm(_q, _q, (float *)_weights->_q_norm[l]._data, _config->head_dim, eps);
 
                 for (int j = 0; j < rotary_half; j++) {
                     float c = _cos_row[j], sn = _sin_row[j];
-                    float x_val = q_ptr[j], y_val = q_ptr[j + rotary_half];
-                    q_ptr[j] = x_val * c - y_val * sn;
-                    q_ptr[j + rotary_half] = x_val * sn + y_val * c;
+                    float x_val = _q[j], y_val = _q[j + rotary_half];
+                    _q[j] = x_val * c - y_val * sn;
+                    _q[j + rotary_half] = x_val * sn + y_val * c;
                 }
             }
 
 #pragma omp parallel for
             for (int h = 0; h < _config->n_kv_heads; h++) {
-                float *k_ptr = _state->_k + h * _config->head_dim;
+                float *_k = _state->_k + h * _config->head_dim;
 
-                rmsnorm(k_ptr, k_ptr, (float *)_weights->_k_norm[l]._data, _config->head_dim, eps);
+                rmsnorm(_k, _k, (float *)_weights->_k_norm[l]._data, _config->head_dim, eps);
 
                 for (int j = 0; j < rotary_half; j++) {
                     float c = _cos_row[j], sn = _sin_row[j];
-                    float x_val = k_ptr[j], y_val = k_ptr[j + rotary_half];
-                    k_ptr[j] = x_val * c - y_val * sn;
-                    k_ptr[j + rotary_half] = x_val * sn + y_val * c;
+                    float x_val = _k[j], y_val = _k[j + rotary_half];
+                    _k[j] = x_val * c - y_val * sn;
+                    _k[j + rotary_half] = x_val * sn + y_val * c;
                 }
             }
         }
         else {
 #pragma omp parallel for
             for (int h = 0; h < _config->n_heads; h++) {
-                float *q_ptr = _state->_q + h * _config->head_dim;
-                rmsnorm(q_ptr, q_ptr, (float *)_weights->_q_norm[l]._data, _config->head_dim, eps);
+                float *_q = _state->_q + h * _config->head_dim;
+                rmsnorm(_q, _q, (float *)_weights->_q_norm[l]._data, _config->head_dim, eps);
                 for (int j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(_config->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / _config->rope_scaling_factor;
                     float cos_freq = cosf(scaled_pos * freq);
                     float sin_freq = sinf(scaled_pos * freq);
-                    float x_val = q_ptr[j], y_val = q_ptr[j + rotary_half];
-                    q_ptr[j] = x_val * cos_freq - y_val * sin_freq;
-                    q_ptr[j + rotary_half] = x_val * sin_freq + y_val * cos_freq;
+                    float x_val = _q[j], y_val = _q[j + rotary_half];
+                    _q[j] = x_val * cos_freq - y_val * sin_freq;
+                    _q[j + rotary_half] = x_val * sin_freq + y_val * cos_freq;
                 }
             }
 
 #pragma omp parallel for
             for (int h = 0; h < _config->n_kv_heads; h++) {
-                float *k_ptr = _state->_k + h * _config->head_dim;
-                rmsnorm(k_ptr, k_ptr, (float *)_weights->_k_norm[l]._data, _config->head_dim, eps);
+                float *_k = _state->_k + h * _config->head_dim;
+                rmsnorm(_k, _k, (float *)_weights->_k_norm[l]._data, _config->head_dim, eps);
                 for (int j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(_config->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / _config->rope_scaling_factor;
                     float cos_freq = cosf(scaled_pos * freq);
                     float sin_freq = sinf(scaled_pos * freq);
-                    float x_val = k_ptr[j], y_val = k_ptr[j + rotary_half];
-                    k_ptr[j] = x_val * cos_freq - y_val * sin_freq;
-                    k_ptr[j + rotary_half] = x_val * sin_freq + y_val * cos_freq;
+                    float x_val = _k[j], y_val = _k[j + rotary_half];
+                    _k[j] = x_val * cos_freq - y_val * sin_freq;
+                    _k[j + rotary_half] = x_val * sin_freq + y_val * cos_freq;
                 }
             }
         }
@@ -257,31 +257,31 @@ float *forward_q3(Q3 *_model_q3, int token, int pos) {
 
 #pragma omp parallel for
         for (int h = 0; h < _config->n_heads; h++) {
-            float *q = _state->_q + h * _config->head_dim;
-            float *att = _state->_att + h * _config->seq_len;
+            float *_q = _state->_q + h * _config->head_dim;
+            float *_att = _state->_att + h * _config->seq_len;
             for (int t = 0; t <= pos; t++) {
-                float *k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
+                float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                 float score = 0.0f;
 
 #pragma omp simd reduction(+ : score)
                 for (int i = 0; i < _config->head_dim; i++) {
-                    score += q[i] * k[i];
+                    score += _q[i] * _k[i];
                 }
-                att[t] = score / sqrtf(_config->head_dim);
+                _att[t] = score / sqrtf(_config->head_dim);
             }
 
-            softmax(att, pos + 1);
+            softmax(_att, pos + 1);
 
             float *_xb = _state->_xb + h * _config->head_dim;
             memset(_xb, 0, _config->head_dim * sizeof(float));
 
             for (int t = 0; t <= pos; t++) {
-                float *v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
-                float a = att[t];
+                float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
+                float a = _att[t];
 
 #pragma omp simd
                 for (int i = 0; i < _config->head_dim; i++) {
-                    _xb[i] += a * v[i];
+                    _xb[i] += a * _v[i];
                 }
             }
         }
@@ -331,10 +331,10 @@ static void free_q3_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_q3(const char *model_path, int seq_n_max, bool think_) {
+model_iface *init_q3(const char *_model_path_s, int seq_n_max, bool think_) {
     Q3 *_model = a_calloc(1 * sizeof(Q3));
 
-    if (load_quantized_q3(model_path, _model, seq_n_max)) {
+    if (load_quantized_q3(_model_path_s, _model, seq_n_max)) {
         free_q3(_model);
         free(_model);
         return NULL;

@@ -3,6 +3,7 @@
 #define DOLEN_COMMON_MATH_H
 
 #include <math.h>
+#include <stdbool.h>
 
 
 void rmsnorm(float *_o, float *_x, float *_weight, int size, float eps);
@@ -11,7 +12,7 @@ void rmsnorm_gemma(float *_o, float *_x, float *_weight, int size, float eps);
 
 void rmsnorm_gated(float *_o, float *_x, float *_gate, float *_weight, int heads_n, int d_v, float eps);
 
-void rmsnorm_g4(float *_o, float *_x, float *_weight, int size, float eps, int with_scale);
+void rmsnorm_g4(float *_o, float *_x, float *_weight, int size, float eps, bool with_scale_);
 
 float gelu(float x);
 

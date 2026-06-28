@@ -64,18 +64,18 @@ const weightmap_entry *quantize_find_tensor(const quantize_ctx *_q_ctx, const ch
 
 const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *_q_ctx, const char *const *__names, size_t names_n);
 
-int quantize_write_tensor(quantize_ctx *_q_ctx, FILE *_file, const char *_name_s,
+int quantize_write_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
         int rows, int cols, q_type_t type);
 
-int quantize_write_tensor_or_empty(quantize_ctx *_q_ctx, FILE *_file, const char *_name_s,
+int quantize_write_tensor_or_empty(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
         int rows, int cols, q_type_t type);
 
-int quantize_write_tensor_entry(quantize_ctx *_q_ctx, FILE *_file, const char *_name_s, const weightmap_entry *_wm_entry,
+int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s, const weightmap_entry *_wm_entry,
         int rows, int cols, q_type_t type);
 
 int quantize_write_empty_tensor(FILE *_file);
 
-int quantize_write_scalar_or_default(quantize_ctx *_q_ctx, FILE *_file, const char *const *__names_s, size_t names_n,
+int quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file, const char *const *__names_s, size_t names_n,
         float default_value);
 
 q_type_t parse_q_type(const char *_str_s);

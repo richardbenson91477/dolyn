@@ -156,14 +156,14 @@ void forward_ig4_1_attention_layer(IG4_1 *_model_ig4_1, int l, int pos) {
     int rotary_dim = head_size;
 
     if (_state->_cos_cache) {
-        float *cos_row = _state->_cos_cache + pos * rotary_dim;
-        float *sin_row = _state->_sin_cache + pos * rotary_dim;
+        float *_cos_row = _state->_cos_cache + pos * rotary_dim;
+        float *_sin_row = _state->_sin_cache + pos * rotary_dim;
 
 #pragma omp parallel for
         for (int h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * head_size;
             for (int i = 0; i < rotary_dim / 2; i++) {
-                float c = cos_row[i], sn = sin_row[i];
+                float c = _cos_row[i], sn = _sin_row[i];
                 float q0 = _q[i], q1 = _q[i + rotary_dim / 2];
                 _q[i] = q0 * c - q1 * sn;
                 _q[i + rotary_dim / 2] = q0 * sn + q1 * c;
@@ -174,7 +174,7 @@ void forward_ig4_1_attention_layer(IG4_1 *_model_ig4_1, int l, int pos) {
         for (int h = 0; h < _config->n_kv_heads; h++) {
             float *_k = _state->_k + h * head_size;
             for (int i = 0; i < rotary_dim / 2; i++) {
-                float c = cos_row[i], sn = sin_row[i];
+                float c = _cos_row[i], sn = _sin_row[i];
                 float k0 = _k[i], k1 = _k[i + rotary_dim / 2];
                 _k[i] = k0 * c - k1 * sn;
                 _k[i + rotary_dim / 2] = k0 * sn + k1 * c;
@@ -196,12 +196,12 @@ void forward_ig4_1_attention_layer(IG4_1 *_model_ig4_1, int l, int pos) {
         float *_att = _state->_att + h * _config->seq_len;
 
         for (int t = 0; t <= pos; t++) {
-            float *k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float score = 0.0f;
 
 #pragma omp simd reduction(+ : score)
             for (int i = 0; i < head_size; i++) {
-                score += _q[i] * k[i];
+                score += _q[i] * _k[i];
             }
             _att[t] = score * attn_scale;
         }
@@ -212,12 +212,12 @@ void forward_ig4_1_attention_layer(IG4_1 *_model_ig4_1, int l, int pos) {
         memset(_xb, 0, head_size * sizeof(float));
 
         for (int t = 0; t <= pos; t++) {
-            float *v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float a = _att[t];
 
 #pragma omp simd
             for (int i = 0; i < head_size; i++) {
-                _xb[i] += a * v[i];
+                _xb[i] += a * _v[i];
             }
         }
     }

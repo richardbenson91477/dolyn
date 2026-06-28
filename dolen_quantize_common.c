@@ -18,11 +18,11 @@ static int checked_add_u64(uint64_t a, uint64_t b, uint64_t *_res) {
     return 0;
 }
 
-int quantize_write_bytes(FILE *f, const void *data, size_t size, size_t count) {
+int quantize_write_bytes(FILE *_file, const void *_data, size_t size, size_t count) {
     if (! count) {
         return 0;
     }
-    if (fwrite(data, size, count, f) != count) {
+    if (fwrite(_data, size, count, _file) != count) {
         log_msg(stderr, "ERROR: Write failed: %s\n", strerror(errno));
         return -1;
     }
@@ -41,17 +41,17 @@ static size_t dtype_size(st_dtype dtype) {
     }
 }
 
-static st_dtype parse_dtype(const char *dtype) {
-    if (! dtype) {
+static st_dtype parse_dtype(const char *_dtype_s) {
+    if (! _dtype_s) {
         return ST_DTYPE_UNSUPPORTED;
     }
-    else if (! strcmp(dtype, "F16")) {
+    else if (! strcmp(_dtype_s, "F16")) {
         return ST_DTYPE_F16;
     }
-    else if (! strcmp(dtype, "BF16")) {
+    else if (! strcmp(_dtype_s, "BF16")) {
         return ST_DTYPE_BF16;
     }
-    else if (! strcmp(dtype, "F32")) {
+    else if (! strcmp(_dtype_s, "F32")) {
         return ST_DTYPE_F32;
     }
     else {
@@ -92,16 +92,16 @@ static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_
         return -1;
     }
 
-    FILE *f = fopen(_file_path_s, "rb");
-    if (! f) {
+    FILE *_file = fopen(_file_path_s, "rb");
+    if (! _file) {
         log_msg(stderr, "ERROR: Could not open %s\n", _file_path_s);
         return -1;
     }
 
     uint8_t length_bytes[8];
-    if (fread(length_bytes, 1, sizeof(length_bytes), f) != sizeof(length_bytes)) {
+    if (fread(length_bytes, 1, sizeof(length_bytes), _file) != sizeof(length_bytes)) {
         log_msg(stderr, "ERROR: Could not read safetensors header length from %s\n", _file_path_s);
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
@@ -109,27 +109,27 @@ static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_
     if ((! header_len_u64) ||
             header_len_u64 > SIZE_MAX - 1) {
         log_msg(stderr, "ERROR: Invalid safetensors header length in %s\n", _file_path_s);
-        fclose(f);
+        fclose(_file);
         return -1;
     }
     size_t header_len = (size_t)header_len_u64;
     char *header = (char *)a_calloc(header_len + 1);
     if ((! header) ||
-            (fread(header, 1, header_len, f) != header_len)) {
+            (fread(header, 1, header_len, _file) != header_len)) {
         log_msg(stderr, "ERROR: Could not read safetensors header from %s\n", _file_path_s);
         free(header);
-        fclose(f);
+        fclose(_file);
         return -1;
     }
-    fclose(f);
+    fclose(_file);
     header[header_len] = '\0';
 
-    char error[256] = { 0 };
-    JsonValue *root = json_parse(header, header_len, error, sizeof(error));
+    char _error_s[256] = { 0 };
+    JsonValue *root = json_parse(header, header_len, _error_s, sizeof(_error_s));
     free(header);
     if ((! root) ||
             root->type != JSON_OBJECT) {
-        log_msg(stderr, "ERROR: Invalid safetensors header in %s: %s\n", _file_path_s, error);
+        log_msg(stderr, "ERROR: Invalid safetensors header in %s: %s\n", _file_path_s, _error_s);
         json_free(root);
         return -1;
     }
@@ -151,26 +151,26 @@ static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_
             continue;
         }
 
-        JsonValue *tensor = pair->value;
-        JsonValue *dtype_json = json_object_get(tensor, "dtype");
-        JsonValue *shape = json_object_get(tensor, "shape");
-        JsonValue *offsets = json_object_get(tensor, "data_offsets");
-        if ((! dtype_json) ||
-                (dtype_json->type != JSON_STRING) ||
-                (! shape) ||
-                (shape->type != JSON_ARRAY) ||
-                (! offsets) ||
-                (offsets->type != JSON_ARRAY) ||
-                (offsets->data.array.count != 2)) {
+        JsonValue *_js_tensor = pair->value;
+        JsonValue *_js_dtype = json_object_get(_js_tensor, "dtype");
+        JsonValue *_js_shape = json_object_get(_js_tensor, "shape");
+        JsonValue *_js_offsets = json_object_get(_js_tensor, "data_offsets");
+        if ((! _js_dtype) ||
+                (_js_dtype->type != JSON_STRING) ||
+                (! _js_shape) ||
+                (_js_shape->type != JSON_ARRAY) ||
+                (! _js_offsets) ||
+                (_js_offsets->type != JSON_ARRAY) ||
+                (_js_offsets->data.array.count != 2)) {
             log_msg(stderr, "ERROR: Invalid metadata for tensor %s\n", pair->key);
             json_free(root);
             return -1;
         }
 
         uint64_t elements = 1;
-        for (size_t d = 0; d < shape->data.array.count; d++) {
+        for (size_t d = 0; d < _js_shape->data.array.count; d++) {
             uint64_t dim;
-            if (json_u64(json_array_get(shape, d), &dim) ||
+            if (json_u64(json_array_get(_js_shape, d), &dim) ||
                     (dim &&
                      (elements > UINT64_MAX / dim))) {
                 log_msg(stderr, "ERROR: Invalid shape for tensor %s\n", pair->key);
@@ -181,15 +181,15 @@ static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_
         }
 
         uint64_t begin, end;
-        if (json_u64(json_array_get(offsets, 0), &begin) ||
-                json_u64(json_array_get(offsets, 1), &end) ||
+        if (json_u64(json_array_get(_js_offsets, 0), &begin) ||
+                json_u64(json_array_get(_js_offsets, 1), &end) ||
                 (end < begin)) {
             log_msg(stderr, "ERROR: Invalid data offsets for tensor %s\n", pair->key);
             json_free(root);
             return -1;
         }
 
-        _wm_entry->dtype = parse_dtype(dtype_json->data.string);
+        _wm_entry->dtype = parse_dtype(_js_dtype->data.string);
         _wm_entry->num_elements = elements;
         _wm_entry->data_nbytes = end - begin;
         if (checked_add_u64(data_base, begin, &_wm_entry->data_offset)) {
@@ -212,12 +212,12 @@ static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_
     return 0;
 }
 
-static void quantize_group_into_q8(int8_t *q, float *s, const float *weights, int rows, int cols) {
+static void quantize_group_into_q8(int8_t *_q, float *_s, const float *_weights, int rows, int cols) {
     int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     for (int i = 0; i < rows; i++) {
-        const float *row = weights + (size_t)i * cols;
-        float *row_s = s + (size_t)i * num_groups;
-        int8_t *row_q = q + (size_t)i * cols;
+        const float *row = _weights + (size_t)i * cols;
+        float *row_s = _s + (size_t)i * num_groups;
+        int8_t *row_q = _q + (size_t)i * cols;
 
         for (int g = 0; g < num_groups; g++) {
             int start = g * GROUP_SIZE;
@@ -247,10 +247,10 @@ static void quantize_group_into_q8(int8_t *q, float *s, const float *weights, in
     }
 }
 
-static void quantize_group_into_q6(uint8_t *q, float *s, const float *weights, int rows, int cols) {
+static void quantize_group_into_q6(uint8_t *q, float *s, const float *_weights, int rows, int cols) {
     int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     for (int i = 0; i < rows; i++) {
-        const float *row = weights + (size_t)i * cols;
+        const float *row = _weights + (size_t)i * cols;
         float *row_s = s + (size_t)i * num_groups;
         uint8_t *row_q = q + ((size_t)i * cols * 3) / 4;
 
@@ -307,10 +307,10 @@ static void quantize_group_into_q6(uint8_t *q, float *s, const float *weights, i
     }
 }
 
-static void quantize_group_into_q4(uint8_t *q, float *s, const float *weights, int rows, int cols) {
+static void quantize_group_into_q4(uint8_t *q, float *s, const float *_weights, int rows, int cols) {
     int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
     for (int i = 0; i < rows; i++) {
-        const float *row = weights + (size_t)i * cols;
+        const float *row = _weights + (size_t)i * cols;
         float *row_s = s + (size_t)i * num_groups;
         uint8_t *row_q = q + ((size_t)i * cols) / 2;
 
@@ -387,8 +387,8 @@ int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
     fclose(f);
     json_str[size] = '\0';
 
-    char error[256] = { 0 };
-    JsonValue *root = json_parse(json_str, size, error, sizeof(error));
+    char _error_s[256] = { 0 };
+    JsonValue *root = json_parse(json_str, size, _error_s, sizeof(_error_s));
     free(json_str);
     if (! root) {
         return -1;
@@ -854,7 +854,7 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
         size_t row_work_bytes =
                 (size_t)cols * (item_size + sizeof(float)) + ((size_t)cols * 3) / 4 + (size_t)num_groups * sizeof(float);
         size_t rows_per_chunk = row_work_bytes ? _qt_ctx->chunk_bytes / row_work_bytes : 1;
-        if (!rows_per_chunk) {
+        if (! rows_per_chunk) {
             rows_per_chunk = 1;
         }
         if (rows_per_chunk > (size_t)rows) {

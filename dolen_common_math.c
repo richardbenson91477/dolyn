@@ -55,7 +55,7 @@ void rmsnorm_gated(float *_o, float *_x, float *_gate, float *_weight, int heads
     }
 }
 
-void rmsnorm_g4(float *_o, float *_x, float *_weight, int size, float eps, int with_scale) {
+void rmsnorm_g4(float *_o, float *_x, float *_weight, int size, float eps, bool with_scale_) {
     float ss = 0.0f;
 
 #pragma omp simd reduction(+ : ss)
@@ -64,7 +64,7 @@ void rmsnorm_g4(float *_o, float *_x, float *_weight, int size, float eps, int w
     }
     ss = 1.0f / sqrtf(ss / size + eps);
 
-    if (with_scale &&
+    if (with_scale_ &&
             _weight) {
 #pragma omp simd
         for (int j = 0; j < size; j++) {

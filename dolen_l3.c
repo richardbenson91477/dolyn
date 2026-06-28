@@ -14,10 +14,10 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
 };
 
 
-int load_quantized_l3(const char *filepath, L3 *_model, int seq_n_max) {
-    FILE *f = fopen(filepath, "rb");
-    if (! f) {
-        log_msg(stderr, "ERROR: Failed to open %s\n", filepath);
+int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
+    FILE *_file = fopen(_file_path_s, "rb");
+    if (! _file) {
+        log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
         return -1;
     }
 
@@ -26,35 +26,35 @@ int load_quantized_l3(const char *filepath, L3 *_model, int seq_n_max) {
     uint64_t magic;
     uint32_t version;
 
-    if ((fread(&magic, sizeof(magic), 1, f) != 1) ||
-            (fread(&version, sizeof(version), 1, f) != 1)) {
+    if ((fread(&magic, sizeof(magic), 1, _file) != 1) ||
+            (fread(&version, sizeof(version), 1, _file) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header\n");
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
     if (magic != MAGIC_L3) {
         log_msg(stderr, "ERROR: Invalid magic number\n");
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
     if (version != 1) {
         log_msg(stderr, "ERROR: Unsupported version %u (expected 1)\n", version);
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
     config_l3 *_config = &_model->config;
-    if (fread(_config, sizeof(config_l3), 1, f) != 1) {
+    if (fread(_config, sizeof(config_l3), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config\n");
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
-    if (tokenizer_read_from_file(f, _config->vocab_size, &_model->tokenizer1)) {
+    if (tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer\n");
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
@@ -84,58 +84,60 @@ int load_quantized_l3(const char *filepath, L3 *_model, int seq_n_max) {
             (! _weights->_w2) ||
             (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
-        fclose(f);
+        fclose(_file);
         return -1;
     }
 
-    read_qt(f, &_weights->embed_tokens_weight);
+    read_qt(_file, &_weights->embed_tokens_weight);
 
     for (int i = 0; i < _config->n_layers; i++) {
-        read_qt(f, &_weights->_rms_att_weight[i]);
+        read_qt(_file, &_weights->_rms_att_weight[i]);
     }
 
     for (int i = 0; i < _config->n_layers; i++) {
-        read_qt(f, &_weights->_wq[i]);
-        read_qt(f, &_weights->_wk[i]);
-        read_qt(f, &_weights->_wv[i]);
-        read_qt(f, &_weights->_wo[i]);
+        read_qt(_file, &_weights->_wq[i]);
+        read_qt(_file, &_weights->_wk[i]);
+        read_qt(_file, &_weights->_wv[i]);
+        read_qt(_file, &_weights->_wo[i]);
     }    
 
     for (int i = 0; i < _config->n_layers; i++) {
-        read_qt(f, &_weights->_rms_ffn_weight[i]);
+        read_qt(_file, &_weights->_rms_ffn_weight[i]);
     }
 
     for (int i = 0; i < _config->n_layers; i++) {
-        read_qt(f, &_weights->_w1[i]);
-        read_qt(f, &_weights->_w2[i]);
-        read_qt(f, &_weights->_w3[i]);
+        read_qt(_file, &_weights->_w1[i]);
+        read_qt(_file, &_weights->_w2[i]);
+        read_qt(_file, &_weights->_w3[i]);
     }
 
-    read_qt(f, &_weights->rms_final_weight);
+    read_qt(_file, &_weights->rms_final_weight);
 
     if (! _config->tie_word_embeddings) {
-        read_qt(f, &_weights->wcls);
+        read_qt(_file, &_weights->wcls);
     } else {
         _weights->wcls = _weights->embed_tokens_weight;
     }
 
-    fclose(f);
-    log_msg(stdout, "INFO: Quantized L3 loaded from %s\n", filepath);
+    fclose(_file);
+    log_msg(stdout, "INFO: Quantized L3 loaded from %s\n", _file_path_s);
 
     alloc_state_l3(&_model->state, _config);
     return 0;
 }
 
-static void apply_rope(float *vec, float *cos, float *sin, int rotary_dim, int pos) {
+static void apply_rope(float *_vec, float *_cos, float *_sin, int rotary_dim, int pos) {
     int half_rot = rotary_dim / 2;
-    float *cos_row = cos + pos * half_rot;
-    float *sin_row = sin + pos * half_rot;
+    float *_cos_row = _cos + pos * half_rot;
+    float *_sin_row = _sin + pos * half_rot;
 
     for (int i = 0; i < half_rot; i++) {
-        float c = cos_row[i], sn = sin_row[i];
-        float v0 = vec[i], v1 = vec[i + half_rot];
-        vec[i] = v0 * c - v1 * sn;
-        vec[i + half_rot] = v0 * sn + v1 * c;
+        float c = _cos_row[i];
+        float sn = _sin_row[i];
+        float v0 = _vec[i];
+        float v1 = _vec[i + half_rot];
+        _vec[i] = v0 * c - v1 * sn;
+        _vec[i + half_rot] = v0 * sn + v1 * c;
     }
 }
 
@@ -143,18 +145,18 @@ float *forward_l3(L3 *_model, int token, int pos) {
     config_l3 *_config = &_model->config;
     weights_l3 *_weights = &_model->weights;
     state_l3 *_state = &_model->state;
-    float *x = _state->_x;
+    float *_x = _state->_x;
     int dim = _config->dim;
     int head_size = _config->head_dim;
     int kv_dim = _config->n_kv_heads * head_size;
     int kv_mul = _config->n_heads / _config->n_kv_heads;
     float eps = _config->rms_norm_eps;
 
-    dequantize_row(x, &_weights->embed_tokens_weight, token);
+    dequantize_row(_x, &_weights->embed_tokens_weight, token);
 
     for (int l = 0; l < _config->n_layers; l++) {
-        float *rms_att = (float *)_weights->_rms_att_weight[l]._data;
-        rmsnorm(_state->_xb, x, rms_att, dim, eps);
+        float *_rms_att = (float *)_weights->_rms_att_weight[l]._data;
+        rmsnorm(_state->_xb, _x, _rms_att, dim, eps);
 
         quantize_vec(&_state->xq, _state->_xb, dim);
         matmul_qq(_state->_q, &_state->xq, &_weights->_wq[l]);
@@ -174,29 +176,29 @@ float *forward_l3(L3 *_model, int token, int pos) {
         float inv_sqrt_head = 1.0f / sqrtf((float)head_size);
 #pragma omp parallel for
         for (int h = 0; h < _config->n_heads; h++) {
-            float *q = _state->_q + h * head_size;
+            float *_q = _state->_q + h * head_size;
             float *_att = _state->_att + h * _config->seq_len;
             int kv_head = h / kv_mul;
 
             for (int t = 0; t <= pos; t++) {
-                float *k = _state->__key_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
+                float *_k = _state->__key_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
                 float score = 0.0f;
 #pragma omp simd reduction(+ : score)
                 for (int i = 0; i < head_size; i++) {
-                    score += q[i] * k[i];
+                    score += _q[i] * _k[i];
                 }
                 _att[t] = score * inv_sqrt_head;
             }
             softmax(_att, pos + 1);
 
-            float *out = _state->_xb + h * head_size; 
-            memset(out, 0, head_size * sizeof(float));
+            float *_file = _state->_xb + h * head_size; 
+            memset(_file, 0, head_size * sizeof(float));
             for (int t = 0; t <= pos; t++) {
-                float *v = _state->__value_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
+                float *_v = _state->__value_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
                 float a = _att[t];
 #pragma omp simd
                 for (int i = 0; i < head_size; i++) {
-                    out[i] += a * v[i];
+                    _file[i] += a * _v[i];
                 }
             }
         }
@@ -205,11 +207,11 @@ float *forward_l3(L3 *_model, int token, int pos) {
         matmul_qq(_state->_xb2, &_state->xq, &_weights->_wo[l]);
 
         for (int i = 0; i < dim; i++) {
-            x[i] += _state->_xb2[i];
+            _x[i] += _state->_xb2[i];
         }
 
-        float *rms_ffn = (float *)_weights->_rms_ffn_weight[l]._data;
-        rmsnorm(_state->_xb, x, rms_ffn, dim, eps);
+        float *_rms_ffn = (float *)_weights->_rms_ffn_weight[l]._data;
+        rmsnorm(_state->_xb, _x, _rms_ffn, dim, eps);
 
         quantize_vec(&(_state->xq), _state->_xb, dim);
         matmul_qq(_state->_hb, &_state->xq, &_weights->_w1[l]);
@@ -227,16 +229,16 @@ float *forward_l3(L3 *_model, int token, int pos) {
         matmul_qq(_state->_xb, &_state->hq, &_weights->_w2[l]);
 
         for (int i = 0; i < dim; i++) {
-            x[i] += _state->_xb[i];
+            _x[i] += _state->_xb[i];
         }
     }
 
-    rmsnorm(x, x, (float *)_weights->rms_final_weight._data, dim, eps);
+    rmsnorm(_x, _x, (float *)_weights->rms_final_weight._data, dim, eps);
 
     if (_config->tie_word_embeddings) {
-        matmul_qt(_state->_logits, x, &_weights->embed_tokens_weight);
+        matmul_qt(_state->_logits, _x, &_weights->embed_tokens_weight);
     } else {
-        matmul_qt(_state->_logits, x, &_weights->wcls);
+        matmul_qt(_state->_logits, _x, &_weights->wcls);
     }
 
     return _state->_logits;
@@ -251,9 +253,9 @@ static void free_l3_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_l3(const char *model_path, int seq_n_max, bool think_) {
+model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_) {
     L3 *_model = a_calloc(sizeof(L3));
-    if (load_quantized_l3(model_path, _model, seq_n_max)) {
+    if (load_quantized_l3(_model_path_s, _model, seq_n_max)) {
         free_l3(_model);
         free(_model);
         return NULL;

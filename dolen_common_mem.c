@@ -6,13 +6,13 @@ void *a_calloc(size_t size) {
         return NULL;
     }
 
-    void *ptr = NULL;
-    if (posix_memalign(&ptr, 64, size)) {
+    void *_p = NULL;
+    if (posix_memalign(&_p, 64, size)) {
         return NULL;
     }
 
-    memset(ptr, 0, size);
-    return ptr;
+    memset(_p, 0, size);
+    return _p;
 }
 
 uint64_t read_le64(const uint8_t bytes[8]) {
