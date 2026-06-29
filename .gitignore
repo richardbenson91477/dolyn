@@ -1,15 +1,5 @@
 dolen
 dolen_dbg
-dolen_q3_quantize
-dolen_q3_quantize_dbg
-dolen_q3_5_quantize
-dolen_q3_5_quantize_dbg
-dolen_g4_quantize
-dolen_g4_quantize_dbg
-dolen_ig4_1_quantize
-dolen_ig4_1_quantize_dbg
-dolen_l3_quantize
-dolen_l3_quantize_dbg
-dolen_q2_quantize
-dolen_q2_quantize_dbg
+dolen_quantize
+dolen_quantize_dbg
 tags
