@@ -17,7 +17,7 @@ static const chat_template CHAT_TEMPLATE_THINK_G4 = {
 
 int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max) {
     FILE *_file = fopen(_path_s, "rb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _path_s);
         return -1;
     }
@@ -80,12 +80,12 @@ int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max) {
     _weights->_rms_q_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_k_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if (!_weights->_rms_input_layernorm ||
-            (!_weights->_rms_post_attn_layernorm) ||
-            (!_weights->_rms_pre_ffn_layernorm) ||
-            (!_weights->_rms_post_ffn_layernorm) ||
-            (!_weights->_rms_q_norm) ||
-            (!_weights->_rms_k_norm)) {
+    if (! _weights->_rms_input_layernorm ||
+            (! _weights->_rms_post_attn_layernorm) ||
+            (! _weights->_rms_pre_ffn_layernorm) ||
+            (! _weights->_rms_post_ffn_layernorm) ||
+            (! _weights->_rms_q_norm) ||
+            (! _weights->_rms_k_norm)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
         return -1;

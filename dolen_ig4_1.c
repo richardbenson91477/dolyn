@@ -16,7 +16,7 @@ static const chat_template CHAT_TEMPLATE_IG4_1 = {
 
 int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
         return -1;
     }
@@ -60,7 +60,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max)
     config_ig4_1 *_config = &(_model->config);
     weights_ig4_1 *_weights = &(_model->weights);
 
-    if (!(_config->rope_theta > 1.0f)) {
+    if (! (_config->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", _config->rope_theta);
         fclose(_file);
         return -1;
@@ -73,7 +73,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max)
     read_qt(_file, &(_weights->embed_tokens_weight));
 
     _weights->_rms_att_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    if (!_weights->_rms_att_weight) {
+    if (! _weights->_rms_att_weight) {
         log_msg(stderr, "ERROR: Failed to allocate rms_att_weight\n");
         fclose(_file);
         return -1;
@@ -95,7 +95,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max)
     }
 
     _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    if (!_weights->_rms_ffn_weight) {
+    if (! _weights->_rms_ffn_weight) {
         log_msg(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
         fclose(_file);
         return -1;
@@ -115,7 +115,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max)
 
     read_qt(_file, &(_weights->rms_final_weight));
 
-    if (!_config->tie_word_embeddings) {
+    if (! _config->tie_word_embeddings) {
         read_qt(_file, &(_weights->wcls));
     }
     else {

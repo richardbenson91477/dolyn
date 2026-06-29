@@ -55,22 +55,22 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
         }
     }
 
-    if ((!_state->_x) ||
-            (!_state->_xb) ||
-            (!_state->_xb2) ||
-            (!_state->_hb) ||
-            (!_state->_hb2) ||
-            (!_state->_q) ||
-            (!_state->_k) ||
-            (!_state->_v) ||
-            (!_state->_att) ||
-            (!_state->_logits) ||
-            (!_state->xq._data) ||
-            (!_state->xq._scales) ||
-            (!_state->hq._data) ||
-            (!_state->hq._scales) ||
-            (!_state->_key_cache) ||
-            (!_state->_value_cache)) {
+    if ((! _state->_x) ||
+            (! _state->_xb) ||
+            (! _state->_xb2) ||
+            (! _state->_hb) ||
+            (! _state->_hb2) ||
+            (! _state->_q) ||
+            (! _state->_k) ||
+            (! _state->_v) ||
+            (! _state->_att) ||
+            (! _state->_logits) ||
+            (! _state->xq._data) ||
+            (! _state->xq._scales) ||
+            (! _state->hq._data) ||
+            (! _state->hq._scales) ||
+            (! _state->_key_cache) ||
+            (! _state->_value_cache)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -79,7 +79,7 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
 }
 
 void free_state_ig4_1(state_ig4_1 *_state) {
-    if (!_state->allocated) {
+    if (! _state->allocated) {
         return;
     }
 
@@ -106,7 +106,7 @@ void free_state_ig4_1(state_ig4_1 *_state) {
 }
 
 void free_ig4_1(IG4_1 *_model) {
-    if (!_model) {
+    if (! _model) {
         return;
     }
     weights_ig4_1 *_weights = &(_model->weights);
@@ -124,7 +124,7 @@ void free_ig4_1(IG4_1 *_model) {
     free_qt_array(_weights->_w3, n_layer);
     free_qt(&(_weights->rms_final_weight));
 
-    if (!_model->config.tie_word_embeddings) {
+    if (! _model->config.tie_word_embeddings) {
         free_qt(&(_weights->wcls));
     }
 

@@ -845,7 +845,7 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
         autofree float *_f32 = (float *)a_calloc(max_elements * sizeof(float));
         autofree uint8_t *_q = (uint8_t *)a_calloc((max_elements * 3 + 3) / 4);
         autofree float *_s = (float *)a_calloc(rows_per_chunk * (size_t)num_groups * sizeof(float));
-        if ((!_raw) ||
+        if ((! _raw) ||
                 (! _f32) ||
                 (! _q) ||
                 (! _s)) {
@@ -1039,10 +1039,10 @@ q_type_t parse_q_type(const char *_type_s) {
     else if ((! strcmp(_type_s, "Q8")) || (! strcmp(_type_s, "q8"))) {
         return Q_TYPE_Q8;
     }
-    else if ((!strcmp(_type_s, "Q4")) || (!strcmp(_type_s, "q4"))) {
+    else if ((! strcmp(_type_s, "Q4")) || (! strcmp(_type_s, "q4"))) {
         return Q_TYPE_Q4;
     }
-    else if ((!strcmp(_type_s, "Q6")) || (!strcmp(_type_s, "q6"))) {
+    else if ((! strcmp(_type_s, "Q6")) || (! strcmp(_type_s, "q6"))) {
         return Q_TYPE_Q6;
     }
     else if ((! strcmp(_type_s, "Q4")) || (! strcmp(_type_s, "q4"))) {

@@ -14,7 +14,7 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
 
 int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
         return -1;
     }
@@ -72,15 +72,15 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((!_weights->_rms_att_weight) ||
-            (!_weights->_rms_ffn_weight) ||
-            (!_weights->_wq) ||
-            (!_weights->_wk) ||
-            (!_weights->_wv) ||
-            (!_weights->_wo) ||
-            (!_weights->_w1) ||
-            (!_weights->_w2) ||
-            (!_weights->_w3)) {
+    if ((! _weights->_rms_att_weight) ||
+            (! _weights->_rms_ffn_weight) ||
+            (! _weights->_wq) ||
+            (! _weights->_wk) ||
+            (! _weights->_wv) ||
+            (! _weights->_wo) ||
+            (! _weights->_w1) ||
+            (! _weights->_w2) ||
+            (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
         return -1;
@@ -111,7 +111,7 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
 
     read_qt(_file, &_weights->rms_final_weight);
 
-    if (!_config->tie_word_embeddings) {
+    if (! _config->tie_word_embeddings) {
         read_qt(_file, &_weights->wcls);
     } else {
         _weights->wcls = _weights->embed_tokens_weight;

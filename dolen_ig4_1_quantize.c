@@ -7,7 +7,7 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", _model_dir_s);
     FILE *_file = fopen(config_path, "rb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
@@ -16,7 +16,7 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
-    if ((!_json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
+    if ((! _json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
         free(_json_s);
         fclose(_file);
         return -1;
@@ -27,7 +27,7 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     char _error_s[256] = {0};
     JsonValue *_js_root = json_parse(_json_s, size, _error_s, sizeof(_error_s));
     free(_json_s);
-    if (!_js_root) {
+    if (! _js_root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
@@ -47,16 +47,16 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     if (_js_rope_params && (_js_rope_params->type == JSON_OBJECT)) {
         _js_rope_theta_value = json_object_get(_js_rope_params, "rope_theta");
     }
-    if (!_js_rope_theta_value) {
+    if (! _js_rope_theta_value) {
         _js_rope_theta_value = json_object_get(_js_root, "rope_theta");
     }
-    if (!_js_rope_theta_value) {
+    if (! _js_rope_theta_value) {
         log_msg(stderr, "ERROR: config.json has no rope_theta\n");
         json_free(_js_root);
         return -1;
     }
     _config->rope_theta = json_get_double(_js_rope_theta_value, 0.0);
-    if (!(_config->rope_theta > 1.0f)) {
+    if (! (_config->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in config.json\n", _config->rope_theta);
         json_free(_js_root);
         return -1;
@@ -106,7 +106,7 @@ int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     FILE *_file = fopen(_file_path_s, "wb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", _file_path_s);
         quantize_ctx_close(&_qt_ctx);
         return -1;
@@ -183,7 +183,7 @@ int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    if ((!_config->tie_word_embeddings) &&
+    if ((! _config->tie_word_embeddings) &&
             quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight", _config->vocab_size, _config->dim, embed_type)) {
         failed = 1;
         goto cleanup;
@@ -214,24 +214,24 @@ int main(int argc, char *__argv[]) {
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
-        if ((!strcmp(__argv[i], "--type")) && ((i + 1) < argc)) {
+        if ((! strcmp(__argv[i], "--type")) && ((i + 1) < argc)) {
             i += 1;
             q_type_t t = parse_q_type(__argv[i]);
             embed_type = attn_type = mlp_type = t;
         }
-        else if ((!strcmp(__argv[i], "--embed")) && ((i + 1) < argc)) {
+        else if ((! strcmp(__argv[i], "--embed")) && ((i + 1) < argc)) {
             i += 1;
             embed_type = parse_q_type(__argv[i]);
         }
-        else if ((!strcmp(__argv[i], "--attn")) && ((i + 1) < argc)) {
+        else if ((! strcmp(__argv[i], "--attn")) && ((i + 1) < argc)) {
             i += 1;
             attn_type = parse_q_type(__argv[i]);
         }
-        else if ((!strcmp(__argv[i], "--mlp")) && ((i + 1) < argc)) {
+        else if ((! strcmp(__argv[i], "--mlp")) && ((i + 1) < argc)) {
             i += 1;
             mlp_type = parse_q_type(__argv[i]);
         }
-        else if ((!strcmp(__argv[i], "--tokenizer")) && ((i + 1) < argc)) {
+        else if ((! strcmp(__argv[i], "--tokenizer")) && ((i + 1) < argc)) {
             i += 1;
             _tokenizer_path_s = __argv[i];
         }

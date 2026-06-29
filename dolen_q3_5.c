@@ -36,7 +36,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
 
 int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
         return -1;
     }
@@ -88,9 +88,9 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     _model->_attn_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
     _model->_deltanet_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
 
-    if ((!_model->_layer_types) ||
-            (!_model->_attn_layer_indices) ||
-            (!_model->_deltanet_layer_indices)) {
+    if ((! _model->_layer_types) ||
+            (! _model->_attn_layer_indices) ||
+            (! _model->_deltanet_layer_indices)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for layer indices\n");
         fclose(_file);
         return -1;
@@ -116,10 +116,10 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     _weights->_k_norm = (qtensor *)a_calloc((size_t)_config->n_full_attn_layers * sizeof(qtensor));
     _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
 
-    if ((!_weights->_rms_att_weight) ||
-            (!_weights->_q_norm) ||
-            (!_weights->_k_norm) ||
-            (!_weights->_rms_ffn_weight)) {
+    if ((! _weights->_rms_att_weight) ||
+            (! _weights->_q_norm) ||
+            (! _weights->_k_norm) ||
+            (! _weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate norm weights\n");
         fclose(_file);
         return -1;
@@ -136,10 +136,10 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     _weights->_wv = (qtensor *)a_calloc((size_t)_config->n_full_attn_layers * sizeof(qtensor));
     _weights->_wo = (qtensor *)a_calloc((size_t)_config->n_full_attn_layers * sizeof(qtensor));
 
-    if ((!_weights->_wq) ||
-            (!_weights->_wk) ||
-            (!_weights->_wv) ||
-            (!_weights->_wo)) {
+    if ((! _weights->_wq) ||
+            (! _weights->_wk) ||
+            (! _weights->_wv) ||
+            (! _weights->_wo)) {
         log_msg(stderr, "ERROR: Failed to allocate attention weights\n");
         fclose(_file);
         return -1;
@@ -170,15 +170,15 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
         _weights->_linear_norm = (qtensor *)a_calloc((size_t)_config->n_linear_attn_layers * sizeof(qtensor));
         _weights->_out_proj = (qtensor *)a_calloc((size_t)_config->n_linear_attn_layers * sizeof(qtensor));
 
-        if ((!_weights->_in_proj_qkv) ||
-                (!_weights->_in_proj_z) ||
-                (!_weights->_in_proj_b) ||
-                (!_weights->_in_proj_a) ||
-                (!_weights->_conv1d_weight) ||
-                (!_weights->_dt_bias) ||
-                (!_weights->_A_log) ||
-                (!_weights->_linear_norm) ||
-                (!_weights->_out_proj)) {
+        if ((! _weights->_in_proj_qkv) ||
+                (! _weights->_in_proj_z) ||
+                (! _weights->_in_proj_b) ||
+                (! _weights->_in_proj_a) ||
+                (! _weights->_conv1d_weight) ||
+                (! _weights->_dt_bias) ||
+                (! _weights->_A_log) ||
+                (! _weights->_linear_norm) ||
+                (! _weights->_out_proj)) {
             log_msg(stderr, "ERROR: Failed to allocate linear attention weights\n");
             fclose(_file);
             return -1;
@@ -218,9 +218,9 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     _weights->_w1 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    if ((!_weights->_w1) ||
-            (!_weights->_w2) ||
-            (!_weights->_w3)) {
+    if ((! _weights->_w1) ||
+            (! _weights->_w2) ||
+            (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate MLP weights\n");
         fclose(_file);
         return -1;
@@ -233,7 +233,7 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
 
     read_qt(_file, &_weights->rms_final_weight);
 
-    if (!_config->tie_word_embeddings) {
+    if (! _config->tie_word_embeddings) {
         read_qt(_file, &_weights->wcls);
     } else {
         _weights->wcls = _weights->embed_tokens_weight;
@@ -398,7 +398,7 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
     float *_conv_state = _state->_conv_state + (long long)ld * conv_dim * conv_kernel;
     float *_S = _state->_S + (long long)ld * n_v_heads * d_k * d_v;
 
-    if (!pos) {
+    if (! pos) {
         memset(_conv_state, 0, (size_t)conv_dim * conv_kernel * sizeof(float));
         memset(_S, 0, (size_t)n_v_heads * d_k * d_v * sizeof(float));
     }

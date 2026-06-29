@@ -94,30 +94,30 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
         _state->_sin_cache_sliding = NULL;
     }
 
-    if ((!_state->_x) ||
-            (!_state->_xb) ||
-            (!_state->_hb) ||
-            (!_state->_hb2) ||
-            (!_state->_q) ||
-            (!_state->_k) ||
-            (!_state->_k_raw) ||
-            (!_state->_v) ||
-            (!_state->_att) ||
-            (!_state->_logits) ||
-            (!_state->__key_cache) ||
-            (!_state->__value_cache) ||
-            (!_state->xq._data) ||
-            (!_state->xq._scales) ||
-            (!_state->hq._data) ||
-            (!_state->hq._scales)) {
+    if ((! _state->_x) ||
+            (! _state->_xb) ||
+            (! _state->_hb) ||
+            (! _state->_hb2) ||
+            (! _state->_q) ||
+            (! _state->_k) ||
+            (! _state->_k_raw) ||
+            (! _state->_v) ||
+            (! _state->_att) ||
+            (! _state->_logits) ||
+            (! _state->__key_cache) ||
+            (! _state->__value_cache) ||
+            (! _state->xq._data) ||
+            (! _state->xq._scales) ||
+            (! _state->hq._data) ||
+            (! _state->hq._scales)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
     if ((_config->seq_len > 1) &&
-            ((!_state->_cos_cache_full) ||
-            (!_state->_sin_cache_full) ||
-            (!_state->_cos_cache_sliding) ||
-            (!_state->_sin_cache_sliding))) {
+            ((! _state->_cos_cache_full) ||
+            (! _state->_sin_cache_full) ||
+            (! _state->_cos_cache_sliding) ||
+            (! _state->_sin_cache_sliding))) {
         log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
         exit(EXIT_FAILURE);
     }
@@ -125,7 +125,7 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
 }
 
 void free_state_g4(state_g4 *_state) {
-    if (!_state->allocated) {
+    if (! _state->allocated) {
         return;
     }
 
@@ -166,7 +166,7 @@ void free_state_g4(state_g4 *_state) {
 }
 
 void free_g4(G4 *_model) {
-    if (!_model) {
+    if (! _model) {
         return;
     }
 
