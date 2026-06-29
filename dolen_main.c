@@ -361,6 +361,13 @@ int main(int argc, char *__argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    uint64_t magic = peek_model_magic(_model_path_s);
+    if (! magic) {
+        log_msg(stderr, "ERROR: peek_model_magic(\"%s\") returned 0\n", _model_path_s);
+        exit(EXIT_FAILURE);
+    }
+
+
     if (! rng_seed) {
         rng_seed = (unsigned int)time(NULL);
     }
@@ -396,12 +403,6 @@ int main(int argc, char *__argv[]) {
         size_t read_bytes = fread(_prompt_s, 1, f_len, _file);
         _prompt_s[read_bytes] = '\0';
         fclose(_file);
-    }
-
-    uint64_t magic = peek_model_magic(_model_path_s);
-    if (! magic) {
-        log_msg(stderr, "ERROR: peek_model_magic(\"%s\") returned 0\n", _model_path_s);
-        exit(EXIT_FAILURE);
     }
 
     const char *_model_type_s = "unknown";
