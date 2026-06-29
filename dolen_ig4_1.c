@@ -1,29 +1,27 @@
 #include "dolen_ig4_1_common.h"
 
-
 static token_map SPECIAL_TOKENS_IG4_1[] = {
-    { "<|end_of_text|\x3e", 100257 },
-    { "<|start_of_role|\x3e", 100264 },
-    { "<|end_of_role|\x3e", 100265 },
-    { NULL, 0 },
+    {"<|end_of_text|>", 100257},
+    {"<|start_of_role|>", 100264},
+    {"<|end_of_role|>", 100265},
+    {NULL, 0},
 };
 
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    ._system_s = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n",
-    ._main_s = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s<|end_of_text|\x3e" "\n"
-            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
-    ._end_turn_s = "<|end_of_text|\x3e" "\n",
+    ._system_s = "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n",
+    ._main_s = "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
+             "<|start_of_role|>assistant<|end_of_role|>",
+    ._end_turn_s = "<|end_of_text|>\n",
 };
 
-
-int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model_ig4_1, int seq_n_max) {
+int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
         return -1;
     }
 
-    memset(_model_ig4_1, 0, sizeof(IG4_1));
+    memset(_model, 0, sizeof(IG4_1));
 
     uint64_t magic;
     uint32_t version;
@@ -41,28 +39,28 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model_ig4_1, int seq_
         return -1;
     }
 
-    if (version != 2) {
+    if (version != 3) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, _file_path_s);
         fclose(_file);
         return -1;
     }
 
-    if (fread(&(_model_ig4_1->config), sizeof(config_ig4_1), 1, _file) != 1) {
+    if (fread(&(_model->config), sizeof(config_ig4_1), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", _file_path_s);
         fclose(_file);
         return -1;
     }
 
-    if (tokenizer_read_from_file(_file, _model_ig4_1->config.vocab_size, &(_model_ig4_1->tokenizer))) {
+    if (tokenizer_read_from_file(_file, _model->config.vocab_size, &(_model->tokenizer))) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
         return -1;
     }
 
-    config_ig4_1 *_config = &(_model_ig4_1->config);
-    weights_ig4_1 *_weights = &(_model_ig4_1->weights);
+    config_ig4_1 *_config = &(_model->config);
+    weights_ig4_1 *_weights = &(_model->weights);
 
-    if (! (_config->rope_theta > 1.0f)) {
+    if (!(_config->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", _config->rope_theta);
         fclose(_file);
         return -1;
@@ -75,7 +73,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model_ig4_1, int seq_
     read_qt(_file, &(_weights->embed_tokens_weight));
 
     _weights->_rms_att_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    if (! _weights->_rms_att_weight) {
+    if (!_weights->_rms_att_weight) {
         log_msg(stderr, "ERROR: Failed to allocate rms_att_weight\n");
         fclose(_file);
         return -1;
@@ -97,7 +95,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model_ig4_1, int seq_
     }
 
     _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    if (! _weights->_rms_ffn_weight) {
+    if (!_weights->_rms_ffn_weight) {
         log_msg(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
         fclose(_file);
         return -1;
@@ -117,7 +115,7 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model_ig4_1, int seq_
 
     read_qt(_file, &(_weights->rms_final_weight));
 
-    if (! _config->tie_word_embeddings) {
+    if (!_config->tie_word_embeddings) {
         read_qt(_file, &(_weights->wcls));
     }
     else {
@@ -126,14 +124,14 @@ int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model_ig4_1, int seq_
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-    alloc_state_ig4_1(&(_model_ig4_1->state), &(_model_ig4_1->config));
+    alloc_state_ig4_1(&(_model->state), &(_model->config));
     return 0;
 }
 
-void forward_ig4_1_attention_layer(IG4_1 *_model_ig4_1, int l, int pos) {
-    config_ig4_1 *_config = &(_model_ig4_1->config);
-    weights_ig4_1 *_weights = &(_model_ig4_1->weights);
-    state_ig4_1 *_state = &(_model_ig4_1->state);
+void forward_ig4_1_attention_layer(IG4_1 *_model, int l, int pos) {
+    config_ig4_1 *_config = &(_model->config);
+    weights_ig4_1 *_weights = &(_model->weights);
+    state_ig4_1 *_state = &(_model->state);
     float *_x = _state->_x;
     int dim = _config->dim;
     int head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
@@ -231,10 +229,10 @@ void forward_ig4_1_attention_layer(IG4_1 *_model_ig4_1, int l, int pos) {
     }
 }
 
-void forward_ig4_1_mlp_layer(IG4_1 *_model_ig4_1, int l) {
-    config_ig4_1 *_config = &(_model_ig4_1->config);
-    weights_ig4_1 *_weights = &(_model_ig4_1->weights);
-    state_ig4_1 *_state = &(_model_ig4_1->state);
+void forward_ig4_1_mlp_layer(IG4_1 *_model, int l) {
+    config_ig4_1 *_config = &(_model->config);
+    weights_ig4_1 *_weights = &(_model->weights);
+    state_ig4_1 *_state = &(_model->state);
     float *_x = _state->_x;
     int dim = _config->dim;
     int hidden_dim = _config->n_mlp;
@@ -264,10 +262,10 @@ void forward_ig4_1_mlp_layer(IG4_1 *_model_ig4_1, int l) {
     }
 }
 
-float *forward_ig4_1(IG4_1 *_model_ig4_1, int token, int pos) {
-    config_ig4_1 *_config = &(_model_ig4_1->config);
-    weights_ig4_1 *_weights = &(_model_ig4_1->weights);
-    state_ig4_1 *_state = &(_model_ig4_1->state);
+float *forward_ig4_1(IG4_1 *_model, int token, int pos) {
+    config_ig4_1 *_config = &(_model->config);
+    weights_ig4_1 *_weights = &(_model->weights);
+    state_ig4_1 *_state = &(_model->state);
     float *_x = _state->_x;
     int dim = _config->dim;
 
@@ -282,8 +280,8 @@ float *forward_ig4_1(IG4_1 *_model_ig4_1, int token, int pos) {
     }
 
     for (int l = 0; l < _config->n_layer; l++) {
-        forward_ig4_1_attention_layer(_model_ig4_1, l, pos);
-        forward_ig4_1_mlp_layer(_model_ig4_1, l);
+        forward_ig4_1_attention_layer(_model, l, pos);
+        forward_ig4_1_mlp_layer(_model, l);
     }
 
     rmsnorm(_x, _x, (float *)_weights->rms_final_weight._data, dim, _config->rms_norm_eps);
@@ -296,8 +294,7 @@ float *forward_ig4_1(IG4_1 *_model_ig4_1, int token, int pos) {
     }
 
     float logit_scale = _config->logits_scaling;
-    if ((logit_scale != 0.0f) &&
-            (logit_scale != 1.0f)) {
+    if ((logit_scale != 0.0f) && (logit_scale != 1.0f)) {
 #pragma omp simd
         for (int i = 0; i < _config->vocab_size; i++) {
             _state->_logits[i] /= logit_scale;
@@ -329,10 +326,11 @@ model_iface *init_ig4_1(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
+    // Map dynamically from config instead of hardcoding Granite specific IDs
     _model->tokenizer._tokens_special = SPECIAL_TOKENS_IG4_1;
-    _model->tokenizer.bos_id = 0;
-    _model->tokenizer.eos_id = 100257;
-    _model->tokenizer.im_end_id = 100257;
+    _model->tokenizer.bos_id = _model->config.bos_token_id;
+    _model->tokenizer.eos_id = _model->config.eos_token_id;
+    _model->tokenizer.im_end_id = _model->config.eos_token_id;
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
     *_model_i = (model_iface){

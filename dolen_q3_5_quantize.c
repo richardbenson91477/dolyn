@@ -1,9 +1,8 @@
 #include "dolen_quantize_common.h"
 #include "dolen_q3_5_common.h"
 
-
 static int get_layer_type(int layer_idx, const JsonValue *_layer_types) {
-    if ((! _layer_types) ||
+    if ((!_layer_types) ||
             (_layer_types->type != JSON_ARRAY)) {
         return 0;
     }
@@ -11,24 +10,24 @@ static int get_layer_type(int layer_idx, const JsonValue *_layer_types) {
         return 0;
     }
     JsonValue *_js_lt = json_array_get(_layer_types, layer_idx);
-    if ((! _js_lt) ||
+    if ((!_js_lt) ||
             (_js_lt->type != JSON_STRING)) {
         return 0;
     }
     const char *_type_s = _js_lt->data.string;
-    if (! strcmp(_type_s, "linear_attention")) {
+    if (!strcmp(_type_s, "linear_attention")) {
         return 1;
     }
     return 0;
 }
 
 int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
-    config_q3_5 *_config = &(_model->config);
+    config_q3_5 *_config = &_model->config;
 
     char _config_path_s[PATH_MAX];
     snprintf(_config_path_s, sizeof(_config_path_s), "%s/config.json", _model_dir_s);
     FILE *_file = fopen(_config_path_s, "rb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", _config_path_s);
         return -1;
     }
@@ -37,7 +36,7 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_str = (char *)a_calloc(size + 1);
-    if ((! _json_str) ||
+    if ((!_json_str) ||
             (fread(_json_str, 1, size, _file) != (size_t)size)) {
         free(_json_str);
         fclose(_file);
@@ -46,16 +45,16 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     _json_str[size] = '\0';
     fclose(_file);
 
-    char _error_s[256] = { 0 };
+    char _error_s[256] = {0};
     JsonValue *_js_root = json_parse(_json_str, size, _error_s, sizeof(_error_s));
     free(_json_str);
-    if (! _js_root) {
+    if (!_js_root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
 
     JsonValue *_js_cfg = json_object_get(_js_root, "text_config");
-    if (! _js_cfg) {
+    if (!_js_cfg) {
         _js_cfg = _js_root;
     }
 
@@ -66,7 +65,7 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     _config->n_kv_heads = json_get_int(json_object_get(_js_cfg, "num_key_value_heads"), _config->n_heads);
     _config->n_layer = json_get_int(json_object_get(_js_cfg, "num_hidden_layers"), 24);
     _config->n_mlp = json_get_int(json_object_get(_js_cfg, "intermediate_size"), 4864);
-    if (! _config->n_mlp) {
+    if (!_config->n_mlp) {
         _config->n_mlp = json_get_int(json_object_get(_js_cfg, "shared_expert_intermediate_size"), 4864);
     }
     _config->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 151936);
@@ -85,13 +84,17 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     _config->d_linear_v = json_get_int(json_object_get(_js_cfg, "linear_value_head_dim"), 0);
     _config->linear_conv_kernel = json_get_int(json_object_get(_js_cfg, "linear_conv_kernel_dim"), 4);
 
+    // Extract Token IDs dynamically
+    _config->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 0);
+    _config->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 248044);
+
     _model->_layer_types = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
     _model->_attn_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
     _model->_deltanet_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
 
-    if ((! _model->_layer_types) ||
-            (! _model->_attn_layer_indices) ||
-            (! _model->_deltanet_layer_indices)) {
+    if ((!_model->_layer_types) ||
+            (!_model->_attn_layer_indices) ||
+            (!_model->_deltanet_layer_indices)) {
         log_msg(stderr, "ERROR: Failed to allocate layer type arrays\n");
         free(_model->_layer_types);
         free(_model->_attn_layer_indices);
@@ -111,8 +114,7 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         if (is_linear == 1) {
             _model->_deltanet_layer_indices[i] = ld++;
             _config->n_linear_attn_layers++;
-        }
-        else {
+        } else {
             _model->_attn_layer_indices[i] = la++;
             _config->n_full_attn_layers++;
         }
@@ -152,7 +154,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     FILE *_file = fopen(_file_path_s, "wb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", _file_path_s);
         quantize_ctx_close(&qt_ctx);
         free(model._layer_types);
@@ -172,7 +174,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
     int attn_out_dim = _config->n_heads * head_size;
 
     uint64_t magic = MAGIC_Q3_5;
-    uint32_t version = 2;
+    uint32_t version = 3; // Bumped from 2 to 3
 
     int failed = 0;
 
@@ -230,7 +232,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     for (int l = 0; l < _config->n_layer; l++) {
-        if (! model._layer_types[l] &&
+        if (!model._layer_types[l] &&
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
                     1, head_size, Q_TYPE_F32)) {
             failed = 1;
@@ -238,7 +240,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
     for (int l = 0; l < _config->n_layer; l++) {
-        if (! model._layer_types[l] &&
+        if (!model._layer_types[l] &&
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
                     1, head_size, Q_TYPE_F32)) {
             failed = 1;
@@ -342,7 +344,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    if ((! _config->tie_word_embeddings) &&
+    if ((!_config->tie_word_embeddings) &&
             quantize_write_tensor(&qt_ctx, _file, "lm_head.weight",
                     _config->vocab_size, _config->dim, embed_type)) {
         failed = 1;
@@ -377,28 +379,28 @@ int main(int argc, char *__argv[]) {
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(__argv[i], "--type")) &&
+        if ((!strcmp(__argv[i], "--type")) &&
                 ((i + 1) < argc)) {
             i += 1;
             q_type_t t = parse_q_type(__argv[i]);
             embed_type = attn_type = mlp_type = t;
         }
-        else if ((! strcmp(__argv[i], "--embed")) &&
+        else if ((!strcmp(__argv[i], "--embed")) &&
                 ((i + 1) < argc)) {
             i += 1;
             embed_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(__argv[i], "--attn")) &&
+        else if ((!strcmp(__argv[i], "--attn")) &&
                 ((i + 1) < argc)) {
             i += 1;
             attn_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(__argv[i], "--mlp")) &&
+        else if ((!strcmp(__argv[i], "--mlp")) &&
                 ((i + 1) < argc)) {
             i += 1;
             mlp_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(__argv[i], "--tokenizer")) &&
+        else if ((!strcmp(__argv[i], "--tokenizer")) &&
                 ((i + 1) < argc)) {
             i += 1;
             _tokenizer_path_s = __argv[i];
@@ -408,4 +410,3 @@ int main(int argc, char *__argv[]) {
     return quantize_q3_5_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

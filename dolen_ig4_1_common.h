@@ -1,13 +1,11 @@
 #ifndef DOLEN_IG4_1_COMMON_H
 #define DOLEN_IG4_1_COMMON_H
 
-
 #include "dolen_common_cmi.h"
 #include "dolen_common_io.h"
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
-
 
 typedef struct {
     int dim;
@@ -26,6 +24,9 @@ typedef struct {
     float attention_multiplier;
     float residual_multiplier;
     float logits_scaling;
+
+    int bos_token_id;
+    int eos_token_id;
 } config_ig4_1;
 
 typedef struct {
@@ -70,13 +71,8 @@ typedef struct {
     tokenizer tokenizer;
 } IG4_1;
 
-
 void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config);
-
 void free_state_ig4_1(state_ig4_1 *_state);
-
-void free_ig4_1(IG4_1 *_model_ig4_1);
-
+void free_ig4_1(IG4_1 *_model);
 
 #endif // DOLEN_IG4_1_COMMON_H
-

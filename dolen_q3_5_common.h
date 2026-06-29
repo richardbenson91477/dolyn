@@ -1,13 +1,11 @@
 #ifndef DOLEN_Q3_5_COMMON_H
 #define DOLEN_Q3_5_COMMON_H
 
-
 #include "dolen_common_cmi.h"
 #include "dolen_common_io.h"
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
-
 
 typedef struct {
     int dim;
@@ -25,10 +23,12 @@ typedef struct {
     int n_linear_k_heads;
     int n_linear_v_heads;
     int d_linear_k;
-    int d_linear_v; 
+    int d_linear_v;  
     int linear_conv_kernel;
     int n_full_attn_layers;
     int n_linear_attn_layers;
+    int bos_token_id;
+    int eos_token_id;
 } config_q3_5;
 
 typedef struct {
@@ -96,13 +96,8 @@ typedef struct {
     int *_deltanet_layer_indices;
 } Q3_5;
 
-
 void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config);
-
 void free_state_q3_5(state_q3_5 *_state);
-
-void free_q3_5(Q3_5 *_model_q3_5);
-
+void free_q3_5(Q3_5 *_model);
 
 #endif // DOLEN_Q3_5_COMMON_H
-

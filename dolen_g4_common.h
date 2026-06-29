@@ -1,13 +1,11 @@
 #ifndef DOLEN_G4_COMMON_H
 #define DOLEN_G4_COMMON_H
 
-
 #include "dolen_common_cmi.h"
 #include "dolen_common_io.h"
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
-
 
 typedef struct {
     int dim;
@@ -30,6 +28,8 @@ typedef struct {
     int attention_k_eq_v;
     int original_max_seq_len;
     int use_rope_freqs;
+    int bos_token_id;
+    int eos_token_id;
 } config_g4;
 
 typedef struct {
@@ -66,7 +66,7 @@ typedef struct {
     float **__key_cache;
     float **__value_cache;
     qtensor xq;
-    qtensor hq; 
+    qtensor hq;
     float *_cos_cache_full;
     float *_sin_cache_full;
     float *_cos_cache_sliding;
@@ -83,17 +83,10 @@ typedef struct {
     int *_layer_types;
 } G4;
 
-
 void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *_layer_types);
-
 void free_state_g4(state_g4 *_state);
-
 void free_g4(G4 *_model);
-
 int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max);
-
 float *forward_g4(G4 *_model, int token, int pos);
 
-
 #endif // DOLEN_G4_COMMON_H
-

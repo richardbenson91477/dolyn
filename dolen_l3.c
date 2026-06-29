@@ -1,6 +1,5 @@
 #include "dolen_l3_common.h"
 
-
 static const chat_template CHAT_TEMPLATE_L3 = {
     ._system_s = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n%s<|eot_id|>",
     ._main_s = "<|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
@@ -13,10 +12,9 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
     ._end_turn_s = "<|eot_id|>",
 };
 
-
 int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
         return -1;
     }
@@ -39,8 +37,8 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
         return -1;
     }
 
-    if (version != 1) {
-        log_msg(stderr, "ERROR: Unsupported version %u (expected 1)\n", version);
+    if (version != 2) {
+        log_msg(stderr, "ERROR: Unsupported version %u (expected 2)\n", version);
         fclose(_file);
         return -1;
     }
@@ -74,15 +72,15 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((! _weights->_rms_att_weight) ||
-            (! _weights->_rms_ffn_weight) ||
-            (! _weights->_wq) ||
-            (! _weights->_wk) ||
-            (! _weights->_wv) ||
-            (! _weights->_wo) ||
-            (! _weights->_w1) ||
-            (! _weights->_w2) ||
-            (! _weights->_w3)) {
+    if ((!_weights->_rms_att_weight) ||
+            (!_weights->_rms_ffn_weight) ||
+            (!_weights->_wq) ||
+            (!_weights->_wk) ||
+            (!_weights->_wv) ||
+            (!_weights->_wo) ||
+            (!_weights->_w1) ||
+            (!_weights->_w2) ||
+            (!_weights->_w3)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
         return -1;
@@ -113,7 +111,7 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
 
     read_qt(_file, &_weights->rms_final_weight);
 
-    if (! _config->tie_word_embeddings) {
+    if (!_config->tie_word_embeddings) {
         read_qt(_file, &_weights->wcls);
     } else {
         _weights->wcls = _weights->embed_tokens_weight;
@@ -189,16 +187,16 @@ float *forward_l3(L3 *_model, int token, int pos) {
                 }
                 _att[t] = score * inv_sqrt_head;
             }
-            softmax(_att, pos + 1);
+            softmax(_att, pos + 1); 
 
-            float *_file = _state->_xb + h * head_size; 
-            memset(_file, 0, head_size * sizeof(float));
+            float *_x_out = _state->_xb + h * head_size; 
+            memset(_x_out, 0, head_size * sizeof(float));
             for (int t = 0; t <= pos; t++) {
                 float *_v = _state->__value_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
                 float a = _att[t];
 #pragma omp simd
                 for (int i = 0; i < head_size; i++) {
-                    _file[i] += a * _v[i];
+                    _x_out[i] += a * _v[i];
                 }
             }
         }
@@ -262,9 +260,10 @@ model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
-    _model->tokenizer1.bos_id = 128000; // <|begin_of_text|>
-    _model->tokenizer1.eos_id = 128001; // <|end_of_text|>
-    _model->tokenizer1.im_end_id = 128009; // <|eot_id|>
+    // Dynamically map Token IDs from the embedded configuration
+    _model->tokenizer1.bos_id = _model->config.bos_token_id;
+    _model->tokenizer1.eos_id = _model->config.eos_token_id;
+    _model->tokenizer1.im_end_id = _model->config.eos_token_id;
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
     *_model_i = (model_iface){
@@ -278,4 +277,3 @@ model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_) {
 
     return _model_i;
 }
-

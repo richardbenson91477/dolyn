@@ -1,47 +1,45 @@
 #include "dolen_q3_common.h"
 
-
 static token_map SPECIAL_TOKENS_Q3[] = {
-    {"<|endoftext|\x3e", 151643},
-    {"<|im_start|\x3e", 151644},
-    {"<|im_end|\x3e", 151645},
-    {"<|object_ref_start|\x3e", 151646},
-    {"<|object_ref_end|\x3e", 151647},
-    {"<|box_start|\x3e", 151648},
-    {"<|box_end|\x3e", 151649},
-    {"<|quad_start|\x3e", 151650},
-    {"<|quad_end|\x3e", 151651},
-    {"<|vision_start|\x3e", 151652},
-    {"<|vision_end|\x3e", 151653},
-    {"<|vision_pad|\x3e", 151654},
-    {"<|image_pad|\x3e", 151655},
-    {"<|video_pad|\x3e", 151656},
+    {"<|endoftext|>", 151643},
+    {"<|im_start|>", 151644},
+    {"<|im_end|>", 151645},
+    {"<|object_ref_start|>", 151646},
+    {"<|object_ref_end|>", 151647},
+    {"<|box_start|>", 151648},
+    {"<|box_end|>", 151649},
+    {"<|quad_start|>", 151650},
+    {"<|quad_end|>", 151651},
+    {"<|vision_start|>", 151652},
+    {"<|vision_end|>", 151653},
+    {"<|vision_pad|>", 151654},
+    {"<|image_pad|>", 151655},
+    {"<|video_pad|>", 151656},
     {NULL, 0}
 };
 
 static const chat_template CHAT_TEMPLATE_Q3 = {
-    ._system_s = "<|im_start|\x3e" "system\n/no_think\n%s<|im_end|\x3e" "\n",
-    ._main_s = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n",
-    ._end_turn_s = "<|im_end|\x3e" "\n",
+    ._system_s = "<|im_start|>system\n/no_think\n%s<|im_end|>\n",
+    ._main_s = "<|im_start|>user\n%s<|im_end|>\n"
+             "<|im_start|>assistant\n",
+    ._end_turn_s = "<|im_end|>\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
-    ._system_s = "<|im_start|\x3e" "system\n/think\n%s<|im_end|\x3e" "\n",
-    ._main_s = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant<think\x3e" "\n",
-    ._end_turn_s = "<|im_end|\x3e" "\n",
+    ._system_s = "<|im_start|>system\n/think\n%s<|im_end|>\n",
+    ._main_s = "<|im_start|>user\n%s<|im_end|>\n"
+             "<|im_start|>assistant<think>\n",
+    ._end_turn_s = "<|im_end|>\n",
 };
 
-
-int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
+int load_quantized_q3(const char *_file_path_s, Q3 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
         return -1;
     }
 
-    memset(_model_q3, 0, sizeof(Q3));
+    memset(_model, 0, sizeof(Q3));
 
     uint64_t magic;
     uint32_t version;
@@ -59,13 +57,13 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
         return -1;
     }
 
-    if (version != 2) {
+    if (version != 3) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, _file_path_s);
         fclose(_file);
         return -1;
     }
 
-    config_q3 *_config = &_model_q3->config;
+    config_q3 *_config = &_model->config;
 
     if (fread(_config, sizeof(config_q3), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", _file_path_s);
@@ -73,13 +71,13 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
         return -1;
     }
 
-    if (tokenizer_read_from_file(_file, _config->vocab_size, &_model_q3->tokenizer1)) {
+    if (tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
         return -1;
     }
 
-    weights_q3 *_weights = &_model_q3->weights;
+    weights_q3 *_weights = &_model->weights;
 
     if (seq_n_max) {
         _config->seq_len = seq_n_max;
@@ -91,10 +89,10 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
     _weights->_q_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_k_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((! _weights->_rms_att_weight) ||
-            (! _weights->_rms_ffn_weight) ||
-            (! _weights->_q_norm) ||
-            (! _weights->_k_norm)) {
+    if ((!_weights->_rms_att_weight) ||
+            (!_weights->_rms_ffn_weight) ||
+            (!_weights->_q_norm) ||
+            (!_weights->_k_norm)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for weights\n");
         fclose(_file);
         return -1;
@@ -118,10 +116,9 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
         read_qt(_file, &_weights->_k_norm[l]);
     }
 
-    if (! _config->shared_classifier) {
+    if (!_config->shared_classifier) {
         read_qt(_file, &_weights->wcls);
-    }
-    else {
+    } else {
         _weights->wcls = _weights->embed_tokens_weight;
     }
 
@@ -133,13 +130,13 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((! _weights->_wq) ||
-            (! _weights->_wk) ||
-            (! _weights->_wv) ||
-            (! _weights->_wo) ||
-            (! _weights->_w1) ||
-            (! _weights->_w2) ||
-            (! _weights->_w3)) {
+    if ((!_weights->_wq) ||
+            (!_weights->_wk) ||
+            (!_weights->_wv) ||
+            (!_weights->_wo) ||
+            (!_weights->_w1) ||
+            (!_weights->_w2) ||
+            (!_weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
         return -1;
@@ -158,15 +155,15 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model_q3, int seq_n_max) {
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
 
-    alloc_state_q3(&(_model_q3->state), &(_model_q3->config));
+    alloc_state_q3(&(_model->state), &(_model->config));
 
     return 0;
 }
 
-float *forward_q3(Q3 *_model_q3, int token, int pos) {
-    config_q3 *_config = &_model_q3->config;
-    weights_q3 *_weights = &_model_q3->weights;
-    state_q3 *_state = &_model_q3->state;
+float *forward_q3(Q3 *_model, int token, int pos) {
+    config_q3 *_config = &_model->config;
+    weights_q3 *_weights = &_model->weights;
+    state_q3 *_state = &_model->state;
     int kv_dim = _config->n_kv_heads * _config->head_dim;
     int kv_mul = _config->n_heads / _config->n_kv_heads;
     int all_heads_dim = _config->n_heads * _config->head_dim;
@@ -187,8 +184,7 @@ float *forward_q3(Q3 *_model_q3, int token, int pos) {
 
         int rotary_half = _config->head_dim / 2;
 
-        if ((rotary_half > 0) &&
-                (_state->_cos_cache != NULL)) {
+        if ((rotary_half > 0) && (_state->_cos_cache != NULL)) {
             float *_cos_row = _state->_cos_cache + pos * rotary_half;
             float *_sin_row = _state->_sin_cache + pos * rotary_half;
 
@@ -219,8 +215,7 @@ float *forward_q3(Q3 *_model_q3, int token, int pos) {
                     _k[j + rotary_half] = x_val * sn + y_val * c;
                 }
             }
-        }
-        else {
+        } else {
 #pragma omp parallel for
             for (int h = 0; h < _config->n_heads; h++) {
                 float *_q = _state->_q + h * _config->head_dim;
@@ -340,10 +335,11 @@ model_iface *init_q3(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
+    // Map dynamically from config instead of hardcoding Qwen3 specific IDs
     _model->tokenizer1._tokens_special = SPECIAL_TOKENS_Q3;
-    _model->tokenizer1.bos_id = 0;
-    _model->tokenizer1.eos_id = 151645;
-    _model->tokenizer1.im_end_id = 151645;
+    _model->tokenizer1.bos_id = _model->config.bos_token_id;
+    _model->tokenizer1.eos_id = _model->config.eos_token_id;
+    _model->tokenizer1.im_end_id = _model->config.eos_token_id;
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
     *_model_i = (model_iface){
@@ -356,4 +352,3 @@ model_iface *init_q3(const char *_model_path_s, int seq_n_max, bool think_) {
     };
     return _model_i;
 }
-

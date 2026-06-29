@@ -1,13 +1,11 @@
 #ifndef DOLEN_Q3_COMMON_H
 #define DOLEN_Q3_COMMON_H
 
-
 #include "dolen_common_cmi.h"
 #include "dolen_common_io.h"
 #include "dolen_common_math.h"
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
-
 
 typedef struct {
     int dim;
@@ -22,11 +20,13 @@ typedef struct {
     float rope_theta;
     float rope_scaling_factor;
     float rms_norm_eps;
+    int bos_token_id;
+    int eos_token_id;
 } config_q3;
 
 typedef struct {
     qtensor embed_tokens_weight;
-    qtensor *_rms_att_weight; 
+    qtensor *_rms_att_weight;
     qtensor *_rms_ffn_weight;
     qtensor *_wq;
     qtensor *_wk;
@@ -67,13 +67,8 @@ typedef struct {
     tokenizer tokenizer1;
 } Q3;
 
-
 void alloc_state_q3(state_q3 *_state, config_q3 *_config);
-
 void free_state_q3(state_q3 *_state);
-
-void free_q3(Q3 *t);
-
+void free_q3(Q3 *_model);
 
 #endif // DOLEN_Q3_COMMON_H
-

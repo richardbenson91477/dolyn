@@ -7,7 +7,7 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", _model_dir_s);
     FILE *_file = fopen(config_path, "rb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
         return -1;
     }
@@ -16,8 +16,7 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
-    if ((! _json_s) ||
-            (fread(_json_s, 1, size, _file) != (size_t)size)) {
+    if ((!_json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
         free(_json_s);
         fclose(_file);
         return -1;
@@ -28,13 +27,13 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
     char _error_s[256] = {0};
     JsonValue *_js_root = json_parse(_json_s, size, _error_s, sizeof(_error_s));
     free(_json_s);
-    if (! _js_root) {
+    if (!_js_root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
 
     JsonValue *_js_cfg = json_object_get(_js_root, "text_config");
-    if (! _js_cfg) {
+    if (!_js_cfg) {
         _js_cfg = _js_root;
     }
 
@@ -58,6 +57,10 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
             p->rope_theta = json_get_double(json_object_get(_js_rope_params, "rope_theta"), 10000.0);
         }
     }
+
+    // Extract Token IDs dynamically
+    p->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 128000);
+    p->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 128001);
 
     json_free(_js_root);
     log_msg(stdout, "INFO: L3 config loaded\n");
@@ -90,7 +93,7 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     FILE *_file = fopen(_file_path_s, "wb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
         quantize_ctx_close(&qt_ctx);
         return -1;
@@ -102,7 +105,7 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
     int q_dim = p->n_heads * head_size;
 
     uint64_t magic = MAGIC_L3;
-    uint32_t version = 1;
+    uint32_t version = 2; // Bumped from 1 to 2 to account for config_l3 struct size change
     int failed = 0;
 
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
@@ -166,7 +169,7 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    if (! p->tie_word_embeddings &&
+    if (!p->tie_word_embeddings &&
             quantize_write_tensor(&qt_ctx, _file, "lm_head.weight", p->vocab_size, p->dim, embed_type)) {
         failed = 1;
         goto cleanup;
@@ -190,37 +193,32 @@ cleanup:
 
 int main(int argc, char *__argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file>" \
-                "[--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> " \
+                 "[--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n", __argv[0]);
         return EXIT_FAILURE;
     }
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *_tokenizer_path_s = "tokenizer.bin";
     for (int i = 3; i < argc; i++) {
-        if ((! strcmp(__argv[i], "--type")) &&
-                ((i + 1) < argc)) {
+        if ((!strcmp(__argv[i], "--type")) && ((i + 1) < argc)) {
             i += 1;
             q_type_t t = parse_q_type(__argv[i]);
             embed_type = attn_type = mlp_type = t;
         }
-        else if ((! strcmp(__argv[i], "--embed") &&
-                    ((i + 1) < argc))) {
+        else if ((!strcmp(__argv[i], "--embed")) && ((i + 1) < argc)) {
             i += 1;
             embed_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(__argv[i], "--attn") &&
-                    ((i + 1) < argc))) {
+        else if ((!strcmp(__argv[i], "--attn")) && ((i + 1) < argc)) {
             i += 1;
             attn_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(__argv[i], "--mlp") &&
-                    ((i + 1) < argc))) {
+        else if ((!strcmp(__argv[i], "--mlp")) && ((i + 1) < argc)) {
             i += 1;
             mlp_type = parse_q_type(__argv[i]);
         }
-        else if ((! strcmp(__argv[i], "--tokenizer") &&
-                    ((i + 1) < argc))) {
+        else if ((!strcmp(__argv[i], "--tokenizer")) && ((i + 1) < argc)) {
             i += 1;
             _tokenizer_path_s = __argv[i];
         }
@@ -229,4 +227,3 @@ int main(int argc, char *__argv[]) {
     return quantize_l3_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
-

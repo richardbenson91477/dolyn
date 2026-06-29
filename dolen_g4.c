@@ -1,25 +1,23 @@
 #include "dolen_g4_common.h"
 
-
 static const chat_template CHAT_TEMPLATE_G4 = {
-    ._system_s = "<|turn\x3e" "system\n%s<turn|\x3e" "\n",
-    ._main_s = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
-            "<|turn\x3e" "model\n"
-            "<|channel\x3e" "thought\n<channel|\x3e",
-    ._end_turn_s = "<turn|\x3e" "\n",
+    ._system_s = "<|turn|>system\n%s<turn|>\n",
+    ._main_s = "<|turn|>user\n%s<turn|>\n"
+             "<|turn|>model\n"
+             "<|channel|>thought\n<channel|>",
+    ._end_turn_s = "<turn|>\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_G4 = {
-    ._system_s = "<|turn\x3e" "system\n<|think|\x3e" "%s<turn|\x3e" "\n",
-    ._main_s = "<|turn\x3e" "user\n%s<turn|\x3e" "\n"
-            "<|turn\x3e" "model\n",
-    ._end_turn_s = "<turn|\x3e" "\n",
+    ._system_s = "<|turn|>system\n<|think|>%s<turn|>\n",
+    ._main_s = "<|turn|>user\n%s<turn|>\n"
+             "<|turn|>model\n",
+    ._end_turn_s = "<turn|>\n",
 };
-
 
 int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max) {
     FILE *_file = fopen(_path_s, "rb");
-    if (! _file) {
+    if (!_file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _path_s);
         return -1;
     }
@@ -42,8 +40,8 @@ int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max) {
         return -1;
     }
 
-    if (version != 5) {
-        log_msg(stderr, "ERROR: Unsupported version %u (expected 5). RE-RUN QUANTIZER.\n", version);
+    if (version != 6) {
+        log_msg(stderr, "ERROR: Unsupported version %u (expected 6). RE-RUN QUANTIZER.\n", version);
         fclose(_file);
         return -1;
     }
@@ -82,12 +80,12 @@ int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max) {
     _weights->_rms_q_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_k_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if (! _weights->_rms_input_layernorm ||
-            (! _weights->_rms_post_attn_layernorm) ||
-            (! _weights->_rms_pre_ffn_layernorm) ||
-            (! _weights->_rms_post_ffn_layernorm) ||
-            (! _weights->_rms_q_norm) ||
-            (! _weights->_rms_k_norm)) {
+    if (!_weights->_rms_input_layernorm ||
+            (!_weights->_rms_post_attn_layernorm) ||
+            (!_weights->_rms_pre_ffn_layernorm) ||
+            (!_weights->_rms_post_ffn_layernorm) ||
+            (!_weights->_rms_q_norm) ||
+            (!_weights->_rms_k_norm)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
         return -1;
@@ -183,14 +181,12 @@ float *forward_g4(G4 *_model, int token, int pos) {
     float eps = _config->rms_norm_eps;
     float embed_scale = sqrtf((float)dim);
 
-    if (token < 0 ||
-            token >= _config->vocab_size) {
+    if (token < 0 || token >= _config->vocab_size) {
         log_msg(stderr, "ERROR: token %d is outside vocabulary [0, %d)\n", token, _config->vocab_size);
         exit(EXIT_FAILURE);
     }
 
-    if (pos < 0 ||
-            pos >= _config->seq_len) {
+    if (pos < 0 || pos >= _config->seq_len) {
         log_msg(stderr, "ERROR: position %d is outside KV cache [0, %d)\n", pos, _config->seq_len);
         exit(EXIT_FAILURE);
     }
@@ -229,8 +225,7 @@ float *forward_g4(G4 *_model, int token, int pos) {
 
         if (use_alternative_attention) {
             memcpy(_state->_v, _state->_k_raw, kv_dim * sizeof(float));
-        }
-        else {
+        } else {
             matmul_qq(_state->_v, &_state->xq, &_weights->_v_proj[l]);
         }
 
@@ -238,8 +233,7 @@ float *forward_g4(G4 *_model, int token, int pos) {
         for (int h = 0; h < _config->n_heads; h++) {
             float *_qh = _state->_q + h * head_dim;
             rmsnorm_g4(_qh, _qh, _rms_q, head_dim, eps, true);
-            if ((rotary_dim > 0) &&
-                    _cos_cache) {
+            if ((rotary_dim > 0) && _cos_cache) {
                 apply_rope(_qh, _cos_cache, _sin_cache, rotary_dim, head_dim, pos);
             }
         }
@@ -248,8 +242,7 @@ float *forward_g4(G4 *_model, int token, int pos) {
         for (int h = 0; h < kv_heads; h++) {
             float *_kh = _state->_k_raw + h * head_dim;
             rmsnorm_g4(_kh, _kh, _rms_k, head_dim, eps, true);
-            if ((rotary_dim > 0) &&
-                    _cos_cache) {
+            if ((rotary_dim > 0) && _cos_cache) {
                 apply_rope(_kh, _cos_cache, _sin_cache, rotary_dim, head_dim, pos);
             }
         }
@@ -346,7 +339,6 @@ float *forward_g4(G4 *_model, int token, int pos) {
 
     matmul_qt(_state->_logits, _state->_x, &_weights->embed_tokens_weight);
 
-
     if (_config->final_logit_softcapping > 0.0f) {
         float cap = _config->final_logit_softcapping;
         float inv = 1.0f / cap;
@@ -376,9 +368,13 @@ model_iface *init_g4(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
+    // Map dynamically from config instead of hardcoding Gemma specific IDs
     _model->tokenizer._tokens_special = NULL;
-    _model->tokenizer.bos_id = 2;
-    _model->tokenizer.eos_id = 1;
+    _model->tokenizer.bos_id = _model->config.bos_token_id;
+    _model->tokenizer.eos_id = _model->config.eos_token_id;
+    
+    // Gemma's text_config defines eos_token_id as 1 (<end_of_turn>).
+    // The ChatML equivalent (<turn|>) is 106, which isn't explicitly named in the HF config.
     _model->tokenizer.im_end_id = 106;
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
@@ -393,4 +389,3 @@ model_iface *init_g4(const char *_model_path_s, int seq_n_max, bool think_) {
 
     return _model_i;
 }
-

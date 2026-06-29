@@ -1,6 +1,5 @@
 #include "dolen_ig4_1_common.h"
 
-
 void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
     int dim = _config->dim;
     int head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
@@ -56,22 +55,22 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
         }
     }
 
-    if ((! _state->_x) ||
-            (! _state->_xb) ||
-            (! _state->_xb2) ||
-            (! _state->_hb) ||
-            (! _state->_hb2) ||
-            (! _state->_q) ||
-            (! _state->_k) ||
-            (! _state->_v) ||
-            (! _state->_att) ||
-            (! _state->_logits) ||
-            (! _state->xq._data) ||
-            (! _state->xq._scales) ||
-            (! _state->hq._data) ||
-            (! _state->hq._scales) ||
-            (! _state->_key_cache) ||
-            (! _state->_value_cache)) {
+    if ((!_state->_x) ||
+            (!_state->_xb) ||
+            (!_state->_xb2) ||
+            (!_state->_hb) ||
+            (!_state->_hb2) ||
+            (!_state->_q) ||
+            (!_state->_k) ||
+            (!_state->_v) ||
+            (!_state->_att) ||
+            (!_state->_logits) ||
+            (!_state->xq._data) ||
+            (!_state->xq._scales) ||
+            (!_state->hq._data) ||
+            (!_state->hq._scales) ||
+            (!_state->_key_cache) ||
+            (!_state->_value_cache)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
         exit(EXIT_FAILURE);
     }
@@ -80,7 +79,7 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
 }
 
 void free_state_ig4_1(state_ig4_1 *_state) {
-    if (! _state->allocated) {
+    if (!_state->allocated) {
         return;
     }
 
@@ -106,30 +105,32 @@ void free_state_ig4_1(state_ig4_1 *_state) {
     _state->allocated = 0;
 }
 
-void free_ig4_1(IG4_1 *model_ig4_1) {
-    weights_ig4_1 *w = &(model_ig4_1->weights);
-    int n_layer = model_ig4_1->config.n_layer;
+void free_ig4_1(IG4_1 *_model) {
+    if (!_model) {
+        return;
+    }
+    weights_ig4_1 *_weights = &(_model->weights);
+    int n_layer = _model->config.n_layer;
 
-    free_qt(&(w->embed_tokens_weight));
-    free_qt_array(w->_rms_att_weight, n_layer);
-    free_qt_array(w->_wq, n_layer);
-    free_qt_array(w->_wk, n_layer);
-    free_qt_array(w->_wv, n_layer);
-    free_qt_array(w->_wo, n_layer);
-    free_qt_array(w->_rms_ffn_weight, n_layer);
-    free_qt_array(w->_w1, n_layer);
-    free_qt_array(w->_w2, n_layer);
-    free_qt_array(w->_w3, n_layer);
-    free_qt(&(w->rms_final_weight));
+    free_qt(&(_weights->embed_tokens_weight));
+    free_qt_array(_weights->_rms_att_weight, n_layer);
+    free_qt_array(_weights->_wq, n_layer);
+    free_qt_array(_weights->_wk, n_layer);
+    free_qt_array(_weights->_wv, n_layer);
+    free_qt_array(_weights->_wo, n_layer);
+    free_qt_array(_weights->_rms_ffn_weight, n_layer);
+    free_qt_array(_weights->_w1, n_layer);
+    free_qt_array(_weights->_w2, n_layer);
+    free_qt_array(_weights->_w3, n_layer);
+    free_qt(&(_weights->rms_final_weight));
 
-    if (! model_ig4_1->config.tie_word_embeddings) {
-        free_qt(&(w->wcls));
+    if (!_model->config.tie_word_embeddings) {
+        free_qt(&(_weights->wcls));
     }
 
-    if (model_ig4_1->state.allocated) {
-        free_state_ig4_1(&(model_ig4_1->state));
+    if (_model->state.allocated) {
+        free_state_ig4_1(&(_model->state));
     }
 
-    free_tokenizer(&(model_ig4_1->tokenizer));
+    free_tokenizer(&(_model->tokenizer));
 }
-

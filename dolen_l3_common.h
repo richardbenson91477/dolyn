@@ -7,7 +7,6 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
-
 typedef struct {
     int dim;
     int hidden_dim;
@@ -20,6 +19,8 @@ typedef struct {
     float rope_theta;
     float rms_norm_eps;
     int tie_word_embeddings;
+    int bos_token_id;
+    int eos_token_id;
 } config_l3;
 
 typedef struct {
@@ -65,17 +66,10 @@ typedef struct {
     tokenizer tokenizer1;
 } L3;
 
-
 void alloc_state_l3(state_l3 *_state, config_l3 *_config);
-
 void free_state_l3(state_l3 *_state);
-
 void free_l3(L3 *_model);
-
 int load_quantized_l3(const char *_path_s, L3 *_model, int seq_n_max);
-
 float *forward_l3(L3 *_model, int token, int pos);
 
-
 #endif // DOLEN_L3_COMMON_H
-
