@@ -25,6 +25,8 @@ BIN_IG4_1_Q = dolen_ig4_1_quantize
 BIN_IG4_1_Q_DBG = dolen_ig4_1_quantize_dbg
 BIN_L3_Q = dolen_l3_quantize
 BIN_L3_Q_DBG = dolen_l3_quantize_dbg
+BIN_Q2_Q = dolen_q2_quantize
+BIN_Q2_Q_DBG = dolen_q2_quantize_dbg
 
 SRC_EXT = ext/csafetensors.c ext/json.c
 INC_EXT = ext/csafetensors.h ext/json.h
@@ -32,8 +34,8 @@ INC_EXT = ext/csafetensors.h ext/json.h
 DOLEN_COMMON_SRC=dolen_common_io.c dolen_common_math.c dolen_common_mem.c dolen_common_qtensor.c dolen_common_sampler.c dolen_common_tokenizer.c
 DOLEN_COMMON_INC=dolen_common_cmi.h dolen_common_io.h dolen_common_math.h dolen_common_mem.h dolen_common_qtensor.h dolen_common_sampler.h dolen_common_tokenizer.h
 
-SRC_MAIN = dolen_main.c $(DOLEN_COMMON_SRC) dolen_q3_5.c dolen_q3_5_common.c dolen_q3.c dolen_q3_common.c dolen_g4.c dolen_g4_common.c dolen_ig4_1.c dolen_ig4_1_common.c dolen_l3.c dolen_l3_common.c
-INC_MAIN = dolen_main.h $(DOLEN_COMMON_INC) dolen_l3_common.h dolen_ig4_1_common.h dolen_g4_common.h dolen_q3_common.h dolen_q3_5_common.h
+SRC_MAIN = dolen_main.c $(DOLEN_COMMON_SRC) dolen_q3_5.c dolen_q3_5_common.c dolen_q3.c dolen_q3_common.c dolen_g4.c dolen_g4_common.c dolen_ig4_1.c dolen_ig4_1_common.c dolen_l3.c dolen_l3_common.c dolen_q2.c dolen_q2_common.c
+INC_MAIN = dolen_main.h $(DOLEN_COMMON_INC) dolen_q2_common.h dolen_l3_common.h dolen_ig4_1_common.h dolen_g4_common.h dolen_q3_common.h dolen_q3_5_common.h
 
 SRC_Q3_5_Q = $(DOLEN_COMMON_SRC) dolen_q3_5_quantize.c dolen_q3_5_common.c dolen_quantize_common.c
 INC_Q3_5_Q = $(DOLEN_COMMON_INC) dolen_q3_5_common.h dolen_quantize_common.h
@@ -50,9 +52,12 @@ INC_IG4_1_Q = $(DOLEN_COMMON_INC) dolen_ig4_1_common.h dolen_quantize_common.h
 SRC_L3_Q = $(DOLEN_COMMON_SRC) dolen_l3_quantize.c dolen_l3_common.c dolen_quantize_common.c
 INC_L3_Q = $(DOLEN_COMMON_INC) dolen_l3_common.h dolen_quantize_common.h
 
-BINS_ALL = $(BIN_MAIN) $(BIN_Q3_5_Q) $(BIN_Q3_Q) $(BIN_G4_Q) $(BIN_IG4_1_Q) $(BIN_L3_Q)
-BINS_ALL_DBG = $(BIN_DBG) $(BIN_Q3_5_Q_DBG) $(BIN_Q3_Q_DBG) $(BIN_G4_Q_DBG) $(BIN_IG4_1_Q_DBG) $(BIN_L3_Q_DBG) 
-SRCS_ALL = $(SRC_MAIN) $(SRC_Q3_5_Q) $(SRC_Q3_Q) $(SRC_G4_Q) $(SRC_IG4_1_Q) $(SRC_L3_Q) 
+SRC_Q2_Q = $(DOLEN_COMMON_SRC) dolen_q2_quantize.c dolen_q2_common.c dolen_quantize_common.c
+INC_Q2_Q = $(DOLEN_COMMON_INC) dolen_q2_common.h dolen_quantize_common.h
+
+BINS_ALL = $(BIN_MAIN) $(BIN_Q3_5_Q) $(BIN_Q3_Q) $(BIN_G4_Q) $(BIN_IG4_1_Q) $(BIN_L3_Q) $(BIN_Q2_Q)
+BINS_ALL_DBG = $(BIN_DBG) $(BIN_Q3_5_Q_DBG) $(BIN_Q3_Q_DBG) $(BIN_G4_Q_DBG) $(BIN_IG4_1_Q_DBG) $(BIN_L3_Q_DBG) $(BIN_Q2_Q_DBG)
+SRCS_ALL = $(SRC_MAIN) $(SRC_Q3_5_Q) $(SRC_Q3_Q) $(SRC_G4_Q) $(SRC_IG4_1_Q) $(SRC_L3_Q) $(SRC_Q2_Q)
 
 
 all: strip
@@ -99,6 +104,12 @@ $(BIN_L3_Q): $(SRC_L3_Q) $(SRC_EXT) $(INC_L3_Q) $(INC_EXT)
 
 $(BIN_L3_Q_DBG): $(SRC_L3_Q) $(SRC_EXT) $(INC_L3_Q) $(INC_EXT)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_L3_Q) $(SRC_EXT) -lm
+
+$(BIN_Q2_Q): $(SRC_Q2_Q) $(SRC_EXT) $(INC_Q2_Q) $(INC_EXT)
+	$(CC) $(CFLAGS_OPT) -o $@ $(SRC_Q2_Q) $(SRC_EXT) -lm
+
+$(BIN_Q2_Q_DBG): $(SRC_Q2_Q) $(SRC_EXT) $(INC_Q2_Q) $(INC_EXT)
+	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q2_Q) $(SRC_EXT) -lm
 
 
 strip: $(BINS_ALL)

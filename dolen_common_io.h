@@ -19,6 +19,7 @@
 #define MAGIC_G4 (0x344d4547514c4f44) // DOLQGEM4
 #define MAGIC_IG4_1 (0x31344749514c4f44) // DOLQIG41
 #define MAGIC_L3 (0x4d414c4c514c4f44) // DOLQLLAM
+#define MAGIC_Q2 (0x30325751514c4f44) // DOLQQW20
 
 extern char *_log_path;
 

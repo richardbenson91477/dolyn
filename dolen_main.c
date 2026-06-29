@@ -14,6 +14,7 @@ const model_registry_entry MODEL_REGISTRY[] = {
         {MAGIC_L3, "l3", init_l3},
         {MAGIC_Q3_5, "q3_5", init_q3_5},
         {MAGIC_Q3, "q3", init_q3},
+        {MAGIC_Q2, "q2", init_q2},
 };
 
 const size_t MODEL_REGISTRY_SIZE = sizeof(MODEL_REGISTRY) / sizeof(MODEL_REGISTRY[0]);

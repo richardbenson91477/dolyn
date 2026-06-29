@@ -31,6 +31,7 @@ model_iface *init_ig4_1(const char *_model_path_s, int seq_n_max, bool think_);
 model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_);
 model_iface *init_q3_5(const char *_model_path_s, int seq_n_max, bool think_);
 model_iface *init_q3(const char *_model_path_s, int seq_n_max, bool think_);
+model_iface *init_q2(const char *_model_path_s, int seq_n_max, bool think_);
 
 
 #endif // DOLEN_MAIN_H
