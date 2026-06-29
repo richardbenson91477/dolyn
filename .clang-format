@@ -56,3 +56,4 @@ IncludeBlocks: Preserve
 # --- Empty Lines ---
 MaxEmptyLinesToKeep: 1
 KeepEmptyLinesAtTheStartOfBlocks: false
+
