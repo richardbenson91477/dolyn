@@ -9,7 +9,7 @@ CFLAGS_DBG = $(CFLAGS) -fopenmp -Og -ggdb -fkeep-inline-functions
 
 MODEL_PATH := ${lena_rolocal_path}/models/dolen_models
 MODEL_MAIN := "$(MODEL_PATH)/qwen3_5_4b_a_q8.dolq"
-PROMPT := "Please count from 1 to 10 in English (One, Two...) using a comma separated list."
+PROMPT := "Count from 1 to 10 (e.g., One, Two, ...)."
 SYS_PROMPT := "You are a helpful language model."
 SEQN := 1024
 
