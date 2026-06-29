@@ -1,24 +1,6 @@
 #include "dolen_q3_5_common.h"
 
 
-static token_map SPECIAL_TOKENS_Q3_5[] = {
-    {"<|endoftext|>", 248044},
-    {"<|im_start|>", 248045},
-    {"<|im_end|>", 248046},
-    {"<|object_ref_start|>", 248047},
-    {"<|object_ref_end|>", 248048},
-    {"<|box_start|>", 248049},
-    {"<|box_end|>", 248050},
-    {"<|quad_start|>", 248051},
-    {"<|quad_end|>", 248052},
-    {"<|vision_start|>", 248053},
-    {"<|vision_end|>", 248054},
-    {"<|vision_pad|>", 24805},
-    {"<|image_pad|>", 248056},
-    {"<|video_pad|>", 248057},
-    {NULL, 0} 
-};
-
 static const chat_template CHAT_TEMPLATE_Q3_5 = {
     ._system_s = "<|im_start|>system\n%s<|im_end|>\n",
     ._main_s = "<|im_start|>user\n%s<|im_end|>\n"
@@ -588,7 +570,6 @@ model_iface *init_q3_5(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
-    _model->tokenizer1._tokens_special = SPECIAL_TOKENS_Q3_5;
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
     

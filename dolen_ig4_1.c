@@ -1,13 +1,6 @@
 #include "dolen_ig4_1_common.h"
 
 
-static token_map SPECIAL_TOKENS_IG4_1[] = {
-    {"<|end_of_text|>", 100257},
-    {"<|start_of_role|>", 100264},
-    {"<|end_of_role|>", 100265},
-    {NULL, 0},
-};
-
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
     ._system_s = "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n",
     ._main_s = "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
@@ -329,7 +322,6 @@ model_iface *init_ig4_1(const char *_model_path_s, int seq_n_max, bool think_) {
     }
 
     // Map dynamically from config instead of hardcoding Granite specific IDs
-    _model->tokenizer._tokens_special = SPECIAL_TOKENS_IG4_1;
     _model->tokenizer.bos_id = _model->config.bos_token_id;
     _model->tokenizer.eos_id = _model->config.eos_token_id;
     _model->tokenizer.im_end_id = _model->config.eos_token_id;

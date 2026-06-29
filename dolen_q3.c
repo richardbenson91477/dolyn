@@ -1,24 +1,6 @@
 #include "dolen_q3_common.h"
 
 
-static token_map SPECIAL_TOKENS_Q3[] = {
-    {"<|endoftext|>", 151643},
-    {"<|im_start|>", 151644},
-    {"<|im_end|>", 151645},
-    {"<|object_ref_start|>", 151646},
-    {"<|object_ref_end|>", 151647},
-    {"<|box_start|>", 151648},
-    {"<|box_end|>", 151649},
-    {"<|quad_start|>", 151650},
-    {"<|quad_end|>", 151651},
-    {"<|vision_start|>", 151652},
-    {"<|vision_end|>", 151653},
-    {"<|vision_pad|>", 151654},
-    {"<|image_pad|>", 151655},
-    {"<|video_pad|>", 151656},
-    {NULL, 0}
-};
-
 static const chat_template CHAT_TEMPLATE_Q3 = {
     ._system_s = "<|im_start|>system\n/no_think\n%s<|im_end|>\n",
     ._main_s = "<|im_start|>user\n%s<|im_end|>\n"
@@ -338,7 +320,6 @@ model_iface *init_q3(const char *_model_path_s, int seq_n_max, bool think_) {
     }
 
     // Map dynamically from config instead of hardcoding Qwen3 specific IDs
-    _model->tokenizer1._tokens_special = SPECIAL_TOKENS_Q3;
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
     _model->tokenizer1.im_end_id = _model->config.eos_token_id;

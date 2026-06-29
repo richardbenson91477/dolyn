@@ -79,53 +79,11 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
         }
     }
 
-    char *_segment_s = a_calloc(strlen(_input_s) + 1);
-
-    char *_p = _input_s;
-    while (*_p) {
-        int found_special = 0;
-        for (int i = 0; i < _tokenizer->token_special_n; i++) {
-            size_t len = strlen(_tokenizer->_tokens_special[i]._str_s);
-            if (! strncmp(_p, _tokenizer->_tokens_special[i]._str_s, len)) {
-                _tokens[(*_tokens_n)++] = _tokenizer->_tokens_special[i].id;
-                _p += len;
-                found_special = 1;
-                break;
-            }
-        }
-        if (! found_special) {
-            size_t seg_len = 0;
-            char *_seg_start_s = _p;
-            while (*_p) {
-                int is_special_start = 0;
-                for (int i = 0; i < _tokenizer->token_special_n; i++) {
-                    if (! strncmp(_p, _tokenizer->_tokens_special[i]._str_s,
-                                strlen(_tokenizer->_tokens_special[i]._str_s))) {
-                        is_special_start = 1;
-                        break;
-                    }
-                }
-                if (is_special_start) {
-                    break;
-                }
-
-                _p++;
-                seg_len++;
-            }
-            if (seg_len > 0) {
-                strncpy(_segment_s, _seg_start_s, seg_len);
-                _segment_s[seg_len] = '\0';
-
-                encode_segment(_tokenizer, _segment_s, _tokens, _tokens_n);
-            }
-        }
-    }
+    encode_segment(_tokenizer, _input_s, _tokens, _tokens_n);
 
     if (eos) {
-        _tokens[(*_tokens_n)++] = 2;
+        _tokens[(*_tokens_n)++] = _tokenizer->eos_id;
     }
-
-    free(_segment_s);
 }
 
 char *decode(tokenizer *_tokenizer, int token) {
@@ -139,19 +97,11 @@ char *decode(tokenizer *_tokenizer, int token) {
     return _piece_s;
 }
 
-void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size, token_map *_tokens_special) {
+void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size) {
     _tokenizer->vocab_size = vocab_size;
     _tokenizer->__vocab = (char **)a_calloc(vocab_size * sizeof(char *));
     _tokenizer->_vocab_sorted = NULL;
     _tokenizer->is_sorted = 0;
-    _tokenizer->_tokens_special = _tokens_special;
-
-    _tokenizer->token_special_n = 0;
-    if (_tokens_special) {
-        while (_tokens_special[_tokenizer->token_special_n]._str_s) {
-            _tokenizer->token_special_n++;
-        }
-    }
 
     for (int i = 0; i < 256; i++) {
         _tokenizer->_byte_pieces_s[i * 2] = (unsigned char)i;
@@ -230,8 +180,6 @@ int tokenizer_read_from_file(FILE *_file, int vocab_size, tokenizer *_tokenizer)
     _tokenizer->_vocab_sorted = NULL;
     _tokenizer->is_sorted = 0;
     _tokenizer->vocab_size = vocab_size;
-    _tokenizer->_tokens_special = NULL;
-    _tokenizer->token_special_n = 0;
 
     for (int i = 0; i < 256; i++) {
         _tokenizer->_byte_pieces_s[i * 2] = (unsigned char)i;

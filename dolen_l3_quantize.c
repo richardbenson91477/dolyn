@@ -119,7 +119,7 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
 
     tokenizer tokenizer1;
     memset(&tokenizer1, 0, sizeof(tokenizer));
-    build_tokenizer(&tokenizer1, _tokenizer_path_s, p->vocab_size, NULL);
+    build_tokenizer(&tokenizer1, _tokenizer_path_s, p->vocab_size);
 
     if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");

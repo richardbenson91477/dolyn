@@ -1,11 +1,5 @@
 #include "dolen_q2_common.h"
 
-static token_map SPECIAL_TOKENS_Q2[] = {
-    { "<|endoftext|>", 151643},
-    { "<|im_start|>", 151644},
-    { "<|im_end|>", 151645},
-    {NULL, 0}
-};
 
 static const chat_template CHAT_TEMPLATE_Q2 = {
     ._system_s = "<|im_start|>system\n%s<|im_end|>\n",
@@ -314,7 +308,6 @@ model_iface *init_q2(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
-    _model->tokenizer1._tokens_special = SPECIAL_TOKENS_Q2;
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
     _model->tokenizer1.im_end_id = _model->config.eos_token_id;

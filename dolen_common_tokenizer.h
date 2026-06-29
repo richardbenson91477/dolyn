@@ -18,8 +18,6 @@ typedef struct {
     int vocab_size;
     unsigned int max_token_length;
     unsigned char _byte_pieces_s[512];
-    token_map *_tokens_special;
-    int token_special_n;
     int bos_id;
     int eos_id;
     int im_end_id;
@@ -37,7 +35,7 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_id, int8_t eos_id, int
 
 char *decode(tokenizer *_tokenizer, int token);
 
-void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size, token_map *_tokens_special);
+void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size);
 
 void free_tokenizer(tokenizer *_tokenizer);
 
