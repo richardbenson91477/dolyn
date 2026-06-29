@@ -1,18 +1,19 @@
 #include "dolen_q3_common.h"
 
 
+// The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_Q3 = {
-    ._system_s = "<|im_start|>system\n/no_think\n%s<|im_end|>\n",
-    ._main_s = "<|im_start|>user\n%s<|im_end|>\n"
-             "<|im_start|>assistant\n",
-    ._end_turn_s = "<|im_end|>\n",
+    ._system_s = "<|im_start|\x3e" "system\n/no_think\n%s" "<|im_end|\x3e" "\n",
+    ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
+             "<|im_start|\x3e" "assistant\n",
+    ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
-    ._system_s = "<|im_start|>system\n/think\n%s<|im_end|>\n",
-    ._main_s = "<|im_start|>user\n%s<|im_end|>\n"
-             "<|im_start|>assistant<think>\n",
-    ._end_turn_s = "<|im_end|>\n",
+    ._system_s = "<|im_start|\x3e" "system\n/think\n%s" "<|im_end|\x3e" "\n",
+    ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
+             "<|im_start|\x3e" "assistant<think\x3e" "\n",
+    ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 
 

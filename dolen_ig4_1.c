@@ -1,11 +1,12 @@
 #include "dolen_ig4_1_common.h"
 
 
+// The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_IG4_1 = {
-    ._system_s = "<|start_of_role|>system<|end_of_role|>%s<|end_of_text|>\n",
-    ._main_s = "<|start_of_role|>user<|end_of_role|>%s<|end_of_text|>\n"
-             "<|start_of_role|>assistant<|end_of_role|>",
-    ._end_turn_s = "<|end_of_text|>\n",
+    ._system_s = "<|start_of_role|\x3e" "system<|end_of_role|\x3e" "%s" "<|end_of_text|\x3e" "\n",
+    ._main_s = "<|start_of_role|\x3e" "user<|end_of_role|\x3e" "%s" "<|end_of_text|\x3e" "\n"
+            "<|start_of_role|\x3e" "assistant<|end_of_role|\x3e",
+    ._end_turn_s = "<|end_of_text|\x3e" "\n",
 };
 
 

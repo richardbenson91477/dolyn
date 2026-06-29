@@ -1,11 +1,12 @@
 #include "dolen_q2_common.h"
 
 
+// The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_Q2 = {
-    ._system_s = "<|im_start|>system\n%s<|im_end|>\n",
-    ._main_s   = "<|im_start|>user\n%s<|im_end|>\n"
-                 "<|im_start|>assistant\n",
-    ._end_turn_s = "<|im_end|>\n",
+    ._system_s = "<|im_start|\x3e" "system\n%s" "<|im_end|\x3e" "\n",
+    ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
+                 "<|im_start|\x3e" "assistant\n",
+    ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 
 

@@ -1,16 +1,17 @@
 #include "dolen_l3_common.h"
 
 
+// The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_L3 = {
-    ._system_s = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n%s<|eot_id|>",
-    ._main_s = "<|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
-    ._end_turn_s = "<|eot_id|>",
+    ._system_s = "<|begin_of_text|\x3e" "<|start_header_id|\x3e" "system<|end_header_id|\x3e" "\n\n%s" "<|eot_id|\x3e",
+    ._main_s = "<|start_header_id|\x3e" "user<|end_header_id|\x3e" "\n\n%s" "<|eot_id|\x3e" "<|start_header_id|\x3e" "assistant<|end_header_id|\x3e" "\n\n",
+    ._end_turn_s = "<|eot_id|\x3e",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_L3 = {
-    ._system_s = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n%s<|eot_id|>",
-    ._main_s = "<|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
-    ._end_turn_s = "<|eot_id|>",
+    ._system_s = "<|begin_of_text|\x3e" "<|start_header_id|\x3e" "system<|end_header_id|\x3e" "\n\n%s" "<|eot_id|\x3e",
+    ._main_s = "<|start_header_id|\x3e" "user<|end_header_id|\x3e" "\n\n%s" "<|eot_id|\x3e" "<|start_header_id|\x3e" "assistant<|end_header_id|\x3e" "\n\n",
+    ._end_turn_s = "<|eot_id|\x3e",
 };
 
 
