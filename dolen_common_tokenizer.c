@@ -128,19 +128,12 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
     free(_segment_s);
 }
 
-char *decode(tokenizer *_tokenizer, int token, bool debug_) {
+char *decode(tokenizer *_tokenizer, int token) {
     char *_piece_s = _tokenizer->__vocab[token];
 
     unsigned char byte_val;
     if (sscanf(_piece_s, "<0x%02hhX>", &byte_val) == 1) {
         _piece_s = (char *)_tokenizer->_byte_pieces_s + byte_val * 2;
-    }
-
-    if (debug_) {
-        log_msg(stdout, "\nDEBUG: token: %u piece:", token);
-        for (int c = 0; c < strlen(_piece_s); c++) {
-            log_msg(stdout, "<%x>", (unsigned char)(_piece_s[c]));
-        }
     }
 
     return _piece_s;

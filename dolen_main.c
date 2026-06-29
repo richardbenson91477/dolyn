@@ -54,7 +54,7 @@ static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
             break;
         }
 
-        char *_piece_s = decode(_model_i->_tokenizer, next, false);
+        char *_piece_s = decode(_model_i->_tokenizer, next);
         log_msg(stdout, "%s", _piece_s);
 
         token = next;
@@ -122,7 +122,7 @@ static bool is_chat_stop_token(const model_iface *_model_i, int token) {
 }
 
 static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_s, char *_init_prompt_s,
-        int prompt_n_max, int steps_n_max, bool debug_) {
+        int prompt_n_max, int steps_n_max) {
     const chat_template *_chat_tmpl = _model_i->_chat_template;
     if (! _chat_tmpl) {
         _chat_tmpl = &CHAT_TEMPLATE_CHATML;
@@ -209,7 +209,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
                 user_turn_ = 1;
             }
             else {
-                char *_piece_s = decode(_model_i->_tokenizer, next, debug_);
+                char *_piece_s = decode(_model_i->_tokenizer, next);
                 log_msg(stdout, "%s", _piece_s);
                 generated_tokens++;
             }
@@ -227,6 +227,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
 static uint64_t peek_model_magic(const char *_path_s) {
     FILE *_file = fopen(_path_s, "rb");
     if (! _file) {
+        log_msg(stderr, "ERROR: can't open \"%s\"\n", _path_s);
         return 0;
     }
 
@@ -251,7 +252,6 @@ static void error_usage(const char *_argv0) {
     log_msg(stdout, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
     log_msg(stdout, " -M  | --mode <str>:          generate|chat, default: chat\n");
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
-    log_msg(stdout, " -d  | --debug:               enable debug output, default: disabled\n");
     log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
     log_msg(stdout, " -h  | --help:                print this help and exit\n");
     log_msg(stdout, " -th | --think:               enable think-mode chat template, default: disabled\n");
@@ -271,7 +271,6 @@ int main(int argc, char *__argv[]) {
     char *_prompt_file = NULL;
     char *_mode_s = "chat";
     char *_system_prompt_s = NULL;
-    bool debug_ = false;
     bool think_ = false;
 
     for (int i = 1; i < argc;) {
@@ -286,12 +285,6 @@ int main(int argc, char *__argv[]) {
         else if ((! strcmp(__argv[i], "-th")) ||
                 (! strcmp(__argv[i], "--think"))) {
             think_ = true;
-            i += 1;
-            continue;
-        }
-        else if ((! strcmp(__argv[i], "-d")) ||
-                (! strcmp(__argv[i], "--debug"))) {
-            debug_ = true;
             i += 1;
             continue;
         }
@@ -406,6 +399,10 @@ int main(int argc, char *__argv[]) {
     }
 
     uint64_t magic = peek_model_magic(_model_path_s);
+    if (! magic) {
+        log_msg(stderr, "ERROR: peek_model_magic(\"%s\") returned 0\n", _model_path_s);
+        exit(EXIT_FAILURE);
+    }
 
     const char *_model_type_s = "unknown";
     model_init_fn init_fn = NULL;
@@ -438,7 +435,7 @@ int main(int argc, char *__argv[]) {
         generate(_model_i, &_sampler, _prompt_s, _model_i->seq_n_max);
     }
     else if (! memcmp(_mode_s, "chat", strlen("chat") + 1)) {
-        chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, prompt_n_max, _model_i->seq_n_max, debug_);
+        chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, prompt_n_max, _model_i->seq_n_max);
     }
     else {
         log_msg(stderr, "ERROR: Unknown mode: %s\n", _mode_s);

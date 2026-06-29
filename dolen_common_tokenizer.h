@@ -35,7 +35,7 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int *_tokens, int *_to
 
 void encode(tokenizer *_tokenizer, char *_text_s, int bos_id, int8_t eos_id, int *_tokens, int *_tokens_n);
 
-char *decode(tokenizer *_tokenizer, int token, bool debug_);
+char *decode(tokenizer *_tokenizer, int token);
 
 void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size, token_map *_tokens_special);
 
