@@ -221,11 +221,11 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
                     q_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight",
-                    kv_dim, _config->dim, attn_type) ||
+                        kv_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight",
-                    kv_dim, _config->dim, attn_type) ||
+                        kv_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight",
-                    _config->dim, attn_out_dim, attn_type)) {
+                        _config->dim, attn_out_dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
@@ -256,7 +256,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
             if (write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_qkv.weight",
                         conv_dim, _config->dim, attn_type) ||
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_z.weight",
-                        value_dim, _config->dim, attn_type)) {
+                            value_dim, _config->dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
@@ -331,9 +331,9 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
                     _config->n_mlp, _config->dim, mlp_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",
-                    _config->dim, _config->n_mlp, mlp_type) ||
+                        _config->dim, _config->n_mlp, mlp_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight",
-                    _config->n_mlp, _config->dim, mlp_type)) {
+                        _config->n_mlp, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }

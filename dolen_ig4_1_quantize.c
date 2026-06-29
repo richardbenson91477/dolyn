@@ -16,7 +16,8 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
-    if ((! _json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
+    if ((! _json_s) ||
+            (fread(_json_s, 1, size, _file) != (size_t)size)) {
         free(_json_s);
         fclose(_file);
         return -1;
@@ -153,10 +154,14 @@ int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     for (int l = 0; l < _config->n_layer; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight", _config->n_heads * head_size, _config->dim, attn_type) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight", kv_dim, _config->dim, attn_type) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight", kv_dim, _config->dim, attn_type) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, attn_out_dim, attn_type)) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight",
+                    _config->n_heads * head_size, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight",
+                        kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight",
+                        kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight",
+                        _config->dim, attn_out_dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }

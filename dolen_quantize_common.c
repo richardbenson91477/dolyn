@@ -1,5 +1,6 @@
 #include "dolen_quantize_common.h"
 
+
 static inline void autofree_cleanup(void *p) {
     void **ptr = (void **)p;
     if (*ptr) {
@@ -15,7 +16,6 @@ static inline void autojson_cleanup(void *p) {
     }
 }
 #define autojson __attribute__((cleanup(autojson_cleanup)))
-
 
 
 static int checked_mul_size(size_t a, size_t b, size_t *_res) {
@@ -363,18 +363,135 @@ static void quantize_group_into_q4(uint8_t *_q, float *_s, const float *_weights
     }
 }
 
+static int load_single_safetensors(safetensors_idx *_st_idx, const char *_model_dir_s) {
+    char file_path[PATH_MAX];
+    if (snprintf(file_path, sizeof(file_path), "%s/model.safetensors", _model_dir_s) >= (int)sizeof(file_path)) {
+        return -1;
+    }
+
+    FILE *_file = fopen(file_path, "rb");
+    if (! _file) {
+        log_msg(stderr, "ERROR: Could not open %s\n", file_path);
+        return -1;
+    }
+
+    uint8_t length_bytes[8];
+    if (fread(length_bytes, 1, sizeof(length_bytes), _file) != sizeof(length_bytes)) {
+        log_msg(stderr, "ERROR: Could not read safetensors header length from %s\n", file_path);
+        fclose(_file);
+        return -1;
+    }
+
+    uint64_t header_len_u64 = read_le64(length_bytes);
+    if ((! header_len_u64) ||
+            (header_len_u64 > SIZE_MAX - 1)) {
+        log_msg(stderr, "ERROR: Invalid safetensors header length in %s\n", file_path);
+        fclose(_file);
+        return -1;
+    }
+    
+    size_t header_len = (size_t)header_len_u64;
+    autofree char *_header_s = (char *)a_calloc(header_len + 1);
+    if ((! _header_s) ||
+            (fread(_header_s, 1, header_len, _file) != header_len)) {
+        log_msg(stderr, "ERROR: Could not read safetensors header from %s\n", file_path);
+        fclose(_file);
+        return -1;
+    }
+    fclose(_file);
+    _header_s[header_len] = '\0';
+
+    char _error_s[256] = { 0 };
+    autojson JsonValue *_js_root = json_parse(_header_s, header_len, _error_s, sizeof(_error_s));
+
+    if ((! _js_root) ||
+            (_js_root->type != JSON_OBJECT)) {
+        log_msg(stderr, "ERROR: Invalid safetensors header in %s: %s\n", file_path, _error_s);
+        return -1;
+    }
+
+    // Count valid tensors (ignoring __metadata__)
+    size_t n_entries = 0;
+    for (size_t i = 0; i < _js_root->data.object.count; i++) {
+        JsonPair *_js_pair = &_js_root->data.object.pairs[i];
+        if (! strcmp(_js_pair->key, "__metadata__")) {
+            continue;
+        }
+        n_entries++;
+    }
+
+    _st_idx->n_entries = n_entries;
+    _st_idx->_wm_entries = (weightmap_entry *)a_calloc(n_entries * sizeof(weightmap_entry));
+    _st_idx->_model_dir_s = strdup(_model_dir_s);
+    if ((! _st_idx->_wm_entries) ||
+            (! _st_idx->_model_dir_s)) {
+        free_safetensors_index(_st_idx);
+        return -1;
+    }
+
+    _st_idx->unique_files_n = 1;
+    _st_idx->__unique_filenames = (char **)a_calloc(1 * sizeof(char *));
+    if (! _st_idx->__unique_filenames) {
+        free_safetensors_index(_st_idx);
+        return -1;
+    }
+    _st_idx->__unique_filenames[0] = strdup("model.safetensors");
+    if (! _st_idx->__unique_filenames[0]) {
+        free_safetensors_index(_st_idx);
+        return -1;
+    }
+
+    size_t entry_idx = 0;
+    for (size_t i = 0; i < _js_root->data.object.count; i++) {
+        JsonPair *_js_pair = &_js_root->data.object.pairs[i];
+        if (! strcmp(_js_pair->key, "__metadata__")) {
+            continue;
+        }
+
+        _st_idx->_wm_entries[entry_idx]._tensor_name_s = strdup(_js_pair->key);
+        _st_idx->_wm_entries[entry_idx]._file_name_s = strdup("model.safetensors");
+        _st_idx->_wm_entries[entry_idx].processing_rank = entry_idx;
+        
+        if ((! _st_idx->_wm_entries[entry_idx]._tensor_name_s) ||
+            (! _st_idx->_wm_entries[entry_idx]._file_name_s)) {
+            free_safetensors_index(_st_idx);
+            return -1;
+        }
+        entry_idx++;
+    }
+
+    // Reuse existing metadata parsing logic to populate dtypes, shapes, and offsets
+    if (load_shard_metadata(_st_idx, "model.safetensors")) {
+        free_safetensors_index(_st_idx);
+        return -1;
+    }
+
+    return 0;
+}
+
 int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
     memset(_st_idx, 0, sizeof(safetensors_idx));
 
     char index_path[PATH_MAX];
-    if (snprintf(index_path, sizeof(index_path), "%s/model.safetensors.index.json", _model_dir_s) \
+    if (snprintf(index_path, sizeof(index_path), "%s/model.safetensors.index.json", _model_dir_s)
             >= (int)sizeof(index_path)) {
         return -1;
     }
 
     FILE *_file = fopen(index_path, "rb");
     if (! _file) {
-        return -1;
+        // Fallback: Check for single file model
+        char single_path[PATH_MAX];
+        if (snprintf(single_path, sizeof(single_path), "%s/model.safetensors", _model_dir_s)
+                >= (int)sizeof(single_path)) {
+            return -1;
+        }
+        FILE *_single_file = fopen(single_path, "rb");
+        if (_single_file) {
+            fclose(_single_file);
+            return load_single_safetensors(_st_idx, _model_dir_s);
+        }
+        return -1; // Neither index nor single file exists
     }
 
     if (fseeko(_file, 0, SEEK_END)) {
@@ -391,7 +508,7 @@ int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
     size_t size = (size_t)file_size;
     autofree char *_json_s = (char *)a_calloc(size + 1);
     if ((! _json_s) ||
-            fread(_json_s, 1, size, _file) != size) {
+            (fread(_json_s, 1, size, _file) != size)) {
         fclose(_file);
         return -1;
     }
@@ -1030,25 +1147,32 @@ q_type_t parse_q_type(const char *_type_s) {
         log_msg(stderr, "WARNING: Missing tensor type name. Defaulting to Q8.\n");
         return Q_TYPE_Q8;
     }
-    else if ((! strcmp(_type_s, "F32")) || (! strcmp(_type_s, "f32"))) {
+    else if ((! strcmp(_type_s, "F32")) ||
+            (! strcmp(_type_s, "f32"))) {
         return Q_TYPE_F32;
     }
-    else if ((! strcmp(_type_s, "F16")) || (! strcmp(_type_s, "f16"))) {
+    else if ((! strcmp(_type_s, "F16")) ||
+            (! strcmp(_type_s, "f16"))) {
         return Q_TYPE_F16;
     }
-    else if ((! strcmp(_type_s, "Q8")) || (! strcmp(_type_s, "q8"))) {
+    else if ((! strcmp(_type_s, "Q8")) ||
+            (! strcmp(_type_s, "q8"))) {
         return Q_TYPE_Q8;
     }
-    else if ((! strcmp(_type_s, "Q4")) || (! strcmp(_type_s, "q4"))) {
+    else if ((! strcmp(_type_s, "Q4")) ||
+            (! strcmp(_type_s, "q4"))) {
         return Q_TYPE_Q4;
     }
-    else if ((! strcmp(_type_s, "Q6")) || (! strcmp(_type_s, "q6"))) {
+    else if ((! strcmp(_type_s, "Q6")) ||
+            (! strcmp(_type_s, "q6"))) {
         return Q_TYPE_Q6;
     }
-    else if ((! strcmp(_type_s, "Q4")) || (! strcmp(_type_s, "q4"))) {
+    else if ((! strcmp(_type_s, "Q4")) ||
+            (! strcmp(_type_s, "q4"))) {
         return Q_TYPE_Q4;
     }
 
     log_msg(stderr, "WARNING: Unknown tensor type '%s'. Defaulting to Q8.\n", _type_s);
     return Q_TYPE_Q8;
 }
+

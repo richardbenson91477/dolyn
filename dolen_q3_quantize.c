@@ -16,7 +16,8 @@ int load_config_q3(Q3 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
-    if ((! _json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
+    if ((! _json_s) ||
+            (fread(_json_s, 1, size, _file) != (size_t)size)) {
         free(_json_s);
         fclose(_file);
         return -1;
@@ -178,17 +179,17 @@ int quantize_q3_to_file(const char *_model_dir_s, const char *_file_path_s,
         if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight",
                     all_heads_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight",
-                    kv_dim, _config->dim, attn_type) ||
+                        kv_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight",
-                    kv_dim, _config->dim, attn_type) ||
+                        kv_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight",
-                    _config->dim, all_heads_dim, attn_type) ||
+                        _config->dim, all_heads_dim, attn_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight",
-                    _config->hidden_dim, _config->dim, mlp_type) ||
+                        _config->hidden_dim, _config->dim, mlp_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight",
-                    _config->dim, _config->hidden_dim, mlp_type) ||
+                        _config->dim, _config->hidden_dim, mlp_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight",
-                    _config->hidden_dim, _config->dim, mlp_type)) {
+                        _config->hidden_dim, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
