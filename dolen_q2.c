@@ -1,9 +1,9 @@
 #include "dolen_q2_common.h"
 
 static token_map SPECIAL_TOKENS_Q2[] = {
-    {"<|endoftext|>", 151643},
-    {"<|im_start|>", 151644},
-    {"<|im_end|>", 151645},
+    { "<|endoftext|>", 151643},
+    { "<|im_start|>", 151644},
+    { "<|im_end|>", 151645},
     {NULL, 0}
 };
 
@@ -98,9 +98,14 @@ int load_quantized_q2(const char *_file_path_s, Q2 *_model, int seq_n_max) {
     _weights->_w1 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    
+    _weights->_q_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_k_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_v_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
     if ((!_weights->_wq) || (!_weights->_wk) || (!_weights->_wv) || (!_weights->_wo) ||
-            (!_weights->_w1) || (!_weights->_w2) || (!_weights->_w3)) {
+            (!_weights->_w1) || (!_weights->_w2) || (!_weights->_w3) ||
+            (!_weights->_q_bias) || (!_weights->_k_bias) || (!_weights->_v_bias)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
         return -1;
@@ -111,6 +116,11 @@ int load_quantized_q2(const char *_file_path_s, Q2 *_model, int seq_n_max) {
         read_qt(_file, &_weights->_wk[l]);
         read_qt(_file, &_weights->_wv[l]);
         read_qt(_file, &_weights->_wo[l]);
+        
+        read_qt(_file, &_weights->_q_bias[l]);
+        read_qt(_file, &_weights->_k_bias[l]);
+        read_qt(_file, &_weights->_v_bias[l]);
+
         read_qt(_file, &_weights->_w1[l]);
         read_qt(_file, &_weights->_w2[l]);
         read_qt(_file, &_weights->_w3[l]);
@@ -145,6 +155,18 @@ float *forward_q2(Q2 *_model, int token, int pos) {
         matmul_qq(_state->_q, &_state->xq, &_weights->_wq[l]);
         matmul_qq(_state->_k, &_state->xq, &_weights->_wk[l]);
         matmul_qq(_state->_v, &_state->xq, &_weights->_wv[l]);
+
+        /* Add QKV Biases */
+        float *q_bias = (float *)_weights->_q_bias[l]._data;
+        float *k_bias = (float *)_weights->_k_bias[l]._data;
+        float *v_bias = (float *)_weights->_v_bias[l]._data;
+        for (int i = 0; i < all_heads_dim; i++) {
+            _state->_q[i] += q_bias[i];
+        }
+        for (int i = 0; i < kv_dim; i++) {
+            _state->_k[i] += k_bias[i];
+            _state->_v[i] += v_bias[i];
+        }
 
         int rotary_half = _config->head_dim / 2;
 
@@ -185,7 +207,7 @@ float *forward_q2(Q2 *_model, int token, int pos) {
                     float x_val = _q[j], y_val = _q[j + rotary_half];
                     _q[j] = x_val * cos_freq - y_val * sin_freq;
                     _q[j + rotary_half] = x_val * sin_freq + y_val * cos_freq;
-                }
+                 }
             }
 
 #pragma omp parallel for
@@ -199,7 +221,7 @@ float *forward_q2(Q2 *_model, int token, int pos) {
                     float x_val = _k[j], y_val = _k[j + rotary_half];
                     _k[j] = x_val * cos_freq - y_val * sin_freq;
                     _k[j + rotary_half] = x_val * sin_freq + y_val * cos_freq;
-                }
+                 }
             }
         }
 
@@ -291,7 +313,6 @@ model_iface *init_q2(const char *_model_path_s, int seq_n_max, bool think_) {
         return NULL;
     }
 
-    /* Map dynamically from config instead of hardcoding Qwen2 specific IDs */
     _model->tokenizer1._tokens_special = SPECIAL_TOKENS_Q2;
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
@@ -303,7 +324,7 @@ model_iface *init_q2(const char *_model_path_s, int seq_n_max, bool think_) {
         .forward = forward_q2_wrap,
         .free_model = free_q2_wrap,
         .seq_n_max = seq_n_max ? seq_n_max : _model->config.seq_len,
-        ._chat_template = &CHAT_TEMPLATE_Q2,   /* No separate think template for Qwen2 */
+        ._chat_template = &CHAT_TEMPLATE_Q2,
         ._tokenizer = &_model->tokenizer1,
     };
     return _model_i;

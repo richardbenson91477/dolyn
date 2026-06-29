@@ -106,6 +106,10 @@ void free_q2(Q2 *_model) {
     free_qt_array(_weights->_w1, n_layer);
     free_qt_array(_weights->_w2, n_layer);
     free_qt_array(_weights->_w3, n_layer);
+    
+    free_qt_array(_weights->_q_bias, n_layer);
+    free_qt_array(_weights->_k_bias, n_layer);
+    free_qt_array(_weights->_v_bias, n_layer);
 
     if (!_model->config.shared_classifier) {
         free_qt(&(_weights->wcls));

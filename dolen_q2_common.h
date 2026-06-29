@@ -7,7 +7,6 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
-
 typedef struct {
     int dim;                    /* hidden_size */
     int hidden_dim;             /* intermediate_size */
@@ -36,6 +35,12 @@ typedef struct {
     qtensor *_w1;               /* gate_proj */
     qtensor *_w2;               /* down_proj */
     qtensor *_w3;               /* up_proj */
+    
+    /* Qwen2 Attention Biases */
+    qtensor *_q_bias;
+    qtensor *_k_bias;
+    qtensor *_v_bias;
+
     qtensor rms_final_weight;   /* model.norm */
     qtensor wcls;               /* lm_head (if not tied) */
 } weights_q2;

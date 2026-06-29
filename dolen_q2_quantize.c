@@ -32,7 +32,6 @@ int load_config_q2(Q2 *_model, const char *_model_dir_s) {
         return -1;
     }
 
-    /* Some Qwen2 configs nest the text model under "text_config" */
     JsonValue *_js_cfg = json_object_get(_js_root, "text_config");
     if (!_js_cfg) {
         _js_cfg = _js_root;
@@ -51,7 +50,6 @@ int load_config_q2(Q2 *_model, const char *_model_dir_s) {
     _config->rope_theta = get_json_float_val(json_object_get(_js_cfg, "rope_theta"), 1000000.0f);
     _config->rms_norm_eps = get_json_float_val(json_object_get(_js_cfg, "rms_norm_eps"), 1e-6f);
 
-    /* Qwen2 typically does not have rope_scaling; keep factor = 1.0 */
     JsonValue *_js_rope_scaling = json_object_get(_js_cfg, "rope_scaling");
     if (_js_rope_scaling && (_js_rope_scaling->type == JSON_OBJECT)) {
         _config->rope_scaling_factor = get_json_float_val(json_object_get(_js_rope_scaling, "factor"), 1.0f);
@@ -154,8 +152,6 @@ int quantize_q2_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    /* Qwen2 does NOT have q_norm / k_norm, so those are omitted. */
-
     if ((!_config->shared_classifier) &&
             quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight",
                 _config->vocab_size, _config->dim, embed_type)) {
@@ -172,6 +168,13 @@ int quantize_q2_to_file(const char *_model_dir_s, const char *_file_path_s,
                         kv_dim, _config->dim, attn_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight",
                         _config->dim, all_heads_dim, attn_type) ||
+                /* Write QKV Biases as FP32 */
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.bias",
+                        1, all_heads_dim, Q_TYPE_F32) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.bias",
+                        1, kv_dim, Q_TYPE_F32) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.bias",
+                        1, kv_dim, Q_TYPE_F32) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight",
                         _config->hidden_dim, _config->dim, mlp_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight",
@@ -201,8 +204,8 @@ cleanup:
 
 int main(int argc, char *__argv[]) {
     if (argc < 3) {
-        log_msg(stdout, "Usage: %s <model_dir> <output_file> " \
-                 "[--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n",
+        log_msg(stdout, "Usage: %s <model_dir> <output_file> "
+                  "[--type TYPE] [--embed TYPE] [--attn TYPE] [--mlp TYPE] [--tokenizer PATH]\n",
                 __argv[0]);
         return EXIT_FAILURE;
     }
@@ -233,6 +236,6 @@ int main(int argc, char *__argv[]) {
         }
     }
 
-    return quantize_q2_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s) \
+    return quantize_q2_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s)
         ? EXIT_FAILURE : EXIT_SUCCESS;
 }
