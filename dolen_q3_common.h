@@ -7,6 +7,7 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
+
 typedef struct {
     int dim;
     int hidden_dim;
@@ -67,8 +68,12 @@ typedef struct {
     tokenizer tokenizer1;
 } Q3;
 
+
 void alloc_state_q3(state_q3 *_state, config_q3 *_config);
+
 void free_state_q3(state_q3 *_state);
+
 void free_q3(Q3 *_model);
+
 
 #endif // DOLEN_Q3_COMMON_H

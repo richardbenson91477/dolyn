@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_g4_common.h"
 
+
 int load_config_g4(G4 *_model, const char *_model_dir_s) {
     config_g4 *_config = &_model->config;
 
@@ -222,11 +223,13 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         int hd = is_full ? _config->global_head_dim : _config->head_dim;
         int kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
 
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight", _config->n_heads * hd, _config->dim, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
+                    _config->n_heads * hd, _config->dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight", kv_heads * hd, _config->dim, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight",
+                    kv_heads * hd, _config->dim, attn_type)) {
             failed = 1;
             goto cleanup;
         }
@@ -237,25 +240,30 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
                 goto cleanup;
             }
         } else {
-            if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight", kv_heads * hd, _config->dim, attn_type)) {
+            if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight",
+                        kv_heads * hd, _config->dim, attn_type)) {
                 failed = 1;
                 goto cleanup;
             }
         }
 
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, _config->n_heads * hd, attn_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight",
+                    _config->dim, _config->n_heads * hd, attn_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight", _config->hidden_dim, _config->dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
+                    _config->hidden_dim, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight", _config->hidden_dim, _config->dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight",
+                    _config->hidden_dim, _config->dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }
-        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->hidden_dim, mlp_type)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",
+                    _config->dim, _config->hidden_dim, mlp_type)) {
             failed = 1;
             goto cleanup;
         }

@@ -389,3 +389,4 @@ model_iface *init_g4(const char *_model_path_s, int seq_n_max, bool think_) {
 
     return _model_i;
 }
+

@@ -1,5 +1,6 @@
 #include "dolen_l3_common.h"
 
+
 void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
     int dim = _config->dim;
     int head_size = _config->head_dim;

@@ -1,5 +1,6 @@
 #include "dolen_g4_common.h"
 
+
 void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *_layer_types) {
     int max_head_dim = _config->head_dim > _config->global_head_dim ? _config->head_dim : _config->global_head_dim;
     int max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ? _config->n_kv_heads : _config->n_global_kv_heads;
@@ -204,3 +205,4 @@ void free_g4(G4 *_model) {
 
     memset(_model, 0, sizeof(G4));
 }
+

@@ -7,6 +7,7 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
+
 typedef struct {
     int dim;
     int hidden_dim;
@@ -83,10 +84,17 @@ typedef struct {
     int *_layer_types;
 } G4;
 
+
 void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *_layer_types);
+
 void free_state_g4(state_g4 *_state);
+
 void free_g4(G4 *_model);
+
 int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max);
+
 float *forward_g4(G4 *_model, int token, int pos);
 
+
 #endif // DOLEN_G4_COMMON_H
+

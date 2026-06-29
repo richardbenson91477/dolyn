@@ -1,5 +1,6 @@
 #include "dolen_l3_common.h"
 
+
 static const chat_template CHAT_TEMPLATE_L3 = {
     ._system_s = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n%s<|eot_id|>",
     ._main_s = "<|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
@@ -11,6 +12,7 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
     ._main_s = "<|start_header_id|>user<|end_header_id|>\n\n%s<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
     ._end_turn_s = "<|eot_id|>",
 };
+
 
 int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
@@ -277,3 +279,4 @@ model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_) {
 
     return _model_i;
 }
+

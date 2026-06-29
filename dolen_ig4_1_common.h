@@ -7,6 +7,7 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
+
 typedef struct {
     int dim;
     int n_heads;
@@ -76,3 +77,4 @@ void free_state_ig4_1(state_ig4_1 *_state);
 void free_ig4_1(IG4_1 *_model);
 
 #endif // DOLEN_IG4_1_COMMON_H
+

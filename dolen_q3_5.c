@@ -1,5 +1,6 @@
 #include "dolen_q3_5_common.h"
 
+
 static token_map SPECIAL_TOKENS_Q3_5[] = {
     {"<|endoftext|>", 248044},
     {"<|im_start|>", 248045},
@@ -33,6 +34,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
              "<think>",
     ._end_turn_s = "<|im_end|>\n",
 };
+
 
 int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
@@ -605,3 +607,4 @@ model_iface *init_q3_5(const char *_model_path_s, int seq_n_max, bool think_) {
     };
     return _model_i;
 }
+

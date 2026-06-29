@@ -7,6 +7,7 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
+
 typedef struct {
     int dim;
     int n_heads;
@@ -96,8 +97,13 @@ typedef struct {
     int *_deltanet_layer_indices;
 } Q3_5;
 
+
 void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config);
+
 void free_state_q3_5(state_q3_5 *_state);
+
 void free_q3_5(Q3_5 *_model);
 
+
 #endif // DOLEN_Q3_5_COMMON_H
+

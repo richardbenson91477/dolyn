@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_q2_common.h"
 
+
 int load_config_q2(Q2 *_model, const char *_model_dir_s) {
     config_q2 *_config = &_model->config;
 

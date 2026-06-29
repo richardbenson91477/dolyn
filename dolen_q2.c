@@ -14,6 +14,7 @@ static const chat_template CHAT_TEMPLATE_Q2 = {
     ._end_turn_s = "<|im_end|>\n",
 };
 
+
 int load_quantized_q2(const char *_file_path_s, Q2 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (!_file) {
@@ -329,3 +330,4 @@ model_iface *init_q2(const char *_model_path_s, int seq_n_max, bool think_) {
     };
     return _model_i;
 }
+

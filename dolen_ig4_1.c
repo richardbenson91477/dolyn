@@ -1,5 +1,6 @@
 #include "dolen_ig4_1_common.h"
 
+
 static token_map SPECIAL_TOKENS_IG4_1[] = {
     {"<|end_of_text|>", 100257},
     {"<|start_of_role|>", 100264},
@@ -13,6 +14,7 @@ static const chat_template CHAT_TEMPLATE_IG4_1 = {
              "<|start_of_role|>assistant<|end_of_role|>",
     ._end_turn_s = "<|end_of_text|>\n",
 };
+
 
 int load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");

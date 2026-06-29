@@ -1,5 +1,6 @@
 #include "dolen_ig4_1_common.h"
 
+
 void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
     int dim = _config->dim;
     int head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
@@ -134,3 +135,4 @@ void free_ig4_1(IG4_1 *_model) {
 
     free_tokenizer(&(_model->tokenizer));
 }
+

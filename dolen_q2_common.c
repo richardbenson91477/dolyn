@@ -1,5 +1,6 @@
 #include "dolen_q2_common.h"
 
+
 void alloc_state_q2(state_q2 *_state, config_q2 *_config) {
     int all_heads_dim = _config->n_heads * _config->head_dim;
     int kv_dim = _config->n_kv_heads * _config->head_dim;
@@ -121,3 +122,4 @@ void free_q2(Q2 *_model) {
 
     free_tokenizer(&(_model->tokenizer1));
 }
+

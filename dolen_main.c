@@ -1,13 +1,6 @@
 #include "dolen_main.h"
 
 
-static const chat_template CHAT_TEMPLATE_CHATML = {
-    ._system_s = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
-    ._main_s = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
-            "<|im_start|\x3e" "assistant\n",
-    ._end_turn_s = "<|im_end|\x3e" "\n",
-};
-
 const model_registry_entry MODEL_REGISTRY[] = {
         {MAGIC_G4, "g4", init_g4},
         {MAGIC_IG4_1, "ig4_1", init_ig4_1},
@@ -16,8 +9,14 @@ const model_registry_entry MODEL_REGISTRY[] = {
         {MAGIC_Q3, "q3", init_q3},
         {MAGIC_Q2, "q2", init_q2},
 };
-
 const size_t MODEL_REGISTRY_SIZE = sizeof(MODEL_REGISTRY) / sizeof(MODEL_REGISTRY[0]);
+
+static const chat_template CHAT_TEMPLATE_CHATML = {
+    ._system_s = "<|im_start|\x3e" "system\n%s<|im_end|\x3e" "\n",
+    ._main_s = "<|im_start|\x3e" "user\n%s<|im_end|\x3e" "\n"
+            "<|im_start|\x3e" "assistant\n",
+    ._end_turn_s = "<|im_end|\x3e" "\n",
+};
 
 
 static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int steps_n_max) {
