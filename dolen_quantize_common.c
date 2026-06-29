@@ -1159,10 +1159,6 @@ q_type_t parse_q_type(const char *_type_s) {
             (! strcmp(_type_s, "q8"))) {
         return Q_TYPE_Q8;
     }
-    else if ((! strcmp(_type_s, "Q4")) ||
-            (! strcmp(_type_s, "q4"))) {
-        return Q_TYPE_Q4;
-    }
     else if ((! strcmp(_type_s, "Q6")) ||
             (! strcmp(_type_s, "q6"))) {
         return Q_TYPE_Q6;
