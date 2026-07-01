@@ -240,13 +240,14 @@ static uint64_t peek_model_magic(const char *_path_s) {
     return magic;
 }
 
-static void error_usage(const char *_argv0) {
+static void print_usage(const char *_argv0) {
     log_msg(stdout, "Usage: %s [options]\n", _argv0);
     log_msg(stdout, "Options:\n");
+    log_msg(stdout, " -h  | --help:                print this help and exit\n");
     log_msg(stdout, " -m  | --model <str>:         model path, default: none\n");
     log_msg(stdout, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
-    log_msg(stdout, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
     log_msg(stdout, " -k  | --top_k <int>:         top-k value, default: %d\n", TOP_K_DEFAULT);
+    log_msg(stdout, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
     log_msg(stdout, " -s  | --seed <int>:          random seed, default: current time\n");
     log_msg(stdout, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
     log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
@@ -255,14 +256,11 @@ static void error_usage(const char *_argv0) {
     log_msg(stdout, " -M  | --mode <str>:          chat|gen, default: chat\n");
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
     log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
-    log_msg(stdout, " -h  | --help:                print this help and exit\n");
-    log_msg(stdout, " -th | --think:               enable think-mode chat template, default: disabled\n");
-
-    exit(EXIT_FAILURE);
+    log_msg(stdout, " -th | --think <true|false>:  use think-mode chat template, default: false\n");
 }
 
 int32_t main(int32_t argc, char *__argv[]) {
-    char *_model_path_s = NULL;
+    char *_model_path_s = "model.dolq";
     float temp = TEMP_DEFAULT;
     int32_t top_k = TOP_K_DEFAULT;
     float top_p = TOP_P_DEFAULT;
@@ -276,23 +274,16 @@ int32_t main(int32_t argc, char *__argv[]) {
     bool think_ = false;
 
     for (int32_t i = 1; i < argc;) {
-        if (__argv[i][0] != '-') {
-            error_usage(__argv[0]);
-        }
-
         if ((! strcmp(__argv[i], "-h")) ||
                 (! strcmp(__argv[i], "--help"))) {
-            error_usage(__argv[0]);
-        }
-        else if ((! strcmp(__argv[i], "-th")) ||
-                (! strcmp(__argv[i], "--think"))) {
-            think_ = true;
-            i += 1;
-            continue;
+            print_usage(__argv[0]);
+            exit(EXIT_FAILURE);
         }
 
         if ((i + 1) >= argc) {
-            error_usage(__argv[0]);
+            print_usage(__argv[0]);
+            log_msg(stderr, "ERROR: Wrong argument count.\n", _mode_s);
+            exit(EXIT_FAILURE);
         }
 
         if ((! strcmp(__argv[i], "-m")) ||
@@ -351,16 +342,28 @@ int32_t main(int32_t argc, char *__argv[]) {
                 (! strcmp(__argv[i], "--log"))) {
             _log_path = __argv[i + 1];
         }
+        else if ((! strcmp(__argv[i], "-th")) ||
+                (! strcmp(__argv[i], "--think"))) {
+            if (! strcmp(__argv[i + 1], "true")) {
+                think_ = true;
+            }
+            else if (! strcmp(__argv[i + 1], "false")) {
+                think_ = false;
+            }
+            else {
+                print_usage(__argv[0]);
+                log_msg(stderr, "ERROR: Wrong argument for --think.\n", _mode_s);
+                exit(EXIT_FAILURE);
+            }
+            continue;
+        }
         else {
-            error_usage(__argv[0]);
+            print_usage(__argv[0]);
+            log_msg(stderr, "ERROR: Wrong arguments.\n", _mode_s);
+            exit(EXIT_FAILURE);
         }
 
         i += 2;
-    }
-
-    if (! _model_path_s) {
-        log_msg(stderr, "ERROR: Model path required.\n");
-        exit(EXIT_FAILURE);
     }
 
     uint64_t magic = peek_model_magic(_model_path_s);
@@ -368,7 +371,6 @@ int32_t main(int32_t argc, char *__argv[]) {
         log_msg(stderr, "ERROR: peek_model_magic(\"%s\") returned 0\n", _model_path_s);
         exit(EXIT_FAILURE);
     }
-
 
     if (! rng_seed) {
         rng_seed = (uint32_t)time(NULL);
@@ -441,8 +443,9 @@ int32_t main(int32_t argc, char *__argv[]) {
         chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, prompt_n_max, _model_i->seq_n_max);
     }
     else {
+        print_usage(__argv[0]);
         log_msg(stderr, "ERROR: Unknown mode: %s\n", _mode_s);
-        error_usage(__argv[0]);
+        exit(EXIT_FAILURE);
     }
 
     free_sampler(&_sampler);
