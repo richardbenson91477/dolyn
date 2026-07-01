@@ -81,7 +81,12 @@ static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_,
     if (first_turn_ &&
             _system_prompt_s &&
             _system_prompt_s[0]) {
-        len1 = snprintf(NULL, 0, _chat_tmpl->_system_s, _system_prompt_s);
+        if (_chat_tmpl->_system_s) {
+            len1 = snprintf(NULL, 0, _chat_tmpl->_system_s, _system_prompt_s);
+        }
+        else {
+            len1 = 0;
+        }
         len2 = snprintf(NULL, 0, _chat_tmpl->_main_s, _prompt_s);
     }
     else {
@@ -98,7 +103,9 @@ static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_,
     if (first_turn_ &&
             _system_prompt_s &&
             _system_prompt_s[0]) {
-        snprintf(_rendered_s, len1 + 1, _chat_tmpl->_system_s, _system_prompt_s);
+        if (_chat_tmpl->_system_s) {
+            snprintf(_rendered_s, len1 + 1, _chat_tmpl->_system_s, _system_prompt_s);
+        }
         snprintf(_rendered_s + len1, len2 + 1, _chat_tmpl->_main_s, _prompt_s);
     }
     else {
@@ -127,12 +134,6 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
     const chat_template *_chat_tmpl = _model_i->_chat_template;
     if (! _chat_tmpl) {
         _chat_tmpl = &CHAT_TEMPLATE_CHATML;
-    }
-    if ((! _chat_tmpl->_system_s) ||
-            (! _chat_tmpl->_main_s) ||
-            (! _chat_tmpl->_end_turn_s)) {
-        log_msg(stderr, "ERROR: Model supplied an incomplete chat template\n");
-        exit(EXIT_FAILURE);
     }
 
     int32_t _rendered_len = 0;
