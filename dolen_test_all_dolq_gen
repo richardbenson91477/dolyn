@@ -1,0 +1,10 @@
+#!/bin/sh
+
+
+trap 'echo "CTRL-C pressed"' INT 
+
+
+for f in "$dolen_model_path/"*".dolq"; do
+    $dolen_path/dolen_test_dolq_gen "$f"
+    done
+

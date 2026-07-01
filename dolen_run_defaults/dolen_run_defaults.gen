@@ -4,6 +4,6 @@
 
 
 dolen_run_system_prompt_default=""
-dolen_run_mode_default="generate"
+dolen_run_mode_default="gen"
 dolen_run_log_default="/tmp/dolen_gen.log"
 

@@ -251,7 +251,7 @@ static void error_usage(const char *_argv0) {
     log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
     log_msg(stdout, " -p  | --prompt <str>:        prompt, default: none\n");
     log_msg(stdout, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
-    log_msg(stdout, " -M  | --mode <str>:          generate|chat, default: chat\n");
+    log_msg(stdout, " -M  | --mode <str>:          chat|gen, default: chat\n");
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
     log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
     log_msg(stdout, " -h  | --help:                print32_t this help and exit\n");
@@ -433,7 +433,7 @@ int32_t main(int32_t argc, char *__argv[]) {
     sampler _sampler;
     build_sampler(&_sampler, _model_i->_tokenizer->vocab_size, temp, top_k, top_p, rng_seed);
 
-    if (! memcmp(_mode_s, "generate", strlen("generate") + 1)) {
+    if (! memcmp(_mode_s, "gen", strlen("gen") + 1)) {
         generate(_model_i, &_sampler, _prompt_s, _model_i->seq_n_max);
     }
     else if (! memcmp(_mode_s, "chat", strlen("chat") + 1)) {
