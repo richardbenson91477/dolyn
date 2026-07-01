@@ -1,7 +1,7 @@
 #!/bin/sh
 
 dolen_run_model_default="model.dolq"
-dolen_run_temp_default="0.5"
+dolen_run_temp_default="0.2"
 dolen_run_top_k_default=40
 dolen_run_top_p_default="0.95"
 dolen_run_seed_default=85
