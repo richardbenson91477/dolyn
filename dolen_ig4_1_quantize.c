@@ -2,7 +2,7 @@
 #include "dolen_ig4_1_common.h"
 
 
-int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
+int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     config_ig4_1 *_config = &_model->config;
 
     char config_path[PATH_MAX];
@@ -13,7 +13,7 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
         return -1;
     }
     fseek(_file, 0, SEEK_END);
-    long size = ftell(_file);
+    int64_t size = ftell(_file);
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
@@ -82,8 +82,8 @@ int load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
-        int rows, int cols, q_type_t type) {
+static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
+        int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
     snprintf(_name_s, sizeof(_name_s), "model.layers.%d.%s", layer, _suffix_s);
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
@@ -93,7 +93,7 @@ static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, con
     return 0;
 }
 
-int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
+int32_t quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
         q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *_tokenizer_path_s) {
     IG4_1 model;
     memset(&model, 0, sizeof(model));
@@ -116,14 +116,14 @@ int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
 
     config_ig4_1 *_config = &model.config;
 
-    int head_size = _config->d_head > 0 ? _config->d_head : _config->dim / _config->n_heads;
-    int kv_dim = _config->n_kv_heads * head_size;
-    int attn_out_dim = _config->n_heads * head_size;
+    int32_t head_size = _config->d_head > 0 ? _config->d_head : _config->dim / _config->n_heads;
+    int32_t kv_dim = _config->n_kv_heads * head_size;
+    int32_t attn_out_dim = _config->n_heads * head_size;
 
     uint64_t magic = MAGIC_IG4_1;
     uint32_t version = 3; // Bumped from 2 to 3
 
-    int failed = 0;
+    int32_t failed = 0;
 
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -147,14 +147,14 @@ int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight",
                     _config->n_heads * head_size, _config->dim, attn_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight",
@@ -168,14 +168,14 @@ int quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight", _config->n_mlp, _config->dim, mlp_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->n_mlp, mlp_type) ||
                 write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight", _config->n_mlp, _config->dim, mlp_type)) {

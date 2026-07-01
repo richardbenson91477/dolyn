@@ -3,11 +3,11 @@
 #include "dolen_common_mem.h"
 
 
-int sample_argmax(float *_probs, int n) {
-    int max_i = 0;
+int32_t sample_argmax(float *_probs, int32_t n) {
+    int32_t max_i = 0;
     float max_p = _probs[0];
 
-    for (int i = 1; i < n; i++) {
+    for (int32_t i = 1; i < n; i++) {
         if (_probs[i] > max_p) {
             max_i = i;
             max_p = _probs[i];
@@ -17,21 +17,21 @@ int sample_argmax(float *_probs, int n) {
     return max_i;
 }
 
-unsigned int random_u32(unsigned long long *_state) {
+uint32_t random_u32(uint64_t *_state) {
     *_state ^= *_state >> 12;
     *_state ^= *_state << 25;
     *_state ^= *_state >> 27;
     return (*_state * 0x2545F4914F6CDD1Dull) >> 32;
 }
 
-float random_f32(unsigned long long *_state) {
+float random_f32(uint64_t *_state) {
     return (random_u32(_state) >> 8) / 16777216.0f;
 }
 
-int sample_mult(float *_probs, int n, float coin) {
+int32_t sample_mult(float *_probs, int32_t n, float coin) {
     float cdf = 0.0f;
 
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         cdf += _probs[i];
         if (coin < cdf) {
             return i;
@@ -40,7 +40,7 @@ int sample_mult(float *_probs, int n, float coin) {
     return n - 1;
 }
 
-int compare_prob(const void *_a, const void *_b) {
+int32_t compare_prob(const void *_a, const void *_b) {
     prob_index *_prob_index_a = (prob_index *)_a;
     prob_index *_prob_index_b = (prob_index *)_b;
 
@@ -55,11 +55,11 @@ int compare_prob(const void *_a, const void *_b) {
     return 0;
 }
 
-int sample_top(float *_probs, int n, int top_k, float top_p, prob_index *_prob_index, float coin) {
-    int n0 = 0;
-    const float cutoff = (1.0f - top_p) / (n - 1);
+int32_t sample_top(float *_probs, int32_t n, int32_t top_k, float top_p, prob_index *_prob_index, float coin) {
+    int32_t n0 = 0;
+    const float cutoff = (n > 1) ? (1.0f - top_p) / (n - 1) : 0.0f;
 
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         if (_probs[i] >= cutoff) {
             _prob_index[n0].index = i;
             _prob_index[n0].prob = _probs[i];
@@ -79,8 +79,8 @@ int sample_top(float *_probs, int n, int top_k, float top_p, prob_index *_prob_i
     }
 
     float cumulative_prob = 0.0f;
-    int last_idx = n0 - 1;
-    for (int i = 0; i < n0; i++) {
+    int32_t last_idx = n0 - 1;
+    for (int32_t i = 0; i < n0; i++) {
         cumulative_prob += _prob_index[i].prob;
         if (cumulative_prob > top_p) {
             last_idx = i;
@@ -90,7 +90,7 @@ int sample_top(float *_probs, int n, int top_k, float top_p, prob_index *_prob_i
 
     float r = coin * cumulative_prob;
     float cdf = 0.0f;
-    for (int i = 0; i <= last_idx; i++) {
+    for (int32_t i = 0; i <= last_idx; i++) {
         cdf += _prob_index[i].prob;
         if (r < cdf) {
             return _prob_index[i].index;
@@ -100,15 +100,15 @@ int sample_top(float *_probs, int n, int top_k, float top_p, prob_index *_prob_i
     return _prob_index[last_idx].index;
 }
 
-int sample(sampler *_sampler, float *_logits) {
-    int next;
+int32_t sample(sampler *_sampler, float *_logits) {
+    int32_t next;
 
     if (_sampler->temp == 0.0f) {
         next = sample_argmax(_logits, _sampler->vocab_size);
     }
     else {
 #pragma omp parallel for
-        for (int q = 0; q < _sampler->vocab_size; q++) {
+        for (int32_t q = 0; q < _sampler->vocab_size; q++) {
             _logits[q] /= _sampler->temp;
         }
 
@@ -126,8 +126,7 @@ int sample(sampler *_sampler, float *_logits) {
     return next;
 }
 
-void build_sampler(sampler *_sampler, int vocab_size, float temp, int top_k, float top_p,
-        unsigned long long rng_seed) {
+void build_sampler(sampler *_sampler, int32_t vocab_size, float temp, int32_t top_k, float top_p, uint64_t rng_seed) {
     _sampler->vocab_size = vocab_size;
     _sampler->temp = temp;
     _sampler->top_k = top_k;

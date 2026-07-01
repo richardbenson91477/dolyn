@@ -9,20 +9,20 @@
 
 
 typedef struct {
-    int dim;
-    int hidden_dim;
-    int n_layers;
-    int n_heads;
-    int n_kv_heads;
-    int vocab_size;
-    int seq_len;
-    int head_dim;
-    int shared_classifier;
+    int32_t dim;
+    int32_t hidden_dim;
+    int32_t n_layers;
+    int32_t n_heads;
+    int32_t n_kv_heads;
+    int32_t vocab_size;
+    int32_t seq_len;
+    int32_t head_dim;
+    int32_t shared_classifier;
     float rope_theta;
     float rope_scaling_factor;
     float rms_norm_eps;
-    int bos_token_id;
-    int eos_token_id;
+    int32_t bos_token_id;
+    int32_t eos_token_id;
 } config_q3;
 
 typedef struct {
@@ -58,7 +58,7 @@ typedef struct {
     float *_value_cache;
     float *_cos_cache;
     float *_sin_cache;
-    int allocated;
+    int32_t allocated;
 } state_q3;
 
 typedef struct {

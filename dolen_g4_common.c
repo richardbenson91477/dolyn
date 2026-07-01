@@ -1,16 +1,16 @@
 #include "dolen_g4_common.h"
 
 
-void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *_layer_types) {
-    int max_head_dim = _config->head_dim > _config->global_head_dim ? _config->head_dim : _config->global_head_dim;
-    int max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ? _config->n_kv_heads : _config->n_global_kv_heads;
-    int max_kv_dim = max_kv_heads * max_head_dim;
-    int attn_out_dim = _config->n_heads * max_head_dim;
+void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int32_t *_layer_types) {
+    int32_t max_head_dim = _config->head_dim > _config->global_head_dim ? _config->head_dim : _config->global_head_dim;
+    int32_t max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ? _config->n_kv_heads : _config->n_global_kv_heads;
+    int32_t max_kv_dim = max_kv_heads * max_head_dim;
+    int32_t attn_out_dim = _config->n_heads * max_head_dim;
 
-    int cache_stride_full = _config->global_head_dim / 2;
-    int cache_stride_sliding = _config->head_dim / 2;
+    int32_t cache_stride_full = _config->global_head_dim / 2;
+    int32_t cache_stride_sliding = _config->head_dim / 2;
 
-    int max_act_dim = _config->dim;
+    int32_t max_act_dim = _config->dim;
     if (attn_out_dim > max_act_dim) {
         max_act_dim = attn_out_dim;
     }
@@ -32,37 +32,37 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
     _state->n_layers = _config->n_layers;
     _state->__key_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
     _state->__value_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
-    for (int l = 0; l < _config->n_layers; l++) {
-        int is_full = _layer_types ? _layer_types[l] : 0;
-        int kv_heads = is_full ? _config->n_global_kv_heads : _config->n_kv_heads;
-        int head_dim = is_full ? _config->global_head_dim : _config->head_dim;
-        int kv_dim = kv_heads * head_dim;
-        _state->__key_cache[l] = a_calloc((size_t)_config->seq_len * kv_dim * sizeof(float));
-        _state->__value_cache[l] = a_calloc((size_t)_config->seq_len * kv_dim * sizeof(float));
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        int32_t is_full = _layer_types ? _layer_types[l] : 0;
+        int32_t kv_heads = is_full ? _config->n_global_kv_heads : _config->n_kv_heads;
+        int32_t head_dim = is_full ? _config->global_head_dim : _config->head_dim;
+        int32_t kv_dim = kv_heads * head_dim;
+        _state->__key_cache[l] = a_calloc((size_t)_config->seq_len * (size_t)kv_dim * sizeof(float));
+        _state->__value_cache[l] = a_calloc((size_t)_config->seq_len * (size_t)kv_dim * sizeof(float));
     }
 
-    int num_groups_xq = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
+    int32_t num_groups_xq = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     _state->xq._data = a_calloc((size_t)max_act_dim * sizeof(int8_t));
     _state->xq._scales = a_calloc((size_t)num_groups_xq * sizeof(float));
     _state->xq.type = Q_TYPE_Q8;
     _state->xq.rows = 1;
     _state->xq.cols = max_act_dim;
 
-    int num_groups_hq = (_config->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
+    int32_t num_groups_hq = (_config->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     _state->hq._data = a_calloc((size_t)_config->hidden_dim * sizeof(int8_t));
     _state->hq._scales = a_calloc((size_t)num_groups_hq * sizeof(float));
     _state->hq.type = Q_TYPE_Q8;
     _state->hq.rows = 1;
     _state->hq.cols = _config->hidden_dim;
 
-    int rotary_dim_full = (int)(_config->rope_partial_factor * _config->global_head_dim);
+    int32_t rotary_dim_full = (int32_t)(_config->rope_partial_factor * _config->global_head_dim);
 
     if (cache_stride_full > 0) {
         _state->_cos_cache_full = a_calloc((size_t)_config->seq_len * cache_stride_full * sizeof(float));
         _state->_sin_cache_full = a_calloc((size_t)_config->seq_len * cache_stride_full * sizeof(float));
 
-        for (int pos = 0; pos < _config->seq_len; pos++) {
-            for (int i = 0; i < cache_stride_full; i++) {
+        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+            for (int32_t i = 0; i < cache_stride_full; i++) {
                 float cos_val, sin_val;
                 if (i < rotary_dim_full / 2) {
                     float freq = 1.0f / powf(_config->rope_theta_full, (float)(2 * i) / _config->global_head_dim);
@@ -82,8 +82,8 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
     if (cache_stride_sliding > 0) {
         _state->_cos_cache_sliding = a_calloc((size_t)_config->seq_len * cache_stride_sliding * sizeof(float));
         _state->_sin_cache_sliding = a_calloc((size_t)_config->seq_len * cache_stride_sliding * sizeof(float));
-        for (int pos = 0; pos < _config->seq_len; pos++) {
-            for (int i = 0; i < cache_stride_sliding; i++) {
+        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+            for (int32_t i = 0; i < cache_stride_sliding; i++) {
                 float freq = 1.0f / powf(_config->rope_theta_sliding, (float)(2 * i) / _config->head_dim);
                 float val = (float)pos * freq;
                 _state->_cos_cache_sliding[pos * cache_stride_sliding + i] = cosf(val);
@@ -142,13 +142,13 @@ void free_state_g4(state_g4 *_state) {
     free(_state->_logits);
 
     if (_state->__key_cache) {
-        for (int i = 0; i < _state->n_layers; i++) {
+        for (int32_t i = 0; i < _state->n_layers; i++) {
             free(_state->__key_cache[i]);
         }
         free(_state->__key_cache);
     }
     if (_state->__value_cache) {
-        for (int i = 0; i < _state->n_layers; i++) {
+        for (int32_t i = 0; i < _state->n_layers; i++) {
             free(_state->__value_cache[i]);
         }
         free(_state->__value_cache);

@@ -15,7 +15,7 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
 };
 
 
-int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
+int32_t load_quantized_l3(const char *_file_path_s, L3 *_model, int32_t seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
@@ -91,22 +91,22 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
 
     read_qt(_file, &_weights->embed_tokens_weight);
 
-    for (int i = 0; i < _config->n_layers; i++) {
+    for (int32_t i = 0; i < _config->n_layers; i++) {
         read_qt(_file, &_weights->_rms_att_weight[i]);
     }
 
-    for (int i = 0; i < _config->n_layers; i++) {
+    for (int32_t i = 0; i < _config->n_layers; i++) {
         read_qt(_file, &_weights->_wq[i]);
         read_qt(_file, &_weights->_wk[i]);
         read_qt(_file, &_weights->_wv[i]);
         read_qt(_file, &_weights->_wo[i]);
     }    
 
-    for (int i = 0; i < _config->n_layers; i++) {
+    for (int32_t i = 0; i < _config->n_layers; i++) {
         read_qt(_file, &_weights->_rms_ffn_weight[i]);
     }
 
-    for (int i = 0; i < _config->n_layers; i++) {
+    for (int32_t i = 0; i < _config->n_layers; i++) {
         read_qt(_file, &_weights->_w1[i]);
         read_qt(_file, &_weights->_w2[i]);
         read_qt(_file, &_weights->_w3[i]);
@@ -127,12 +127,12 @@ int load_quantized_l3(const char *_file_path_s, L3 *_model, int seq_n_max) {
     return 0;
 }
 
-static void apply_rope(float *_vec, float *_cos, float *_sin, int rotary_dim, int pos) {
-    int half_rot = rotary_dim / 2;
+static void apply_rope(float *_vec, float *_cos, float *_sin, int32_t rotary_dim, int32_t pos) {
+    int32_t half_rot = rotary_dim / 2;
     float *_cos_row = _cos + pos * half_rot;
     float *_sin_row = _sin + pos * half_rot;
 
-    for (int i = 0; i < half_rot; i++) {
+    for (int32_t i = 0; i < half_rot; i++) {
         float c = _cos_row[i];
         float sn = _sin_row[i];
         float v0 = _vec[i];
@@ -142,20 +142,20 @@ static void apply_rope(float *_vec, float *_cos, float *_sin, int rotary_dim, in
     }
 }
 
-float *forward_l3(L3 *_model, int token, int pos) {
+float *forward_l3(L3 *_model, int32_t token, int32_t pos) {
     config_l3 *_config = &_model->config;
     weights_l3 *_weights = &_model->weights;
     state_l3 *_state = &_model->state;
     float *_x = _state->_x;
-    int dim = _config->dim;
-    int head_size = _config->head_dim;
-    int kv_dim = _config->n_kv_heads * head_size;
-    int kv_mul = _config->n_heads / _config->n_kv_heads;
+    int32_t dim = _config->dim;
+    int32_t head_size = _config->head_dim;
+    int32_t kv_dim = _config->n_kv_heads * head_size;
+    int32_t kv_mul = _config->n_heads / _config->n_kv_heads;
     float eps = _config->rms_norm_eps;
 
     dequantize_row(_x, &_weights->embed_tokens_weight, token);
 
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         float *_rms_att = (float *)_weights->_rms_att_weight[l]._data;
         rmsnorm(_state->_xb, _x, _rms_att, dim, eps);
 
@@ -164,28 +164,28 @@ float *forward_l3(L3 *_model, int token, int pos) {
         matmul_qq(_state->_k, &_state->xq, &_weights->_wk[l]);
         matmul_qq(_state->_v, &_state->xq, &_weights->_wv[l]);
 
-        for (int h = 0; h < _config->n_heads; h++) {
+        for (int32_t h = 0; h < _config->n_heads; h++) {
             apply_rope(_state->_q + h * head_size, _state->_cos_cache, _state->_sin_cache, head_size, pos);
         }
-        for (int h = 0; h < _config->n_kv_heads; h++) {
+        for (int32_t h = 0; h < _config->n_kv_heads; h++) {
             apply_rope(_state->_k + h * head_size, _state->_cos_cache, _state->_sin_cache, head_size, pos);
         }
 
-        memcpy(_state->__key_cache[l] + (long long)pos * kv_dim, _state->_k, kv_dim * sizeof(float));
-        memcpy(_state->__value_cache[l] + (long long)pos * kv_dim, _state->_v, kv_dim * sizeof(float));
+        memcpy(_state->__key_cache[l] + (int64_t)pos * kv_dim, _state->_k, kv_dim * sizeof(float));
+        memcpy(_state->__value_cache[l] + (int64_t)pos * kv_dim, _state->_v, kv_dim * sizeof(float));
 
         float inv_sqrt_head = 1.0f / sqrtf((float)head_size);
 #pragma omp parallel for
-        for (int h = 0; h < _config->n_heads; h++) {
+        for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * head_size;
             float *_att = _state->_att + h * _config->seq_len;
-            int kv_head = h / kv_mul;
+            int32_t kv_head = h / kv_mul;
 
-            for (int t = 0; t <= pos; t++) {
-                float *_k = _state->__key_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
+            for (int32_t t = 0; t <= pos; t++) {
+                float *_k = _state->__key_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;
                 float score = 0.0f;
 #pragma omp simd reduction(+ : score)
-                for (int i = 0; i < head_size; i++) {
+                for (int32_t i = 0; i < head_size; i++) {
                     score += _q[i] * _k[i];
                 }
                 _att[t] = score * inv_sqrt_head;
@@ -194,11 +194,11 @@ float *forward_l3(L3 *_model, int token, int pos) {
 
             float *_x_out = _state->_xb + h * head_size; 
             memset(_x_out, 0, head_size * sizeof(float));
-            for (int t = 0; t <= pos; t++) {
-                float *_v = _state->__value_cache[l] + (long long)t * kv_dim + (long long)kv_head * head_size;
+            for (int32_t t = 0; t <= pos; t++) {
+                float *_v = _state->__value_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;
                 float a = _att[t];
 #pragma omp simd
-                for (int i = 0; i < head_size; i++) {
+                for (int32_t i = 0; i < head_size; i++) {
                     _x_out[i] += a * _v[i];
                 }
             }
@@ -207,7 +207,7 @@ float *forward_l3(L3 *_model, int token, int pos) {
         quantize_vec(&_state->xq, _state->_xb, _config->n_heads * head_size);
         matmul_qq(_state->_xb2, &_state->xq, &_weights->_wo[l]);
 
-        for (int i = 0; i < dim; i++) {
+        for (int32_t i = 0; i < dim; i++) {
             _x[i] += _state->_xb2[i];
         }
 
@@ -219,7 +219,7 @@ float *forward_l3(L3 *_model, int token, int pos) {
         matmul_qq(_state->_hb2, &_state->xq, &_weights->_w3[l]);
 
 #pragma omp parallel for
-        for (int i = 0; i < _config->hidden_dim; i++) {
+        for (int32_t i = 0; i < _config->hidden_dim; i++) {
             float val = _state->_hb[i];
             // Swish / SiLU Activation
             val *= (1.0f / (1.0f + expf(-val)));
@@ -230,7 +230,7 @@ float *forward_l3(L3 *_model, int token, int pos) {
         quantize_vec(&_state->hq, _state->_hb, _config->hidden_dim);
         matmul_qq(_state->_xb, &_state->hq, &_weights->_w2[l]);
 
-        for (int i = 0; i < dim; i++) {
+        for (int32_t i = 0; i < dim; i++) {
             _x[i] += _state->_xb[i];
         }
     }
@@ -246,7 +246,7 @@ float *forward_l3(L3 *_model, int token, int pos) {
     return _state->_logits;
 }
 
-static float *forward_l3_wrap(void *_model, int token, int pos) {
+static float *forward_l3_wrap(void *_model, int32_t token, int32_t pos) {
     return forward_l3((L3 *)_model, token, pos);
 }
 
@@ -255,7 +255,7 @@ static void free_l3_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_l3(const char *_model_path_s, int seq_n_max, bool think_) {
+model_iface *init_l3(const char *_model_path_s, int32_t seq_n_max, bool think_) {
     L3 *_model = a_calloc(sizeof(L3));
     if (load_quantized_l3(_model_path_s, _model, seq_n_max)) {
         free_l3(_model);

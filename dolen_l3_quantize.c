@@ -2,7 +2,7 @@
 #include "dolen_l3_common.h"
 
 
-int load_config_l3(L3 *_model, const char *_model_dir_s) {
+int32_t load_config_l3(L3 *_model, const char *_model_dir_s) {
     config_l3 *p = &_model->config;
 
     char config_path[PATH_MAX];
@@ -13,7 +13,7 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
         return -1;
     }
     fseek(_file, 0, SEEK_END);
-    long size = ftell(_file);
+    int64_t size = ftell(_file);
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
@@ -69,8 +69,8 @@ int load_config_l3(L3 *_model, const char *_model_dir_s) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
-        int rows, int cols, q_type_t type) {
+static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
+        int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
     snprintf(_name_s, sizeof(_name_s), "model.layers.%d.%s", layer, _suffix_s);
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
@@ -80,7 +80,7 @@ static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, con
     return 0;
 }
 
-int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
+int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
         q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *_tokenizer_path_s) {
     L3 model;
     memset(&model, 0, sizeof(model));
@@ -102,13 +102,13 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     config_l3 *p = &model.config;
-    int head_size = p->head_dim;
-    int kv_dim = p->n_kv_heads * head_size;
-    int q_dim = p->n_heads * head_size;
+    int32_t head_size = p->head_dim;
+    int32_t kv_dim = p->n_kv_heads * head_size;
+    int32_t q_dim = p->n_heads * head_size;
 
     uint64_t magic = MAGIC_L3;
     uint32_t version = 2; // Bumped from 1 to 2 to account for config_l3 struct size change
-    int failed = 0;
+    int32_t failed = 0;
 
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -133,14 +133,14 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    for (int l = 0; l < p->n_layers; l++) {
+    for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < p->n_layers; l++) {
+    for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight", q_dim, p->dim, attn_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight", kv_dim, p->dim, attn_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight", kv_dim, p->dim, attn_type) ||
@@ -150,14 +150,14 @@ int quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
 
-    for (int l = 0; l < p->n_layers; l++) {
+    for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight", 1, p->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    for (int l = 0; l < p->n_layers; l++) {
+    for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight", p->hidden_dim, p->dim, mlp_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight", p->dim, p->hidden_dim, mlp_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight", p->hidden_dim, p->dim, mlp_type)) {

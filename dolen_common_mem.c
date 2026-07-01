@@ -17,7 +17,7 @@ void *a_calloc(size_t size) {
 
 uint64_t read_le64(const uint8_t bytes[8]) {
     uint64_t value = 0;
-    for (int i = 7; i >= 0; i--) {
+    for (int32_t i = 7; i >= 0; i--) {
         value = (value << 8) | bytes[i];
     }
     return value;

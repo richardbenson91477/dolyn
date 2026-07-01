@@ -2,17 +2,17 @@
 
 
 void alloc_state_q2(state_q2 *_state, config_q2 *_config) {
-    int all_heads_dim = _config->n_heads * _config->head_dim;
-    int kv_dim = _config->n_kv_heads * _config->head_dim;
+    int32_t all_heads_dim = _config->n_heads * _config->head_dim;
+    int32_t kv_dim = _config->n_kv_heads * _config->head_dim;
 
     _state->_x = a_calloc((size_t)_config->dim * sizeof(float));
     _state->_xb = a_calloc((all_heads_dim > _config->dim ? all_heads_dim : _config->dim) * sizeof(float));
     _state->_hb = a_calloc((size_t)_config->hidden_dim * sizeof(float));
     _state->_hb2 = a_calloc((size_t)_config->hidden_dim * sizeof(float));
 
-    int xq_size = all_heads_dim > _config->dim ? all_heads_dim : _config->dim;
-    int xq_num_groups = (xq_size + GROUP_SIZE - 1) / GROUP_SIZE;
-    int hq_num_groups = (_config->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
+    int32_t xq_size = all_heads_dim > _config->dim ? all_heads_dim : _config->dim;
+    int32_t xq_num_groups = (xq_size + GROUP_SIZE - 1) / GROUP_SIZE;
+    int32_t hq_num_groups = (_config->hidden_dim + GROUP_SIZE - 1) / GROUP_SIZE;
 
     _state->xq._data = a_calloc((size_t)xq_size * sizeof(int8_t));
     _state->xq._scales = a_calloc((size_t)xq_num_groups * sizeof(float));
@@ -30,13 +30,13 @@ void alloc_state_q2(state_q2 *_state, config_q2 *_config) {
     _state->_key_cache = a_calloc((size_t)_config->n_layers * _config->seq_len * kv_dim * sizeof(float));
     _state->_value_cache = a_calloc((size_t)_config->n_layers * _config->seq_len * kv_dim * sizeof(float));
 
-    int rotary_half = _config->head_dim / 2;
+    int32_t rotary_half = _config->head_dim / 2;
     if (rotary_half > 0) {
         _state->_cos_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_half * sizeof(float));
         _state->_sin_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_half * sizeof(float));
-        for (int pos = 0; pos < _config->seq_len; pos++) {
+        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
             float scaled_pos = pos / _config->rope_scaling_factor;
-            for (int i = 0; i < rotary_half; i++) {
+            for (int32_t i = 0; i < rotary_half; i++) {
                 float freq = 1.0f / powf(_config->rope_theta, (float)i / rotary_half);
                 float val = scaled_pos * freq;
                 _state->_cos_cache[pos * rotary_half + i] = cosf(val);
@@ -93,7 +93,7 @@ void free_state_q2(state_q2 *_state) {
 
 void free_q2(Q2 *_model) {
     weights_q2 *_weights = &(_model->weights);
-    int n_layer = _model->config.n_layers;
+    int32_t n_layer = _model->config.n_layers;
 
     free_qt(&(_weights->embed_tokens_weight));
     free_qt_array(_weights->_rms_att_weight, n_layer);

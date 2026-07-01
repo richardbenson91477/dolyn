@@ -2,13 +2,13 @@
 
 
 void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
-    int dim = _config->dim;
-    int head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
-    int kv_dim = _config->n_kv_heads * head_size;
-    int hidden_dim = _config->n_mlp;
-    int attn_dim = _config->n_heads * head_size;
+    int32_t dim = _config->dim;
+    int32_t head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
+    int32_t kv_dim = _config->n_kv_heads * head_size;
+    int32_t hidden_dim = _config->n_mlp;
+    int32_t attn_dim = _config->n_heads * head_size;
 
-    int max_act_dim = dim;
+    int32_t max_act_dim = dim;
     if (attn_dim > max_act_dim) {
         max_act_dim = attn_dim;
     }
@@ -27,7 +27,7 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
     _state->_att = a_calloc((size_t)_config->n_heads * _config->seq_len * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
 
-    int num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
+    int32_t num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     _state->xq._data = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     _state->xq._scales = (float *)a_calloc((size_t)num_groups * sizeof(float));
     _state->xq.type = Q_TYPE_Q8;
@@ -40,15 +40,17 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
     _state->hq.rows = 1;
     _state->hq.cols = max_act_dim;
 
-    _state->_key_cache = a_calloc((size_t)_config->n_layer * _config->seq_len * kv_dim * sizeof(float));
-    _state->_value_cache = a_calloc((size_t)_config->n_layer * _config->seq_len * kv_dim * sizeof(float));
+    _state->_key_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim
+            * sizeof(float));
+    _state->_value_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim 
+            * sizeof(float));
 
-    int rotary_dim = head_size;
+    int32_t rotary_dim = head_size;
     _state->_cos_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_dim * sizeof(float));
     _state->_sin_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_dim * sizeof(float));
     float theta = _config->rope_theta;
-    for (int pos = 0; pos < _config->seq_len; pos++) {
-        for (int i = 0; i < rotary_dim / 2; i++) {
+    for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+        for (int32_t i = 0; i < rotary_dim / 2; i++) {
             float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_dim);
             float val = pos * freq;
             _state->_cos_cache[pos * rotary_dim + i] = cosf(val);
@@ -111,7 +113,7 @@ void free_ig4_1(IG4_1 *_model) {
         return;
     }
     weights_ig4_1 *_weights = &(_model->weights);
-    int n_layer = _model->config.n_layer;
+    int32_t n_layer = _model->config.n_layer;
 
     free_qt(&(_weights->embed_tokens_weight));
     free_qt_array(_weights->_rms_att_weight, n_layer);

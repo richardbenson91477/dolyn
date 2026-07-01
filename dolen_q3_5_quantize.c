@@ -2,12 +2,12 @@
 #include "dolen_q3_5_common.h"
 
 
-static int get_layer_type(int layer_idx, const JsonValue *_layer_types) {
+static int32_t get_layer_type(int32_t layer_idx, const JsonValue *_layer_types) {
     if ((! _layer_types) ||
             (_layer_types->type != JSON_ARRAY)) {
         return 0;
     }
-    if (layer_idx >= (int)_layer_types->data.array.count) {
+    if (layer_idx >= (int32_t)_layer_types->data.array.count) {
         return 0;
     }
     JsonValue *_js_lt = json_array_get(_layer_types, layer_idx);
@@ -22,7 +22,7 @@ static int get_layer_type(int layer_idx, const JsonValue *_layer_types) {
     return 0;
 }
 
-int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
+int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     config_q3_5 *_config = &_model->config;
 
     char _config_path_s[PATH_MAX];
@@ -33,7 +33,7 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         return -1;
     }
     fseek(_file, 0, SEEK_END);
-    long size = ftell(_file);
+    int64_t size = ftell(_file);
     fseek(_file, 0, SEEK_SET);
 
     char *_json_str = (char *)a_calloc(size + 1);
@@ -89,9 +89,9 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     _config->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 0);
     _config->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 248044);
 
-    _model->_layer_types = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
-    _model->_attn_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
-    _model->_deltanet_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
+    _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
+    _model->_attn_layer_indices = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
+    _model->_deltanet_layer_indices = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
 
     if ((! _model->_layer_types) ||
             (! _model->_attn_layer_indices) ||
@@ -105,12 +105,12 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     }
 
     JsonValue *_js_layer_types = json_object_get(_js_cfg, "layer_types");
-    int la = 0, ld = 0;
+    int32_t la = 0, ld = 0;
     _config->n_full_attn_layers = 0;
     _config->n_linear_attn_layers = 0;
 
-    for (int i = 0; i < _config->n_layer; i++) {
-        int is_linear = get_layer_type(i, _js_layer_types);
+    for (int32_t i = 0; i < _config->n_layer; i++) {
+        int32_t is_linear = get_layer_type(i, _js_layer_types);
         _model->_layer_types[i] = is_linear;
         if (is_linear == 1) {
             _model->_deltanet_layer_indices[i] = ld++;
@@ -126,8 +126,8 @@ int load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
-        int rows, int cols, q_type_t type) {
+static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
+        int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
     snprintf(_name_s, sizeof(_name_s), "model.language_model.layers.%d.%s", layer, _suffix_s);
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
@@ -137,7 +137,7 @@ static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, con
     return 0;
 }
 
-int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
+int32_t quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *_tokenizer_path_s) {
     Q3_5 model;
     memset(&model, 0, sizeof(model));
@@ -166,18 +166,18 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
 
     config_q3_5 *_config = &model.config;
 
-    int head_size = _config->d_head > 0 ? _config->d_head : (_config->dim / _config->n_heads);
-    int kv_dim = _config->n_kv_heads * head_size;
-    int key_dim = _config->n_linear_k_heads * _config->d_linear_k;
-    int value_dim = _config->n_linear_v_heads * _config->d_linear_v;
-    int conv_dim = key_dim * 2 + value_dim;
-    int q_dim = _config->n_heads * head_size * 2;
-    int attn_out_dim = _config->n_heads * head_size;
+    int32_t head_size = _config->d_head > 0 ? _config->d_head : (_config->dim / _config->n_heads);
+    int32_t kv_dim = _config->n_kv_heads * head_size;
+    int32_t key_dim = _config->n_linear_k_heads * _config->d_linear_k;
+    int32_t value_dim = _config->n_linear_v_heads * _config->d_linear_v;
+    int32_t conv_dim = key_dim * 2 + value_dim;
+    int32_t q_dim = _config->n_heads * head_size * 2;
+    int32_t attn_out_dim = _config->n_heads * head_size;
 
     uint64_t magic = MAGIC_Q3_5;
     uint32_t version = 3; // Bumped from 2 to 3
 
-    int failed = 0;
+    int32_t failed = 0;
 
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -196,7 +196,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    if (quantize_write_bytes(_file, model._layer_types, sizeof(int), _config->n_layer)) {
+    if (quantize_write_bytes(_file, model._layer_types, sizeof(int32_t), _config->n_layer)) {
         failed = 1;
         goto cleanup;
     }
@@ -207,7 +207,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight",
                     1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
@@ -215,7 +215,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (model._layer_types[l]) {
             continue;
         }
@@ -232,7 +232,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (! model._layer_types[l] &&
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
                     1, head_size, Q_TYPE_F32)) {
@@ -240,7 +240,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
             goto cleanup;
         }
     }
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (! model._layer_types[l] &&
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
                     1, head_size, Q_TYPE_F32)) {
@@ -250,7 +250,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     if (_config->n_linear_attn_layers > 0) {
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] != 1) {
                 continue;
             }
@@ -262,7 +262,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if ((model._layer_types[l] == 1) && 
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_b.weight",
                         1, _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
@@ -270,7 +270,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_a.weight",
                         1, _config->n_linear_v_heads * _config->dim, Q_TYPE_F32)) {
@@ -278,7 +278,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.conv1d.weight",
                         1, conv_dim * _config->linear_conv_kernel, Q_TYPE_F32)) {
@@ -286,7 +286,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.dt_bias",
                         1, _config->n_linear_v_heads, Q_TYPE_F32)) {
@@ -294,7 +294,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.A_log",
                         1, _config->n_linear_v_heads, Q_TYPE_F32)) {
@@ -302,7 +302,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.norm.weight",
                         1, _config->d_linear_v, Q_TYPE_F32)) {
@@ -310,7 +310,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
                 goto cleanup;
             }
         }
-        for (int l = 0; l < _config->n_layer; l++) {
+        for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.out_proj.weight",
                         _config->dim, value_dim, attn_type)) {
@@ -320,7 +320,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight",
                     1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
@@ -328,7 +328,7 @@ int quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
         }
     }
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
                     _config->n_mlp, _config->dim, mlp_type) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",

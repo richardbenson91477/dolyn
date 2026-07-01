@@ -20,13 +20,13 @@ static const chat_template CHAT_TEMPLATE_CHATML = {
 };
 
 
-static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int steps_n_max) {
+static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int32_t steps_n_max) {
     if (_prompt_s == NULL) {
         _prompt_s = "";
     }
 
-    int prompt_tokens_n = 0;
-    int *_prompt_tokens = (int *)a_calloc((strlen(_prompt_s) * 4 + 3) * sizeof(int));
+    int32_t prompt_tokens_n = 0;
+    int32_t *_prompt_tokens = (int32_t *)a_calloc((strlen(_prompt_s) * 4 + 3) * sizeof(int32_t));
 
     encode(_model_i->_tokenizer, _prompt_s, _model_i->_tokenizer->bos_id, 0, _prompt_tokens, &prompt_tokens_n);
 
@@ -35,10 +35,10 @@ static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
         exit(EXIT_FAILURE);
     }
 
-    long start = 0;
-    int next;
-    int token = _prompt_tokens[0];
-    int pos = 0;
+    int64_t start = 0;
+    int32_t next;
+    int32_t token = _prompt_tokens[0];
+    int32_t pos = 0;
     while (pos < steps_n_max) {
         float *_logits = _model_i->forward(_model_i->_model, token, pos);
 
@@ -66,7 +66,7 @@ static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
     log_msg(stdout, "\n");
 
     if (pos > 1) {
-        long end = time_in_ms();
+        int64_t end = time_in_ms();
         log_msg(stdout, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end - start) * 1000);
     }
 
@@ -74,8 +74,8 @@ static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
 }
 
 static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_, const char *_system_prompt_s,
-        const char *_prompt_s, int *_rendered_len) {
-    int len1, len2;
+        const char *_prompt_s, int32_t *_rendered_len) {
+    int32_t len1, len2;
 
     if (first_turn_ &&
             _system_prompt_s &&
@@ -109,7 +109,7 @@ static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_,
     return _rendered_s;
 }
 
-static bool is_chat_stop_token(const model_iface *_model_i, int token) {
+static bool is_chat_stop_token(const model_iface *_model_i, int32_t token) {
     if (token == _model_i->_tokenizer->im_end_id) {
         return true;
     }
@@ -122,7 +122,7 @@ static bool is_chat_stop_token(const model_iface *_model_i, int token) {
 }
 
 static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_s, char *_init_prompt_s,
-        int prompt_n_max, int steps_n_max) {
+        int32_t prompt_n_max, int32_t steps_n_max) {
     const chat_template *_chat_tmpl = _model_i->_chat_template;
     if (! _chat_tmpl) {
         _chat_tmpl = &CHAT_TEMPLATE_CHATML;
@@ -134,18 +134,18 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
         exit(EXIT_FAILURE);
     }
 
-    int _rendered_len = 0;
+    int32_t _rendered_len = 0;
     char *_rendered_prompt_s = NULL;
-    int prompt_tokens_n = 0;
-    int *_prompt_tokens = NULL;
-    int user_idx;
+    int32_t prompt_tokens_n = 0;
+    int32_t *_prompt_tokens = NULL;
+    int32_t user_idx;
     bool user_turn_ = true;
     bool first_turn_ = true;
-    int next = 0;
-    int token;
-    int pos = 0;
-    long start = 0;
-    int generated_tokens = 0;
+    int32_t next = 0;
+    int32_t token;
+    int32_t pos = 0;
+    int64_t start = 0;
+    int32_t generated_tokens = 0;
 
     char *_prompt_s = (char *)a_calloc((prompt_n_max + 1) * sizeof(char));
 
@@ -170,9 +170,9 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
                 free(_prompt_tokens);
             }
 
-            _prompt_tokens = (int *)a_calloc(((size_t)_rendered_len * 4 + 3) * sizeof(int));
+            _prompt_tokens = (int32_t *)a_calloc(((size_t)_rendered_len * 4 + 3) * sizeof(int32_t));
 
-            int bos_token = first_turn_ ? _model_i->_tokenizer->bos_id : 0;
+            int32_t bos_token = first_turn_ ? _model_i->_tokenizer->bos_id : 0;
             encode(_model_i->_tokenizer, _rendered_prompt_s, bos_token, 0, _prompt_tokens, &prompt_tokens_n);
 
             free(_rendered_prompt_s);
@@ -201,7 +201,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
         if (user_idx >= prompt_tokens_n) {
             if (is_chat_stop_token(_model_i, next)) {
                 log_msg(stdout, "\n");
-                long end = time_in_ms();
+                int64_t end = time_in_ms();
                 if ((generated_tokens > 0) &&
                         ((end - start) > 0)) {
                     log_msg(stdout, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
@@ -253,27 +253,27 @@ static void error_usage(const char *_argv0) {
     log_msg(stdout, " -M  | --mode <str>:          generate|chat, default: chat\n");
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
     log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
-    log_msg(stdout, " -h  | --help:                print this help and exit\n");
+    log_msg(stdout, " -h  | --help:                print32_t this help and exit\n");
     log_msg(stdout, " -th | --think:               enable think-mode chat template, default: disabled\n");
 
     exit(EXIT_FAILURE);
 }
 
-int main(int argc, char *__argv[]) {
+int32_t main(int32_t argc, char *__argv[]) {
     char *_model_path_s = NULL;
     float temp = TEMP_DEFAULT;
-    int top_k = TOP_K_DEFAULT;
+    int32_t top_k = TOP_K_DEFAULT;
     float top_p = TOP_P_DEFAULT;
-    unsigned long long rng_seed = 0;
-    int seq_n_max = 0;
-    int prompt_n_max = PROMPT_N_MAX_DEFAULT;
+    uint64_t rng_seed = 0;
+    int32_t seq_n_max = 0;
+    int32_t prompt_n_max = PROMPT_N_MAX_DEFAULT;
     char *_prompt_s = NULL;
     char *_prompt_file = NULL;
     char *_mode_s = "chat";
     char *_system_prompt_s = NULL;
     bool think_ = false;
 
-    for (int i = 1; i < argc;) {
+    for (int32_t i = 1; i < argc;) {
         if (__argv[i][0] != '-') {
             error_usage(__argv[0]);
         }
@@ -339,7 +339,7 @@ int main(int argc, char *__argv[]) {
         }
         else if ((! strcmp(__argv[i], "-sp")) ||
                 (! strcmp(__argv[i], "--system_prompt"))) {
-            int system_prompt_len = strlen(__argv[i + 1]);
+            int32_t system_prompt_len = strlen(__argv[i + 1]);
             if (system_prompt_len > 0) {
                 _system_prompt_s = a_calloc(system_prompt_len + 1);
                 strncpy(_system_prompt_s, __argv[i + 1], system_prompt_len + 1);
@@ -369,7 +369,7 @@ int main(int argc, char *__argv[]) {
 
 
     if (! rng_seed) {
-        rng_seed = (unsigned int)time(NULL);
+        rng_seed = (uint32_t)time(NULL);
     }
     log_msg(stdout, "INFO: Using seed %lu\n", rng_seed);
 
@@ -384,7 +384,7 @@ int main(int argc, char *__argv[]) {
             exit(EXIT_FAILURE);
         }
         fseek(_file, 0, SEEK_END);
-        long f_len = ftell(_file);
+        int64_t f_len = ftell(_file);
         fseek(_file, 0, SEEK_SET);
 
         if (f_len < 0) {

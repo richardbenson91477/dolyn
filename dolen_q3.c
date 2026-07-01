@@ -17,7 +17,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
 };
 
 
-int load_quantized_q3(const char *_file_path_s, Q3 *_model, int seq_n_max) {
+int32_t load_quantized_q3(const char *_file_path_s, Q3 *_model, int32_t seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
@@ -85,19 +85,19 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model, int seq_n_max) {
 
     read_qt(_file, &_weights->embed_tokens_weight);
 
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         read_qt(_file, &_weights->_rms_att_weight[l]);
     }
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         read_qt(_file, &_weights->_rms_ffn_weight[l]);
     }
 
     read_qt(_file, &_weights->rms_final_weight);
 
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         read_qt(_file, &_weights->_q_norm[l]);
     }
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         read_qt(_file, &_weights->_k_norm[l]);
     }
 
@@ -127,7 +127,7 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model, int seq_n_max) {
         return -1;
     }
 
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         read_qt(_file, &_weights->_wq[l]);
         read_qt(_file, &_weights->_wk[l]);
         read_qt(_file, &_weights->_wv[l]);
@@ -145,19 +145,19 @@ int load_quantized_q3(const char *_file_path_s, Q3 *_model, int seq_n_max) {
     return 0;
 }
 
-float *forward_q3(Q3 *_model, int token, int pos) {
+float *forward_q3(Q3 *_model, int32_t token, int32_t pos) {
     config_q3 *_config = &_model->config;
     weights_q3 *_weights = &_model->weights;
     state_q3 *_state = &_model->state;
-    int kv_dim = _config->n_kv_heads * _config->head_dim;
-    int kv_mul = _config->n_heads / _config->n_kv_heads;
-    int all_heads_dim = _config->n_heads * _config->head_dim;
+    int32_t kv_dim = _config->n_kv_heads * _config->head_dim;
+    int32_t kv_mul = _config->n_heads / _config->n_kv_heads;
+    int32_t all_heads_dim = _config->n_heads * _config->head_dim;
     float eps = _config->rms_norm_eps;
 
     dequantize_row(_state->_x, &_weights->embed_tokens_weight, token);
 
-    for (int l = 0; l < _config->n_layers; l++) {
-        long long loff = l * _config->seq_len * kv_dim;
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        int64_t loff = (int64_t)l * _config->seq_len * kv_dim;
 
         rmsnorm(_state->_xb, _state->_x, (float *)_weights->_rms_att_weight[l]._data, _config->dim, eps);
 
@@ -167,19 +167,19 @@ float *forward_q3(Q3 *_model, int token, int pos) {
         matmul_qq(_state->_k, &_state->xq, &_weights->_wk[l]);
         matmul_qq(_state->_v, &_state->xq, &_weights->_wv[l]);
 
-        int rotary_half = _config->head_dim / 2;
+        int32_t rotary_half = _config->head_dim / 2;
 
         if ((rotary_half > 0) && (_state->_cos_cache != NULL)) {
             float *_cos_row = _state->_cos_cache + pos * rotary_half;
             float *_sin_row = _state->_sin_cache + pos * rotary_half;
 
 #pragma omp parallel for
-            for (int h = 0; h < _config->n_heads; h++) {
+            for (int32_t h = 0; h < _config->n_heads; h++) {
                 float *_q = _state->_q + h * _config->head_dim;
 
                 rmsnorm(_q, _q, (float *)_weights->_q_norm[l]._data, _config->head_dim, eps);
 
-                for (int j = 0; j < rotary_half; j++) {
+                for (int32_t j = 0; j < rotary_half; j++) {
                     float c = _cos_row[j], sn = _sin_row[j];
                     float x_val = _q[j], y_val = _q[j + rotary_half];
                     _q[j] = x_val * c - y_val * sn;
@@ -188,12 +188,12 @@ float *forward_q3(Q3 *_model, int token, int pos) {
             }
 
 #pragma omp parallel for
-            for (int h = 0; h < _config->n_kv_heads; h++) {
+            for (int32_t h = 0; h < _config->n_kv_heads; h++) {
                 float *_k = _state->_k + h * _config->head_dim;
 
                 rmsnorm(_k, _k, (float *)_weights->_k_norm[l]._data, _config->head_dim, eps);
 
-                for (int j = 0; j < rotary_half; j++) {
+                for (int32_t j = 0; j < rotary_half; j++) {
                     float c = _cos_row[j], sn = _sin_row[j];
                     float x_val = _k[j], y_val = _k[j + rotary_half];
                     _k[j] = x_val * c - y_val * sn;
@@ -202,10 +202,10 @@ float *forward_q3(Q3 *_model, int token, int pos) {
             }
         } else {
 #pragma omp parallel for
-            for (int h = 0; h < _config->n_heads; h++) {
+            for (int32_t h = 0; h < _config->n_heads; h++) {
                 float *_q = _state->_q + h * _config->head_dim;
                 rmsnorm(_q, _q, (float *)_weights->_q_norm[l]._data, _config->head_dim, eps);
-                for (int j = 0; j < rotary_half; j++) {
+                for (int32_t j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(_config->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / _config->rope_scaling_factor;
                     float cos_freq = cosf(scaled_pos * freq);
@@ -217,10 +217,10 @@ float *forward_q3(Q3 *_model, int token, int pos) {
             }
 
 #pragma omp parallel for
-            for (int h = 0; h < _config->n_kv_heads; h++) {
+            for (int32_t h = 0; h < _config->n_kv_heads; h++) {
                 float *_k = _state->_k + h * _config->head_dim;
                 rmsnorm(_k, _k, (float *)_weights->_k_norm[l]._data, _config->head_dim, eps);
-                for (int j = 0; j < rotary_half; j++) {
+                for (int32_t j = 0; j < rotary_half; j++) {
                     float freq = 1.0f / powf(_config->rope_theta, (float)j / rotary_half);
                     float scaled_pos = pos / _config->rope_scaling_factor;
                     float cos_freq = cosf(scaled_pos * freq);
@@ -236,15 +236,15 @@ float *forward_q3(Q3 *_model, int token, int pos) {
         memcpy(_state->_value_cache + loff + pos * kv_dim, _state->_v, kv_dim * sizeof(float));
 
 #pragma omp parallel for
-        for (int h = 0; h < _config->n_heads; h++) {
+        for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * _config->head_dim;
             float *_att = _state->_att + h * _config->seq_len;
-            for (int t = 0; t <= pos; t++) {
+            for (int32_t t = 0; t <= pos; t++) {
                 float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                 float score = 0.0f;
 
 #pragma omp simd reduction(+ : score)
-                for (int i = 0; i < _config->head_dim; i++) {
+                for (int32_t i = 0; i < _config->head_dim; i++) {
                     score += _q[i] * _k[i];
                 }
                 _att[t] = score / sqrtf(_config->head_dim);
@@ -255,12 +255,12 @@ float *forward_q3(Q3 *_model, int token, int pos) {
             float *_xb = _state->_xb + h * _config->head_dim;
             memset(_xb, 0, _config->head_dim * sizeof(float));
 
-            for (int t = 0; t <= pos; t++) {
+            for (int32_t t = 0; t <= pos; t++) {
                 float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                 float a = _att[t];
 
 #pragma omp simd
-                for (int i = 0; i < _config->head_dim; i++) {
+                for (int32_t i = 0; i < _config->head_dim; i++) {
                     _xb[i] += a * _v[i];
                 }
             }
@@ -270,7 +270,7 @@ float *forward_q3(Q3 *_model, int token, int pos) {
 
         matmul_qq(_state->_xb, &_state->xq, &_weights->_wo[l]);
 
-        for (int i = 0; i < _config->dim; i++) {
+        for (int32_t i = 0; i < _config->dim; i++) {
             _state->_x[i] += _state->_xb[i];
         }
 
@@ -282,7 +282,7 @@ float *forward_q3(Q3 *_model, int token, int pos) {
         matmul_qq(_state->_hb2, &_state->xq, &_weights->_w3[l]);
 
 #pragma omp parallel for
-        for (int i = 0; i < _config->hidden_dim; i++) {
+        for (int32_t i = 0; i < _config->hidden_dim; i++) {
             _state->_hb[i] = _state->_hb[i] * (1.0f / (1.0f + expf(-_state->_hb[i]))) * _state->_hb2[i];
         }
 
@@ -290,7 +290,7 @@ float *forward_q3(Q3 *_model, int token, int pos) {
 
         matmul_qq(_state->_xb, &_state->hq, &_weights->_w2[l]);
 
-        for (int i = 0; i < _config->dim; i++) {
+        for (int32_t i = 0; i < _config->dim; i++) {
             _state->_x[i] += _state->_xb[i];
         }
     }
@@ -302,7 +302,7 @@ float *forward_q3(Q3 *_model, int token, int pos) {
     return _state->_logits;
 }
 
-static float *forward_q3_wrap(void *_model, int token, int pos) {
+static float *forward_q3_wrap(void *_model, int32_t token, int32_t pos) {
     return forward_q3((Q3 *)_model, token, pos);
 }
 
@@ -311,7 +311,7 @@ static void free_q3_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_q3(const char *_model_path_s, int seq_n_max, bool think_) {
+model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_) {
     Q3 *_model = a_calloc(1 * sizeof(Q3));
 
     if (load_quantized_q3(_model_path_s, _model, seq_n_max)) {

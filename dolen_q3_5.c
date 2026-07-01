@@ -19,7 +19,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
 };
 
 
-int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
+int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int32_t seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
@@ -69,9 +69,9 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
         _config->seq_len = seq_n_max;
     }
 
-    _model->_layer_types = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
-    _model->_attn_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
-    _model->_deltanet_layer_indices = (int *)a_calloc((size_t)_config->n_layer * sizeof(int));
+    _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
+    _model->_attn_layer_indices = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
+    _model->_deltanet_layer_indices = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
 
     if ((! _model->_layer_types) ||
             (! _model->_attn_layer_indices) ||
@@ -81,14 +81,14 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
         return -1;
     }
 
-    if (fread(_model->_layer_types, sizeof(int), (size_t)_config->n_layer, _file) != (size_t)_config->n_layer) {
+    if (fread(_model->_layer_types, sizeof(int32_t), (size_t)_config->n_layer, _file) != (size_t)_config->n_layer) {
         log_msg(stderr, "ERROR: Failed to read layer_types from %s\n", _file_path_s);
         fclose(_file);
         return -1;
     }
 
-    int la = 0, ld = 0;
-    for (int i = 0; i < _config->n_layer; i++) {
+    int32_t la = 0, ld = 0;
+    for (int32_t i = 0; i < _config->n_layer; i++) {
         if (_model->_layer_types[i] == 1) {
             _model->_deltanet_layer_indices[i] = ld++;
         } else {
@@ -112,7 +112,7 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
 
     read_qt(_file, &_weights->embed_tokens_weight);
 
-    for (int i = 0; i < _config->n_layer; i++) {
+    for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &_weights->_rms_att_weight[i]);
     }
 
@@ -130,17 +130,17 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
         return -1;
     }
 
-    for (int i = 0; i < _config->n_full_attn_layers; i++) {
+    for (int32_t i = 0; i < _config->n_full_attn_layers; i++) {
         read_qt(_file, &_weights->_wq[i]);
         read_qt(_file, &_weights->_wk[i]);
         read_qt(_file, &_weights->_wv[i]);
         read_qt(_file, &_weights->_wo[i]);
     }
 
-    for (int i = 0; i < _config->n_full_attn_layers; i++) {
+    for (int32_t i = 0; i < _config->n_full_attn_layers; i++) {
         read_qt(_file, &_weights->_q_norm[i]);
     }
-    for (int i = 0; i < _config->n_full_attn_layers; i++) {
+    for (int32_t i = 0; i < _config->n_full_attn_layers; i++) {
         read_qt(_file, &_weights->_k_norm[i]);
     }
 
@@ -169,34 +169,34 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
             return -1;
         }
 
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_in_proj_qkv[i]);
             read_qt(_file, &_weights->_in_proj_z[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_in_proj_b[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_in_proj_a[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_conv1d_weight[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_dt_bias[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_A_log[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_linear_norm[i]);
         }
-        for (int i = 0; i < _config->n_linear_attn_layers; i++) {
+        for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
             read_qt(_file, &_weights->_out_proj[i]);
         }
     }
 
-    for (int i = 0; i < _config->n_layer; i++) {
+    for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &_weights->_rms_ffn_weight[i]);
     }
 
@@ -210,7 +210,7 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
         fclose(_file);
         return -1;
     }
-    for (int i = 0; i < _config->n_layer; i++) {
+    for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &_weights->_w1[i]);
         read_qt(_file, &_weights->_w2[i]);
         read_qt(_file, &_weights->_w3[i]);
@@ -232,17 +232,17 @@ int load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int seq_n_max) {
     return 0;
 }
 
-void forward_q3_5_attention_layer(Q3_5 *_model, int l, int la, int pos) {
+void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t pos) {
     config_q3_5 *_config = &_model->config;
     weights_q3_5 *_weights = &_model->weights;
     state_q3_5 *_state = &_model->state;
     float *_x = _state->_x;
-    int dim = _config->dim;
-    int head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
-    int kv_dim = _config->n_kv_heads * head_size;
-    int attn_out_dim = _config->n_heads * head_size;
-    int kv_mul = _config->n_heads / _config->n_kv_heads;
-    long long loff = (long long)la * _config->seq_len * kv_dim;
+    int32_t dim = _config->dim;
+    int32_t head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
+    int32_t kv_dim = _config->n_kv_heads * head_size;
+    int32_t attn_out_dim = _config->n_heads * head_size;
+    int32_t kv_mul = _config->n_heads / _config->n_kv_heads;
+    int64_t loff = (int64_t)la * _config->seq_len * kv_dim;
     float eps = _config->rms_norm_eps;
     float *_key_cache_row = _state->_key_cache + loff + pos * kv_dim;
     float *_value_cache_row = _state->_value_cache + loff + pos * kv_dim;
@@ -257,37 +257,37 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int l, int la, int pos) {
     matmul_qq(_state->_k, &_state->xq, &_weights->_wk[la]);
     matmul_qq(_state->_v, &_state->xq, &_weights->_wv[la]);
 
-    for (int h = 0; h < _config->n_heads; h++) {
+    for (int32_t h = 0; h < _config->n_heads; h++) {
         float *_q_ptr = _state->_q + h * head_size;
         float *_gate_ptr = _state->_gate + h * head_size;
-        for (int i = 0; i < head_size; i++) {
+        for (int32_t i = 0; i < head_size; i++) {
             _q_ptr[i] = _state->_q[h * head_size * 2 + i];
             _gate_ptr[i] = _state->_q[h * head_size * 2 + head_size + i];
         }
     }
 
 #pragma omp parallel for
-    for (int h = 0; h < _config->n_heads; h++) {
+    for (int32_t h = 0; h < _config->n_heads; h++) {
         float *_q_ptr = _state->_q + h * head_size;
         rmsnorm_gemma(_q_ptr, _q_ptr, _q_norm, head_size, eps);
     }
 
 #pragma omp parallel for
-    for (int h = 0; h < _config->n_kv_heads; h++) {
+    for (int32_t h = 0; h < _config->n_kv_heads; h++) {
         float *_k_ptr = _state->_k + h * head_size;
         rmsnorm_gemma(_k_ptr, _k_ptr, _k_norm, head_size, eps);
     }
 
-    int rotary_partial = (int)((float)head_size * _config->rope_partial_rotary_factor);
+    int32_t rotary_partial = (int32_t)((float)head_size * _config->rope_partial_rotary_factor);
 
     if ((rotary_partial > 0) && _state->_cos_cache) {
         float *_cos_row = _state->_cos_cache + pos * rotary_partial;
         float *_sin_row = _state->_sin_cache + pos * rotary_partial;
 
 #pragma omp parallel for
-        for (int h = 0; h < _config->n_heads; h++) {
+        for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * head_size;
-            for (int i = 0; i < rotary_partial; i++) {
+            for (int32_t i = 0; i < rotary_partial; i++) {
                 float c = _cos_row[i];
                 float sn = _sin_row[i];
                 float q0 = _q[i];
@@ -297,9 +297,9 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int l, int la, int pos) {
             }
         }
 #pragma omp parallel for
-        for (int h = 0; h < _config->n_kv_heads; h++) {
+        for (int32_t h = 0; h < _config->n_kv_heads; h++) {
             float *_k = _state->_k + h * head_size;
-            for (int i = 0; i < rotary_partial; i++) {
+            for (int32_t i = 0; i < rotary_partial; i++) {
                 float c = _cos_row[i], sn = _sin_row[i];
                 float k0 = _k[i];
                 float k1 = _k[i + rotary_partial];
@@ -315,15 +315,15 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int l, int la, int pos) {
     float inv_sqrt_head = 1.0f / sqrtf((float)head_size);
 
 #pragma omp parallel for
-    for (int h = 0; h < _config->n_heads; h++) {
+    for (int32_t h = 0; h < _config->n_heads; h++) {
         float *_q = _state->_q + h * head_size;
         float *_att = _state->_att + h * _config->seq_len;
 
-        for (int t = 0; t <= pos; t++) {
+        for (int32_t t = 0; t <= pos; t++) {
             float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float score = 0.0f;
 #pragma omp simd reduction(+ : score)
-            for (int i = 0; i < head_size; i++) {
+            for (int32_t i = 0; i < head_size; i++) {
                 score += _q[i] * _k[i];
             }
             _att[t] = score * inv_sqrt_head;
@@ -334,11 +334,11 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int l, int la, int pos) {
         float *_xb = _state->_xb + h * head_size;
         memset(_xb, 0, head_size * sizeof(float));
 
-        for (int t = 0; t <= pos; t++) {
+        for (int32_t t = 0; t <= pos; t++) {
             float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float a = _att[t];
 #pragma omp simd
-            for (int i = 0; i < head_size; i++) {
+            for (int32_t i = 0; i < head_size; i++) {
                 _xb[i] += a * _v[i];
             }
         }
@@ -346,33 +346,33 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int l, int la, int pos) {
         float *_gate_ptr = _state->_gate + h * head_size;
 
 #pragma omp simd
-        for (int i = 0; i < head_size; i++) {
+        for (int32_t i = 0; i < head_size; i++) {
             _xb[i] *= sigmoid(_gate_ptr[i]);
         }
     }
 
     quantize_vec(&_state->xq, _state->_xb, attn_out_dim);
     matmul_qq(_state->_xb2, &_state->xq, &_weights->_wo[la]);
-    for (int i = 0; i < dim; i++) {
+    for (int32_t i = 0; i < dim; i++) {
         _x[i] += _state->_xb2[i];
     }
 }
 
-void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
+void forward_q3_5_linear_attention_layer(Q3_5 *_model, int32_t l, int32_t ld, int32_t pos) {
     config_q3_5 *_config = &_model->config;
     weights_q3_5 *_weights = &_model->weights;
     state_q3_5 *_state = &_model->state;
     float *_x = _state->_x;
-    int dim = _config->dim;
+    int32_t dim = _config->dim;
     float eps = _config->rms_norm_eps;
-    int n_k_heads = _config->n_linear_k_heads;
-    int n_v_heads = _config->n_linear_v_heads;
-    int d_k = _config->d_linear_k;
-    int d_v = _config->d_linear_v;
-    int key_dim = n_k_heads * d_k;
-    int value_dim = n_v_heads * d_v;
-    int conv_dim = key_dim * 2 + value_dim;
-    int conv_kernel = _config->linear_conv_kernel;
+    int32_t n_k_heads = _config->n_linear_k_heads;
+    int32_t n_v_heads = _config->n_linear_v_heads;
+    int32_t d_k = _config->d_linear_k;
+    int32_t d_v = _config->d_linear_v;
+    int32_t key_dim = n_k_heads * d_k;
+    int32_t value_dim = n_v_heads * d_v;
+    int32_t conv_dim = key_dim * 2 + value_dim;
+    int32_t conv_kernel = _config->linear_conv_kernel;
     float *_rms_att_weight = (float *)_weights->_rms_att_weight[l]._data;
     float *_in_proj_b = (float *)_weights->_in_proj_b[ld]._data;
     float *_in_proj_a = (float *)_weights->_in_proj_a[ld]._data;
@@ -380,8 +380,8 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
     float *_dt_bias = (float *)_weights->_dt_bias[ld]._data;
     float *_A_log = (float *)_weights->_A_log[ld]._data;
     float *_linear_norm = (float *)_weights->_linear_norm[ld]._data;
-    float *_conv_state = _state->_conv_state + (long long)ld * conv_dim * conv_kernel;
-    float *_S = _state->_S + (long long)ld * n_v_heads * d_k * d_v;
+    float *_conv_state = _state->_conv_state + (int64_t)ld * conv_dim * conv_kernel;
+    float *_S = _state->_S + (int64_t)ld * n_v_heads * d_k * d_v;
 
     if (! pos) {
         memset(_conv_state, 0, (size_t)conv_dim * conv_kernel * sizeof(float));
@@ -395,20 +395,20 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
     matmul_qq(_state->_z, &_state->xq, &_weights->_in_proj_z[ld]);
 
 #pragma omp parallel for
-    for (int i = 0; i < n_v_heads; i++) {
+    for (int32_t i = 0; i < n_v_heads; i++) {
         _state->_beta[i] = sigmoid(matmul_scalar(_state->_xb, _in_proj_b + i * dim, dim));
     }
 
 #pragma omp parallel for
-    for (int i = 0; i < n_v_heads; i++) {
+    for (int32_t i = 0; i < n_v_heads; i++) {
         float a_val = matmul_scalar(_state->_xb, _in_proj_a + i * dim, dim);
         float A = -expf(_A_log[i]);
         _state->_g[i] = A * softplus(a_val + _dt_bias[i]);
     }
 
 #pragma omp parallel for
-    for (int i = 0; i < conv_dim; i++) {
-        for (int j = 0; j < conv_kernel - 1; j++) {
+    for (int32_t i = 0; i < conv_dim; i++) {
+        for (int32_t j = 0; j < conv_kernel - 1; j++) {
             _conv_state[i * conv_kernel + j] = _conv_state[i * conv_kernel + j + 1];
         }
         _conv_state[i * conv_kernel + conv_kernel - 1] = _state->_qkv[i];
@@ -416,9 +416,9 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
 
     float *_qkv_conv = _state->_qkv;
 #pragma omp parallel for
-    for (int i = 0; i < conv_dim; i++) {
+    for (int32_t i = 0; i < conv_dim; i++) {
         float val = 0.0f;
-        for (int j = 0; j < conv_kernel; j++) {
+        for (int32_t j = 0; j < conv_kernel; j++) {
             val += _conv_state[i * conv_kernel + j] * _conv1d_weight[i * conv_kernel + j];
         }
         _qkv_conv[i] = silu(val);
@@ -430,20 +430,20 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
 
     float scale = 1.0f / sqrtf((float)d_k);
 #pragma omp parallel for
-    for (int h = 0; h < n_k_heads; h++) {
+    for (int32_t h = 0; h < n_k_heads; h++) {
         float *_k_h = _k + h * d_k;
         float *_q_h = _q + h * d_k;
         l2norm(_k_h, d_k);
         l2norm(_q_h, d_k);
-        for (int i = 0; i < d_k; i++) {
+        for (int32_t i = 0; i < d_k; i++) {
             _q_h[i] *= scale;
         }
     }
 
-    int r = (n_v_heads > n_k_heads) ? n_v_heads / n_k_heads : 1;
+    int32_t r = (n_v_heads > n_k_heads) ? n_v_heads / n_k_heads : 1;
 
 #pragma omp parallel for
-    for (int h = 0; h < n_v_heads; h++) {
+    for (int32_t h = 0; h < n_v_heads; h++) {
         float g_t = expf(_state->_g[h]);
         float beta_t = _state->_beta[h];
 
@@ -452,32 +452,32 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
         float *_k_h = _k + (h / r) * d_k;
         float *_v_h = _v + h * d_v;
 
-        for (int i = 0; i < d_k * d_v; i++) {
+        for (int32_t i = 0; i < d_k * d_v; i++) {
             _S_h[i] *= g_t;
         }
 
         float *_delta = _state->_delta_S + h * d_v;
-        for (int j = 0; j < d_v; j++) {
+        for (int32_t j = 0; j < d_v; j++) {
             float dot = 0.0f;
 #pragma omp simd reduction(+ : dot)
-            for (int i = 0; i < d_k; i++) {
+            for (int32_t i = 0; i < d_k; i++) {
                 dot += _S_h[i * d_v + j] * _k_h[i];
             }
             _delta[j] = (_v_h[j] - dot) * beta_t;
         }
 
-        for (int i = 0; i < d_k; i++) {
+        for (int32_t i = 0; i < d_k; i++) {
 #pragma omp simd
-            for (int j = 0; j < d_v; j++) {
+            for (int32_t j = 0; j < d_v; j++) {
                 _S_h[i * d_v + j] += _k_h[i] * _delta[j];
             }
         }
 
         float *_out_h = _state->_linear_out + h * d_v;
-        for (int j = 0; j < d_v; j++) {
+        for (int32_t j = 0; j < d_v; j++) {
             float val = 0.0f;
 #pragma omp simd reduction(+ : val)
-            for (int i = 0; i < d_k; i++) {
+            for (int32_t i = 0; i < d_k; i++) {
                 val += _S_h[i * d_v + j] * _q_h[i];
             }
             _out_h[j] = val;
@@ -488,18 +488,18 @@ void forward_q3_5_linear_attention_layer(Q3_5 *_model, int l, int ld, int pos) {
 
     quantize_vec(&_state->hq, _state->_linear_out, value_dim);
     matmul_qq(_state->_xb, &_state->hq, &_weights->_out_proj[ld]);
-    for (int i = 0; i < dim; i++) {
+    for (int32_t i = 0; i < dim; i++) {
         _x[i] += _state->_xb[i];
     }
 }
 
-void forward_q3_5_mlp_layer(Q3_5 *_model, int l) {
+void forward_q3_5_mlp_layer(Q3_5 *_model, int32_t l) {
     config_q3_5 *_config = &_model->config;
     weights_q3_5 *_weights = &_model->weights;
     state_q3_5 *_state = &_model->state;
     float *_x = _state->_x;
-    int dim = _config->dim;
-    int hidden_dim = _config->n_mlp;
+    int32_t dim = _config->dim;
+    int32_t hidden_dim = _config->n_mlp;
     float eps = _config->rms_norm_eps;
     float *_rms_ffn_weight = (float *)_weights->_rms_ffn_weight[l]._data;
 
@@ -510,7 +510,7 @@ void forward_q3_5_mlp_layer(Q3_5 *_model, int l) {
     matmul_qq(_state->_hb2, &_state->xq, &_weights->_w3[l]);
 
 #pragma omp parallel for
-    for (int i = 0; i < hidden_dim; i++) {
+    for (int32_t i = 0; i < hidden_dim; i++) {
         float val = _state->_hb[i];
         val *= (1.0f / (1.0f + expf(-val)));
         val *= _state->_hb2[i];
@@ -519,21 +519,21 @@ void forward_q3_5_mlp_layer(Q3_5 *_model, int l) {
 
     quantize_vec(&_state->hq, _state->_hb, hidden_dim);
     matmul_qq(_state->_xb, &_state->hq, &_weights->_w2[l]);
-    for (int i = 0; i < dim; i++) {
+    for (int32_t i = 0; i < dim; i++) {
         _x[i] += _state->_xb[i];
     }
 }
 
-float *forward_q3_5(Q3_5 *_model, int token, int pos) {
+float *forward_q3_5(Q3_5 *_model, int32_t token, int32_t pos) {
     config_q3_5 *_config = &_model->config;
     weights_q3_5 *_weights = &_model->weights;
     state_q3_5 *_state = &_model->state;
     float *_x = _state->_x;
-    int dim = _config->dim;
+    int32_t dim = _config->dim;
 
     dequantize_row(_x, &_weights->embed_tokens_weight, token);
 
-    for (int l = 0; l < _config->n_layer; l++) {
+    for (int32_t l = 0; l < _config->n_layer; l++) {
         if (_model->_layer_types[l] == 1) {
             forward_q3_5_linear_attention_layer(_model, l, _model->_deltanet_layer_indices[l], pos);
         } else {
@@ -553,7 +553,7 @@ float *forward_q3_5(Q3_5 *_model, int token, int pos) {
     return _state->_logits;
 }
 
-static float *forward_q3_5_wrap(void *_model, int token, int pos) {
+static float *forward_q3_5_wrap(void *_model, int32_t token, int32_t pos) {
     return forward_q3_5((Q3_5 *)_model, token, pos);
 }
 
@@ -562,7 +562,7 @@ static void free_q3_5_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_q3_5(const char *_model_path_s, int seq_n_max, bool think_) {
+model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n_max, bool think_) {
     Q3_5 *_model = a_calloc(1 * sizeof(Q3_5));
 
     if (load_quantized_q3_5(_model_path_s, _model, seq_n_max)) {

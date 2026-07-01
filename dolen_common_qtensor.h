@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <limits.h>
+#include <stdint.h>
 
 
 #define GROUP_SIZE 64 // Group Size
@@ -21,23 +22,23 @@ typedef enum {
 typedef struct {
     void *_data;
     float *_scales;
-    int rows;
-    int cols;
+    int32_t rows;
+    int32_t cols;
     q_type_t type;
 } qtensor;
 
 
-void dequantize_row(float *_output, const qtensor *_qt, int row_idx);
+void dequantize_row(float *_output, const qtensor *_qt, int32_t row_idx);
 
 void matmul_qt(float *_output, const float *_input, const qtensor *_qt);
 
-void quantize_vec(qtensor *_xq, const float *_x, int n);
+void quantize_vec(qtensor *_xq, const float *_x, int32_t n);
 
 void matmul_qq(float *_output, const qtensor *_x, const qtensor *_w);
 
 void free_qt(qtensor *_qt);
 
-void free_qt_array(qtensor *_qt_arr, int arr_n);
+void free_qt_array(qtensor *_qt_arr, int32_t arr_n);
 
 void read_qt(FILE *_file, qtensor *_qt);
 

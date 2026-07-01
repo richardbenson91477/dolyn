@@ -2,17 +2,17 @@
 
 
 void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
-    int dim = _config->dim;
-    int head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
-    int kv_dim = _config->n_kv_heads * head_size;
-    int hidden_dim = _config->n_mlp;
-    int q_dim = _config->n_heads * head_size * 2;
-    int attn_dim = _config->n_heads * head_size;
+    int32_t dim = _config->dim;
+    int32_t head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
+    int32_t kv_dim = _config->n_kv_heads * head_size;
+    int32_t hidden_dim = _config->n_mlp;
+    int32_t q_dim = _config->n_heads * head_size * 2;
+    int32_t attn_dim = _config->n_heads * head_size;
     size_t n_kv_layers = (size_t)_config->n_full_attn_layers;
     size_t n_linear_layers = (size_t)_config->n_linear_attn_layers;
-    int value_dim = _config->n_linear_v_heads * _config->d_linear_v;
+    int32_t value_dim = _config->n_linear_v_heads * _config->d_linear_v;
 
-    int max_act_dim = dim;
+    int32_t max_act_dim = dim;
     if (q_dim > max_act_dim) {
         max_act_dim = q_dim;
     }
@@ -38,7 +38,7 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
     _state->_gate = a_calloc((size_t)_config->n_heads * head_size * sizeof(float));
 
-    int num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
+    int32_t num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
     _state->xq._data = (int8_t *)a_calloc((size_t)max_act_dim * sizeof(int8_t));
     _state->xq._scales = (float *)a_calloc((size_t)num_groups * sizeof(float));
     _state->xq.type = Q_TYPE_Q8;
@@ -52,13 +52,15 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
     _state->hq.cols = max_act_dim;
 
     if (n_kv_layers > 0) {
-        _state->_key_cache = a_calloc(n_kv_layers * _config->seq_len * kv_dim * sizeof(float));
-        _state->_value_cache = a_calloc(n_kv_layers * _config->seq_len * kv_dim * sizeof(float));
+        _state->_key_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim
+                * sizeof(float));
+        _state->_value_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim
+                * sizeof(float));
     }
 
     if (n_linear_layers > 0) {
-        int key_dim = _config->n_linear_k_heads * _config->d_linear_k;
-        int conv_dim = key_dim * 2 + value_dim;
+        int32_t key_dim = _config->n_linear_k_heads * _config->d_linear_k;
+        int32_t conv_dim = key_dim * 2 + value_dim;
 
         _state->_qkv = a_calloc((size_t)conv_dim * sizeof(float));
         _state->_z = a_calloc((size_t)value_dim * sizeof(float));
@@ -71,14 +73,14 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
         _state->_delta_S = a_calloc((size_t)_config->n_linear_v_heads * _config->d_linear_v * sizeof(float));
     }
 
-    int rotary_partial = (int)((float)head_size * _config->rope_partial_rotary_factor);
+    int32_t rotary_partial = (int32_t)((float)head_size * _config->rope_partial_rotary_factor);
 
     if (rotary_partial > 0) {
         _state->_cos_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_partial * sizeof(float));
         _state->_sin_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_partial * sizeof(float));
         float theta = _config->rope_theta;
-        for (int pos = 0; pos < _config->seq_len; pos++) {
-            for (int i = 0; i < rotary_partial; i++) {
+        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+            for (int32_t i = 0; i < rotary_partial; i++) {
                 float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_partial);
                 float val = pos * freq;
                 _state->_cos_cache[pos * rotary_partial + i] = cosf(val);
@@ -162,9 +164,9 @@ void free_state_q3_5(state_q3_5 *_state) {
 
 void free_q3_5(Q3_5 *model_q3_5) {
     weights_q3_5 *_weights = &model_q3_5->weights;
-    int n_full_attn = model_q3_5->config.n_full_attn_layers;
-    int n_linear_attn = model_q3_5->config.n_linear_attn_layers;
-    int n_layer = model_q3_5->config.n_layer;
+    int32_t n_full_attn = model_q3_5->config.n_full_attn_layers;
+    int32_t n_linear_attn = model_q3_5->config.n_linear_attn_layers;
+    int32_t n_layer = model_q3_5->config.n_layer;
 
     free_qt(&_weights->embed_tokens_weight);
     free_qt_array(_weights->_rms_att_weight, n_layer);

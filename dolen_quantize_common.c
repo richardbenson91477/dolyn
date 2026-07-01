@@ -18,7 +18,7 @@ static inline void autojson_cleanup(void *p) {
 #define autojson __attribute__((cleanup(autojson_cleanup)))
 
 
-static int checked_mul_size(size_t a, size_t b, size_t *_res) {
+static int32_t checked_mul_size(size_t a, size_t b, size_t *_res) {
     if (a &&
             (b > (SIZE_MAX / a))) {
         return -1;
@@ -27,7 +27,7 @@ static int checked_mul_size(size_t a, size_t b, size_t *_res) {
     return 0;
 }
 
-static int checked_add_u64(uint64_t a, uint64_t b, uint64_t *_res) {
+static int32_t checked_add_u64(uint64_t a, uint64_t b, uint64_t *_res) {
     if (b > (UINT64_MAX - a)) {
         return -1;
     }
@@ -35,7 +35,7 @@ static int checked_add_u64(uint64_t a, uint64_t b, uint64_t *_res) {
     return 0;
 }
 
-int quantize_write_bytes(FILE *_file, const void *_data, size_t size, size_t count) {
+int32_t quantize_write_bytes(FILE *_file, const void *_data, size_t size, size_t count) {
     if (! count) {
         return 0;
     }
@@ -76,7 +76,7 @@ static st_dtype parse_dtype(const char *_dtype_s) {
     }
 }
 
-static int json_u64(JsonValue *_js_val, uint64_t *_res) {
+static int32_t json_u64(JsonValue *_js_val, uint64_t *_res) {
     if ((! _js_val) ||
             (_js_val->type != JSON_NUMBER) ||
             _js_val->data.number < 0.0) {
@@ -103,10 +103,10 @@ static weightmap_entry *find_index_entry(safetensors_idx *_st_idx, const char *_
     return NULL;
 }
 
-static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_s) {
+static int32_t load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_s) {
     char _file_path_s[PATH_MAX];
     if (snprintf(_file_path_s, sizeof(_file_path_s), "%s/%s", _st_idx->_model_dir_s, _file_name_s) \
-            >= (int)sizeof(_file_path_s)) {
+            >= (int32_t)sizeof(_file_path_s)) {
         log_msg(stderr, "ERROR: Safetensors path is too long\n");
         return -1;
     }
@@ -222,22 +222,22 @@ static int load_shard_metadata(safetensors_idx *_st_idx, const char *_file_name_
     return 0;
 }
 
-static void quantize_group_into_q8(int8_t *_q, float *_s, const float *_weights, int rows, int cols) {
-    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
-    for (int i = 0; i < rows; i++) {
+static void quantize_group_into_q8(int8_t *_q, float *_s, const float *_weights, int32_t rows, int32_t cols) {
+    int32_t num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+    for (int32_t i = 0; i < rows; i++) {
         const float *_row = _weights + (size_t)i * cols;
         float *_row_s = _s + (size_t)i * num_groups;
         int8_t *_row_q = _q + (size_t)i * cols;
 
-        for (int g = 0; g < num_groups; g++) {
-            int start = g * GROUP_SIZE;
-            int end = start + GROUP_SIZE;
+        for (int32_t g = 0; g < num_groups; g++) {
+            int32_t start = g * GROUP_SIZE;
+            int32_t end = start + GROUP_SIZE;
             if (end > cols) {
                 end = cols;
             }
 
             float wmax = 0.0f;
-            for (int j = start; j < end; j++) {
+            for (int32_t j = start; j < end; j++) {
                 float val = fabsf(_row[j]);
                 if (val > wmax) {
                     wmax = val;
@@ -249,7 +249,7 @@ static void quantize_group_into_q8(int8_t *_q, float *_s, const float *_weights,
 
             float scale = wmax / 127.0f;
             _row_s[g] = scale;
-            for (int j = start; j < end; j++) {
+            for (int32_t j = start; j < end; j++) {
                 float quant_value = _row[j] / scale;
                 _row_q[j] = (int8_t)roundf(quant_value);
             }
@@ -257,22 +257,22 @@ static void quantize_group_into_q8(int8_t *_q, float *_s, const float *_weights,
     }
 }
 
-static void quantize_group_into_q6(uint8_t *_q, float *_s, const float *_weights, int rows, int cols) {
-    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
-    for (int i = 0; i < rows; i++) {
+static void quantize_group_into_q6(uint8_t *_q, float *_s, const float *_weights, int32_t rows, int32_t cols) {
+    int32_t num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+    for (int32_t i = 0; i < rows; i++) {
         const float *_row = _weights + (size_t)i * cols;
         float *_row_s = _s + (size_t)i * num_groups;
         uint8_t *_row_q = _q + ((size_t)i * cols * 3) / 4;
 
-        for (int g = 0; g < num_groups; g++) {
-            int start = g * GROUP_SIZE;
-            int end = start + GROUP_SIZE;
+        for (int32_t g = 0; g < num_groups; g++) {
+            int32_t start = g * GROUP_SIZE;
+            int32_t end = start + GROUP_SIZE;
             if (end > cols) {
                 end = cols;
             }
 
             float wmax = 0.0f;
-            for (int j = start; j < end; j++) {
+            for (int32_t j = start; j < end; j++) {
                 float val = fabsf(_row[j]);
                 if (val > wmax) {
                     wmax = val;
@@ -288,16 +288,16 @@ static void quantize_group_into_q6(uint8_t *_q, float *_s, const float *_weights
             _row_s[g] = scale;
             float inv_scale = 1.0f / scale;
 
-            for (int j = start; j < end; j += 4) {
+            for (int32_t j = start; j < end; j += 4) {
                 float v0 = _row[j] * inv_scale;
                 float v1 = (j + 1 < end) ? _row[j + 1] * inv_scale : 0.0f;
                 float v2 = (j + 2 < end) ? _row[j + 2] * inv_scale : 0.0f;
                 float v3 = (j + 3 < end) ? _row[j + 3] * inv_scale : 0.0f;
 
-                int q0 = (int)roundf(v0);
-                int q1 = (int)roundf(v1);
-                int q2 = (int)roundf(v2);
-                int q3 = (int)roundf(v3);
+                int32_t q0 = (int32_t)roundf(v0);
+                int32_t q1 = (int32_t)roundf(v1);
+                int32_t q2 = (int32_t)roundf(v2);
+                int32_t q3 = (int32_t)roundf(v3);
 
                 q0 = q0 < -32 ? -32 : (q0 > 31 ? 31 : q0);
                 q1 = q1 < -32 ? -32 : (q1 > 31 ? 31 : q1);
@@ -310,7 +310,7 @@ static void quantize_group_into_q6(uint8_t *_q, float *_s, const float *_weights
                 uint8_t u3 = (uint8_t)(q3 & 0x3F);
 
                 // FIX: Use absolute index 'j', not relative '(j - start)'
-                int idx = j / 4 * 3; 
+                int32_t idx = j / 4 * 3; 
                 _row_q[idx] = (u0) | (u1 << 6);
                 _row_q[idx + 1] = (u1 >> 2) | (u2 << 4);
                 _row_q[idx + 2] = (u2 >> 4) | (u3 << 2);
@@ -319,22 +319,22 @@ static void quantize_group_into_q6(uint8_t *_q, float *_s, const float *_weights
     }
 }
 
-static void quantize_group_into_q4(uint8_t *_q, float *_s, const float *_weights, int rows, int cols) {
-    int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
-    for (int i = 0; i < rows; i++) {
+static void quantize_group_into_q4(uint8_t *_q, float *_s, const float *_weights, int32_t rows, int32_t cols) {
+    int32_t num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+    for (int32_t i = 0; i < rows; i++) {
         const float *_row = _weights + (size_t)i * cols;
         float *_row_s = _s + (size_t)i * num_groups;
         uint8_t *_row_q = _q + ((size_t)i * cols) / 2;
 
-        for (int g = 0; g < num_groups; g++) {
-            int start = g * GROUP_SIZE;
-            int end = start + GROUP_SIZE;
+        for (int32_t g = 0; g < num_groups; g++) {
+            int32_t start = g * GROUP_SIZE;
+            int32_t end = start + GROUP_SIZE;
             if (end > cols) {
                 end = cols;
             }
 
             float wmax = 0.0f;
-            for (int j = start; j < end; j++) {
+            for (int32_t j = start; j < end; j++) {
                 float val = fabsf(_row[j]);
                 if (val > wmax) {
                     wmax = val;
@@ -347,12 +347,12 @@ static void quantize_group_into_q4(uint8_t *_q, float *_s, const float *_weights
             float scale = wmax / 7.0f;
             _row_s[g] = scale;
 
-            for (int j = start; j < end; j += 2) {
+            for (int32_t j = start; j < end; j += 2) {
                 float v0 = _row[j] / scale;
                 float v1 = (j + 1 < end) ? _row[j + 1] / scale : 0.0f;
 
-                int q0 = (int)roundf(v0);
-                int q1 = (int)roundf(v1);
+                int32_t q0 = (int32_t)roundf(v0);
+                int32_t q1 = (int32_t)roundf(v1);
 
                 q0 = q0 < -7 ? -7 : (q0 > 7 ? 7 : q0);
                 q1 = q1 < -7 ? -7 : (q1 > 7 ? 7 : q1);
@@ -363,9 +363,9 @@ static void quantize_group_into_q4(uint8_t *_q, float *_s, const float *_weights
     }
 }
 
-static int load_single_safetensors(safetensors_idx *_st_idx, const char *_model_dir_s) {
+static int32_t load_single_safetensors(safetensors_idx *_st_idx, const char *_model_dir_s) {
     char file_path[PATH_MAX];
-    if (snprintf(file_path, sizeof(file_path), "%s/model.safetensors", _model_dir_s) >= (int)sizeof(file_path)) {
+    if (snprintf(file_path, sizeof(file_path), "%s/model.safetensors", _model_dir_s) >= (int32_t)sizeof(file_path)) {
         return -1;
     }
 
@@ -469,12 +469,12 @@ static int load_single_safetensors(safetensors_idx *_st_idx, const char *_model_
     return 0;
 }
 
-int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
+int32_t load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
     memset(_st_idx, 0, sizeof(safetensors_idx));
 
     char index_path[PATH_MAX];
     if (snprintf(index_path, sizeof(index_path), "%s/model.safetensors.index.json", _model_dir_s)
-            >= (int)sizeof(index_path)) {
+            >= (int32_t)sizeof(index_path)) {
         return -1;
     }
 
@@ -483,7 +483,7 @@ int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
         // Fallback: Check for single file model
         char single_path[PATH_MAX];
         if (snprintf(single_path, sizeof(single_path), "%s/model.safetensors", _model_dir_s)
-                >= (int)sizeof(single_path)) {
+                >= (int32_t)sizeof(single_path)) {
             return -1;
         }
         FILE *_single_file = fopen(single_path, "rb");
@@ -552,8 +552,8 @@ int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
             return -1;
         }
 
-        int found = 0;
-        for (int j = 0; j < _st_idx->unique_files_n; j++) {
+        int32_t found = 0;
+        for (int32_t j = 0; j < _st_idx->unique_files_n; j++) {
             if (! strcmp(_st_idx->__unique_filenames[j], _js_pair->value->data.string)) {
                 found = 1;
                 break;
@@ -577,7 +577,7 @@ int load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_s) {
     }
 
     size_t rank = 0;
-    for (int file_i = 0; file_i < _st_idx->unique_files_n; file_i++) {
+    for (int32_t file_i = 0; file_i < _st_idx->unique_files_n; file_i++) {
         for (size_t i = 0; i < _st_idx->n_entries; i++) {
             if (! strcmp(_st_idx->_wm_entries[i]._file_name_s, _st_idx->__unique_filenames[file_i])) {
                 _st_idx->_wm_entries[i].processing_rank = rank++;
@@ -602,7 +602,7 @@ void free_safetensors_index(safetensors_idx *_st_idx) {
         free(_st_idx->_wm_entries[i]._file_name_s);
     }
     free(_st_idx->_wm_entries);
-    for (int i = 0; i < _st_idx->unique_files_n; i++) {
+    for (int32_t i = 0; i < _st_idx->unique_files_n; i++) {
         free(_st_idx->__unique_filenames[i]);
     }
     free(_st_idx->__unique_filenames);
@@ -610,7 +610,7 @@ void free_safetensors_index(safetensors_idx *_st_idx) {
     memset(_st_idx, 0, sizeof(safetensors_idx));
 }
 
-int quantize_ctx_open(quantize_ctx *_qt_ctx, const char *_model_dir_s) {
+int32_t quantize_ctx_open(quantize_ctx *_qt_ctx, const char *_model_dir_s) {
     memset(_qt_ctx, 0, sizeof(quantize_ctx));
     _qt_ctx->chunk_bytes = DOLEN_QUANTIZE_CHUNK_BYTES;
     return load_safetensors_index(&_qt_ctx->index, _model_dir_s);
@@ -650,7 +650,7 @@ const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *_qt_ctx,
     return _wm_best;
 }
 
-static int open_entry_source(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_entry) {
+static int32_t open_entry_source(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_entry) {
     if ((! _wm_entry) ||
             (! _wm_entry->metadata_ready)) {
         return -1;
@@ -669,7 +669,7 @@ static int open_entry_source(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_e
 
     char _file_path_s[PATH_MAX];
     if (snprintf(_file_path_s, sizeof(_file_path_s), "%s/%s",
-            _qt_ctx->index._model_dir_s, _wm_entry->_file_name_s) >= (int)sizeof(_file_path_s)) {
+            _qt_ctx->index._model_dir_s, _wm_entry->_file_name_s) >= (int32_t)sizeof(_file_path_s)) {
         return -1;
     }
     _qt_ctx->_file = fopen(_file_path_s, "rb");
@@ -681,7 +681,7 @@ static int open_entry_source(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_e
     return 0;
 }
 
-static int validate_entry(const weightmap_entry *_wm_entry, const char *_name_s, size_t expected_elements) {
+static int32_t validate_entry(const weightmap_entry *_wm_entry, const char *_name_s, size_t expected_elements) {
     if (! _wm_entry) {
         log_msg(stderr, "ERROR: Missing tensor %s\n", _name_s ? _name_s : "(unknown)");
         return -1;
@@ -693,13 +693,13 @@ static int validate_entry(const weightmap_entry *_wm_entry, const char *_name_s,
     }
     if (_wm_entry->num_elements != expected_elements) {
         log_msg(stderr, "ERROR: Tensor %s size mismatch: got %llu, expected %zu\n", _wm_entry->_tensor_name_s,
-                (unsigned long long)_wm_entry->num_elements, expected_elements);
+                (uint64_t)_wm_entry->num_elements, expected_elements);
         return -1;
     }
     return 0;
 }
 
-static int read_f32_range(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_entry,
+static int32_t read_f32_range(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_entry,
         uint64_t first_element, size_t elements, void *_raw, float *_f32) {
     size_t item_size = dtype_size(_wm_entry->dtype);
     uint64_t byte_offset;
@@ -735,9 +735,9 @@ static int read_f32_range(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_entr
     return 0;
 }
 
-int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-        const weightmap_entry *_wm_entry, int rows, int cols, q_type_t q_type) {
-    log_msg(stdout, "INFO: writing(2) \"%s\", %d rows, %d cols, %d q_type\n", _name_s, rows, cols, (int)q_type);
+int32_t quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
+        const weightmap_entry *_wm_entry, int32_t rows, int32_t cols, q_type_t q_type) {
+    log_msg(stdout, "INFO: writing(2) \"%s\", %d rows, %d cols, %d q_type\n", _name_s, rows, cols, (int32_t)q_type);
 
     if (rows <= 0 ||
             cols <= 0) {
@@ -840,7 +840,7 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
         return 0;
     }
     else if (q_type == Q_TYPE_Q8) {
-        int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+        int32_t num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         uint64_t q_bytes = (uint64_t)rows * (uint64_t)cols;
         uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);
 
@@ -893,10 +893,10 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
             return -1;
         }
 
-        for (int row_c = 0; row_c < rows;) {
-            int chunk_rows = rows - row_c;
+        for (int32_t row_c = 0; row_c < rows;) {
+            int32_t chunk_rows = rows - row_c;
             if ((size_t)chunk_rows > rows_per_chunk) {
-                chunk_rows = (int)rows_per_chunk;
+                chunk_rows = (int32_t)rows_per_chunk;
             }
             size_t chunk_elements = (size_t)chunk_rows * cols;
 
@@ -916,7 +916,7 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
         return seek_abs(_file, end_offset);
     }
     else if (q_type == Q_TYPE_Q6) {
-        int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+        int32_t num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         uint64_t q_bytes = ((uint64_t)rows * (uint64_t)cols * 3 + 3) / 4;
         uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);
 
@@ -969,10 +969,10 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
             return -1;
         }
 
-        for (int row_c = 0; row_c < rows;) {
-            int chunk_rows = rows - row_c;
+        for (int32_t row_c = 0; row_c < rows;) {
+            int32_t chunk_rows = rows - row_c;
             if ((size_t)chunk_rows > rows_per_chunk) {
-                chunk_rows = (int)rows_per_chunk;
+                chunk_rows = (int32_t)rows_per_chunk;
             }
             size_t chunk_elements = (size_t)chunk_rows * cols;
 
@@ -992,7 +992,7 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
         return seek_abs(_file, end_offset);
     }
     else if (q_type == Q_TYPE_Q4) {
-        int num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
+        int32_t num_groups = (cols + GROUP_SIZE - 1) / GROUP_SIZE;
         uint64_t q_bytes = ((uint64_t)rows * (uint64_t)cols + 1) / 2;
         uint64_t s_bytes = (uint64_t)rows * (uint64_t)num_groups * sizeof(float);
 
@@ -1045,10 +1045,10 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
             return -1;
         }
 
-        for (int row_c = 0; row_c < rows;) {
-            int chunk_rows = rows - row_c;
+        for (int32_t row_c = 0; row_c < rows;) {
+            int32_t chunk_rows = rows - row_c;
             if ((size_t)chunk_rows > rows_per_chunk) {
-                chunk_rows = (int)rows_per_chunk;
+                chunk_rows = (int32_t)rows_per_chunk;
             }
             size_t chunk_elements = (size_t)chunk_rows * cols;
 
@@ -1071,16 +1071,16 @@ int quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *
     return -1;
 }
 
-int quantize_write_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-        int rows, int cols, q_type_t q_type) {
-    log_msg(stdout, "INFO: writing \"%s\", %d rows, %d cols, %d q_type\n", _name_s, rows, cols, (int)q_type);
+int32_t quantize_write_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
+        int32_t rows, int32_t cols, q_type_t q_type) {
+    log_msg(stdout, "INFO: writing \"%s\", %d rows, %d cols, %d q_type\n", _name_s, rows, cols, (int32_t)q_type);
 
     return quantize_write_tensor_entry(_qt_ctx, _file, _name_s, quantize_find_tensor(_qt_ctx, _name_s),
             rows, cols, q_type);
 }
 
-int quantize_write_tensor_or_empty(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-        int rows, int cols, q_type_t q_type) {
+int32_t quantize_write_tensor_or_empty(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
+        int32_t rows, int32_t cols, q_type_t q_type) {
 
     const weightmap_entry *_wm_entry = quantize_find_tensor(_qt_ctx, _name_s);
     if (! _wm_entry) {
@@ -1089,15 +1089,15 @@ int quantize_write_tensor_or_empty(quantize_ctx *_qt_ctx, FILE *_file, const cha
     return quantize_write_tensor_entry(_qt_ctx, _file, _name_s, _wm_entry, rows, cols, q_type);
 }
 
-int quantize_write_empty_tensor(FILE *_file) {
+int32_t quantize_write_empty_tensor(FILE *_file) {
     q_type_t q_type = Q_TYPE_F32;
-    int zero = 0;
+    int32_t zero = 0;
     return (quantize_write_bytes(_file, &q_type, sizeof(q_type_t), 1) ||
             quantize_write_bytes(_file, &zero, sizeof(zero), 1) ||
             quantize_write_bytes(_file, &zero, sizeof(zero), 1)) ? -1 : 0;
 }
 
-int quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file,
+int32_t quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file,
         const char *const *__names_s, size_t n_names, float default_value) {
     const weightmap_entry *_wm_entry = quantize_find_last_tensor(_qt_ctx, __names_s, n_names);
     if (! _wm_entry) {
@@ -1133,7 +1133,7 @@ int quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file,
         return -1;
     }
 
-    int res = 0;
+    int32_t res = 0;
     if (read_f32_range(_qt_ctx, _wm_entry, 0, 1, _raw, _f32) ||
             quantize_write_bytes(_file, _f32, sizeof(float), 1)) {
         res = -1;

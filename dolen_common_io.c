@@ -4,7 +4,7 @@
 char *_log_path = NULL;
 
 
-long time_in_ms() {
+int64_t time_in_ms() {
     struct timespec time;
 
     clock_gettime(CLOCK_REALTIME, &time);
@@ -87,7 +87,7 @@ float get_json_float_val(JsonValue *_json_val, float def) {
     return def;
 }
 
-int seek_abs(FILE *_file, uint64_t offset) {
+int32_t seek_abs(FILE *_file, uint64_t offset) {
     if (offset > (uint64_t)INT64_MAX) {
         log_msg(stderr, "ERROR: File offset is too large\n");
         return -1;

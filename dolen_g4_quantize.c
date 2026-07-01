@@ -2,7 +2,7 @@
 #include "dolen_g4_common.h"
 
 
-int load_config_g4(G4 *_model, const char *_model_dir_s) {
+int32_t load_config_g4(G4 *_model, const char *_model_dir_s) {
     config_g4 *_config = &_model->config;
 
     char config_path[PATH_MAX];
@@ -13,7 +13,7 @@ int load_config_g4(G4 *_model, const char *_model_dir_s) {
         return -1;
     }
     fseek(_file, 0, SEEK_END);
-    long size = ftell(_file);
+    int64_t size = ftell(_file);
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
@@ -76,7 +76,7 @@ int load_config_g4(G4 *_model, const char *_model_dir_s) {
     }
 
     JsonValue *_js_layer_types = json_object_get(_js_cfg, "layer_types");
-    _model->_layer_types = (int *)a_calloc((size_t)_config->n_layers * sizeof(int));
+    _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layers * sizeof(int32_t));
     if (! _model->_layer_types) {
         log_msg(stderr, "ERROR: Failed to allocate layer_types\n");
         json_free(_js_root);
@@ -84,7 +84,7 @@ int load_config_g4(G4 *_model, const char *_model_dir_s) {
     }
 
     if (_js_layer_types && (_js_layer_types->type == JSON_ARRAY)) {
-        for (int i = 0; i < _config->n_layers; i++) {
+        for (int32_t i = 0; i < _config->n_layers; i++) {
             JsonValue *_js_layer_type = json_array_get(_js_layer_types, i);
             if (_js_layer_type && (_js_layer_type->type == JSON_STRING)) {
                 _model->_layer_types[i] = (strcmp(_js_layer_type->data.string, "full_attention")) ? 0 : 1;
@@ -93,7 +93,7 @@ int load_config_g4(G4 *_model, const char *_model_dir_s) {
             }
         }
     } else {
-        for (int i = 0; i < _config->n_layers; i++) {
+        for (int32_t i = 0; i < _config->n_layers; i++) {
             _model->_layer_types[i] = ((i + 1) % 6) ? 0 : 1;
         }
     }
@@ -103,8 +103,8 @@ int load_config_g4(G4 *_model, const char *_model_dir_s) {
     return 0;
 }
 
-static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, const char *_suffix_s,
-        int rows, int cols, q_type_t type) {
+static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
+        int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
     snprintf(_name_s, sizeof(_name_s), "model.language_model.layers.%d.%s", layer, _suffix_s);
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
@@ -114,7 +114,7 @@ static int write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int layer, con
     return 0;
 }
 
-int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
+int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         q_type_t embed_type, q_type_t attn_type, q_type_t mlp_type, const char *_tokenizer_path_s) {
     G4 model;
     memset(&model, 0, sizeof(model));
@@ -141,7 +141,7 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
 
     uint64_t magic = MAGIC_G4;
     uint32_t version = 6; // Bumped from 5 to 6
-    int failed = 0;
+    int32_t failed = 0;
 
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -160,7 +160,7 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         goto cleanup;
     }
 
-    if (quantize_write_bytes(_file, model._layer_types, sizeof(int), _config->n_layers)) {
+    if (quantize_write_bytes(_file, model._layer_types, sizeof(int32_t), _config->n_layers)) {
         failed = 1;
         goto cleanup;
     }
@@ -174,39 +174,39 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         goto cleanup;
     }
 
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "pre_feedforward_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_feedforward_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < _config->n_layers; l++) {
-        int hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight", 1, hd, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    for (int l = 0; l < _config->n_layers; l++) {
-        int hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight", 1, hd, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
@@ -217,11 +217,11 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         goto cleanup;
     }
 
-    for (int l = 0; l < _config->n_layers; l++) {
-        int is_full = model._layer_types[l];
-        int use_alternative_attention = is_full && _config->attention_k_eq_v;
-        int hd = is_full ? _config->global_head_dim : _config->head_dim;
-        int kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        int32_t is_full = model._layer_types[l];
+        int32_t use_alternative_attention = is_full && _config->attention_k_eq_v;
+        int32_t hd = is_full ? _config->global_head_dim : _config->head_dim;
+        int32_t kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
 
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
                     _config->n_heads * hd, _config->dim, attn_type)) {
@@ -269,7 +269,7 @@ int quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         }
     }
 
-    for (int l = 0; l < _config->n_layers; l++) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
         char scalar0[256], scalar1[256], scalar2[256];
         snprintf(scalar0, sizeof(scalar0), "model.language_model.layers.%d.layer_scalar", l);
         snprintf(scalar1, sizeof(scalar1), "model.language_model.layers.%d.layer_scalar.weight", l);

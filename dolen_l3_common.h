@@ -9,19 +9,19 @@
 
 
 typedef struct {
-    int dim;
-    int hidden_dim;
-    int n_layers;
-    int n_heads;
-    int n_kv_heads;
-    int vocab_size;
-    int seq_len;
-    int head_dim;
+    int32_t dim;
+    int32_t hidden_dim;
+    int32_t n_layers;
+    int32_t n_heads;
+    int32_t n_kv_heads;
+    int32_t vocab_size;
+    int32_t seq_len;
+    int32_t head_dim;
     float rope_theta;
     float rms_norm_eps;
-    int tie_word_embeddings;
-    int bos_token_id;
-    int eos_token_id;
+    int32_t tie_word_embeddings;
+    int32_t bos_token_id;
+    int32_t eos_token_id;
 } config_l3;
 
 typedef struct {
@@ -56,8 +56,8 @@ typedef struct {
     qtensor hq;
     float *_cos_cache;
     float *_sin_cache;
-    int allocated;
-    int n_layers;
+    int32_t allocated;
+    int32_t n_layers;
 } state_l3;
 
 typedef struct {
@@ -74,9 +74,9 @@ void free_state_l3(state_l3 *_state);
 
 void free_l3(L3 *_model);
 
-int load_quantized_l3(const char *_path_s, L3 *_model, int seq_n_max);
+int32_t load_quantized_l3(const char *_path_s, L3 *_model, int32_t seq_n_max);
 
-float *forward_l3(L3 *_model, int token, int pos);
+float *forward_l3(L3 *_model, int32_t token, int32_t pos);
 
 
 #endif // DOLEN_L3_COMMON_H

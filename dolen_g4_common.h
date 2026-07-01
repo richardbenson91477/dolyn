@@ -9,28 +9,28 @@
 
 
 typedef struct {
-    int dim;
-    int hidden_dim;
-    int n_layers;
-    int n_heads;
-    int n_kv_heads;
-    int n_global_kv_heads;
-    int vocab_size;
-    int seq_len;
-    int head_dim;
-    int global_head_dim;
-    int sliding_window;
-    int tie_word_embeddings;
+    int32_t dim;
+    int32_t hidden_dim;
+    int32_t n_layers;
+    int32_t n_heads;
+    int32_t n_kv_heads;
+    int32_t n_global_kv_heads;
+    int32_t vocab_size;
+    int32_t seq_len;
+    int32_t head_dim;
+    int32_t global_head_dim;
+    int32_t sliding_window;
+    int32_t tie_word_embeddings;
     float rope_theta_full;
     float rope_theta_sliding;
     float rope_partial_factor;
     float rms_norm_eps;
     float final_logit_softcapping;
-    int attention_k_eq_v;
-    int original_max_seq_len;
-    int use_rope_freqs;
-    int bos_token_id;
-    int eos_token_id;
+    int32_t attention_k_eq_v;
+    int32_t original_max_seq_len;
+    int32_t use_rope_freqs;
+    int32_t bos_token_id;
+    int32_t eos_token_id;
 } config_g4;
 
 typedef struct {
@@ -72,8 +72,8 @@ typedef struct {
     float *_sin_cache_full;
     float *_cos_cache_sliding;
     float *_sin_cache_sliding;
-    int allocated;
-    int n_layers;
+    int32_t allocated;
+    int32_t n_layers;
 } state_g4;
 
 typedef struct {
@@ -81,19 +81,19 @@ typedef struct {
     weights_g4 weights;
     state_g4 state;
     tokenizer tokenizer;
-    int *_layer_types;
+    int32_t *_layer_types;
 } G4;
 
 
-void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int *_layer_types);
+void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int32_t *_layer_types);
 
 void free_state_g4(state_g4 *_state);
 
 void free_g4(G4 *_model);
 
-int load_quantized_g4(const char *_path_s, G4 *_model, int seq_n_max);
+int32_t load_quantized_g4(const char *_path_s, G4 *_model, int32_t seq_n_max);
 
-float *forward_g4(G4 *_model, int token, int pos);
+float *forward_g4(G4 *_model, int32_t token, int32_t pos);
 
 
 #endif // DOLEN_G4_COMMON_H

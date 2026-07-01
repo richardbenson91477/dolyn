@@ -9,25 +9,25 @@
 
 
 typedef struct {
-    int dim;
-    int n_heads;
-    int n_kv_heads;
-    int n_layer;
-    int n_mlp;
-    int vocab_size;
-    int seq_len;
+    int32_t dim;
+    int32_t n_heads;
+    int32_t n_kv_heads;
+    int32_t n_layer;
+    int32_t n_mlp;
+    int32_t vocab_size;
+    int32_t seq_len;
     float rope_theta;
     float rms_norm_eps;
-    int tie_word_embeddings;
-    int d_head;
+    int32_t tie_word_embeddings;
+    int32_t d_head;
 
     float embedding_multiplier;
     float attention_multiplier;
     float residual_multiplier;
     float logits_scaling;
 
-    int bos_token_id;
-    int eos_token_id;
+    int32_t bos_token_id;
+    int32_t eos_token_id;
 } config_ig4_1;
 
 typedef struct {
@@ -62,7 +62,7 @@ typedef struct {
     qtensor hq;
     float *_cos_cache;
     float *_sin_cache;
-    int allocated;
+    int32_t allocated;
 } state_ig4_1;
 
 typedef struct {

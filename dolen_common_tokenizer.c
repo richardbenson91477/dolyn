@@ -3,25 +3,25 @@
 #include "dolen_common_mem.h"
 
 
-int compare_tokens(const void *_a, const void *_b) {
+int32_t compare_tokens(const void *_a, const void *_b) {
     return strcmp(((token_map *)_a)->_str_s, ((token_map *)_b)->_str_s);
 }
 
-int str_lookup(char *_str_s, token_map *_vocab_sorted, int vocab_size) {
+int32_t str_lookup(char *_str_s, token_map *_vocab_sorted, int32_t vocab_size) {
     token_map tok = {._str_s = _str_s};
     token_map *_tm_res = bsearch(&tok, _vocab_sorted, vocab_size, sizeof(token_map), compare_tokens);
     return _tm_res ? _tm_res->id : -1;
 }
 
-void encode_segment(tokenizer *_tokenizer, char *_text_s, int *_tokens, int *_tokens_n) {
+void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int32_t *_tokens_n) {
     if (_text_s[0] == '\0') {
         return;
     }
     char *_buf_s = a_calloc((_tokenizer->max_token_length + 1) * sizeof(char));
     char *_p = _text_s;
     while (*_p) {
-        int best_len = 0, best_id = -1;
-        for (int len = 1; (len <= _tokenizer->max_token_length) &&
+        int32_t best_len = 0, best_id = -1;
+        for (int32_t len = 1; (len <= _tokenizer->max_token_length) &&
                 (_p[len - 1]); len++) {
             if (((_p[len - 1] & 0xC0) == 0x80) &&
                     ((len < _tokenizer->max_token_length) &&
@@ -30,7 +30,7 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int *_tokens, int *_to
             }
             strncpy(_buf_s, _p, len);
             _buf_s[len] = '\0';
-            int id = str_lookup(_buf_s, _tokenizer->_vocab_sorted, _tokenizer->vocab_size);
+            int32_t id = str_lookup(_buf_s, _tokenizer->_vocab_sorted, _tokenizer->vocab_size);
             if (id != -1) {
                 best_len = len;
                 best_id = id;
@@ -41,14 +41,24 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int *_tokens, int *_to
             _p += best_len;
         }
         else {
-            _tokens[(*_tokens_n)++] = (unsigned char)*_p + 3;
+            // Attempt to look up the byte-fallback token (e.g., "<0x41>")
+            char byte_str[8];
+            snprintf(byte_str, sizeof(byte_str), "<0x%02X>", (unsigned char)*_p);
+            int32_t id = str_lookup(byte_str, _tokenizer->_vocab_sorted, _tokenizer->vocab_size);
+            
+            if (id != -1) {
+                _tokens[(*_tokens_n)++] = id;
+            } else {
+                // Fallback to the hardcoded offset if the vocab doesn't use <0xXX> format
+                _tokens[(*_tokens_n)++] = (unsigned char)*_p + 3;
+            }
             _p++;
         }
     }
     free(_buf_s);
 }
 
-void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int *_tokens, int *_tokens_n) {
+void encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_token, int8_t eos, int32_t *_tokens, int32_t *_tokens_n) {
     if (! _text_s) {
         log_msg(stderr, "ERROR: Cannot encode NULL text\n");
         exit(EXIT_FAILURE);
@@ -56,7 +66,7 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
 
     if (! _tokenizer->_vocab_sorted) {
         _tokenizer->_vocab_sorted = a_calloc(_tokenizer->vocab_size * sizeof(token_map));
-        for (int i = 0; i < _tokenizer->vocab_size; i++) {
+        for (int32_t i = 0; i < _tokenizer->vocab_size; i++) {
             _tokenizer->_vocab_sorted[i]._str_s = _tokenizer->__vocab[i];
             _tokenizer->_vocab_sorted[i].id = i;
         }
@@ -86,7 +96,7 @@ void encode(tokenizer *_tokenizer, char *_text_s, int bos_token, int8_t eos, int
     }
 }
 
-char *decode(tokenizer *_tokenizer, int token) {
+char *decode(tokenizer *_tokenizer, int32_t token) {
     char *_piece_s = _tokenizer->__vocab[token];
 
     unsigned char byte_val;
@@ -97,13 +107,13 @@ char *decode(tokenizer *_tokenizer, int token) {
     return _piece_s;
 }
 
-void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int vocab_size) {
+void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32_t vocab_size) {
     _tokenizer->vocab_size = vocab_size;
     _tokenizer->__vocab = (char **)a_calloc(vocab_size * sizeof(char *));
     _tokenizer->_vocab_sorted = NULL;
     _tokenizer->is_sorted = 0;
 
-    for (int i = 0; i < 256; i++) {
+    for (int32_t i = 0; i < 256; i++) {
         _tokenizer->_byte_pieces_s[i * 2] = (unsigned char)i;
         _tokenizer->_byte_pieces_s[i * 2 + 1] = '\0';
     }
@@ -114,14 +124,14 @@ void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int v
         exit(EXIT_FAILURE);
     }
 
-    if (fread(&_tokenizer->max_token_length, sizeof(int), 1, _file) != 1) {
+    if (fread(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed read: max_token_length\n");
         exit(EXIT_FAILURE);
     }
 
-    int len;
-    for (int i = 0; i < vocab_size; i++) {
-        if (fread(&len, sizeof(int), 1, _file) != 1) {
+    int32_t len;
+    for (int32_t i = 0; i < vocab_size; i++) {
+        if (fread(&len, sizeof(int32_t), 1, _file) != 1) {
             log_msg(stderr, "ERROR: Failed read: len (%u)\n", i);
             exit(EXIT_FAILURE);
         }
@@ -144,7 +154,7 @@ void free_tokenizer(tokenizer *_tokenizer) {
         return;
     }
 
-    for (int i = 0; i < _tokenizer->vocab_size; i++) {
+    for (int32_t i = 0; i < _tokenizer->vocab_size; i++) {
         free(_tokenizer->__vocab[i]);
     }
 
@@ -152,15 +162,15 @@ void free_tokenizer(tokenizer *_tokenizer) {
     free(_tokenizer->_vocab_sorted);
 }
 
-int tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
-    if (fwrite(&_tokenizer->max_token_length, sizeof(int), 1, _file) != 1) {
+int32_t tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
+    if (fwrite(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
         return -1;
     }
 
-    for (int i = 0; i < _tokenizer->vocab_size; i++) {
-        int len = (int)strlen(_tokenizer->__vocab[i]);
+    for (int32_t i = 0; i < _tokenizer->vocab_size; i++) {
+        int32_t len = (int32_t)strlen(_tokenizer->__vocab[i]);
 
-        if (fwrite(&len, sizeof(int), 1, _file) != 1) {
+        if (fwrite(&len, sizeof(int32_t), 1, _file) != 1) {
             return -1;
         }
 
@@ -171,8 +181,8 @@ int tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
     return 0;
 }
 
-int tokenizer_read_from_file(FILE *_file, int vocab_size, tokenizer *_tokenizer) {
-    if (fread(&_tokenizer->max_token_length, sizeof(int), 1, _file) != 1) {
+int32_t tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_tokenizer) {
+    if (fread(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
         return -1;
     }
 
@@ -181,14 +191,14 @@ int tokenizer_read_from_file(FILE *_file, int vocab_size, tokenizer *_tokenizer)
     _tokenizer->is_sorted = 0;
     _tokenizer->vocab_size = vocab_size;
 
-    for (int i = 0; i < 256; i++) {
+    for (int32_t i = 0; i < 256; i++) {
         _tokenizer->_byte_pieces_s[i * 2] = (unsigned char)i;
         _tokenizer->_byte_pieces_s[i * 2 + 1] = '\0';
     }
 
-    int len;
-    for (int i = 0; i < vocab_size; i++) {
-        if (fread(&len, sizeof(int), 1, _file) != 1) {
+    int32_t len;
+    for (int32_t i = 0; i < vocab_size; i++) {
+        if (fread(&len, sizeof(int32_t), 1, _file) != 1) {
             return -1;
         }
 

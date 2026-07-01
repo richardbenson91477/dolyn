@@ -18,7 +18,7 @@ int main(int argc, char *__argv[]) {
 
     q_type_t embed_type = Q_TYPE_Q8, attn_type = Q_TYPE_Q8, mlp_type = Q_TYPE_Q8;
     char *_tokenizer_path_s = "tokenizer.bin";
-    for (int i = 3; i < argc; i++) {
+    for (int32_t i = 3; i < argc; i++) {
         if ((! strcmp(__argv[i], "--arch")) &&
                 ((i + 1) < argc)) {
             i += 1;
