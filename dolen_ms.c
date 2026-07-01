@@ -1,8 +1,8 @@
 #include "dolen_ms_common.h"
 
 static const chat_template CHAT_TEMPLATE_MS = {
-    ._system_s = "",
-    ._main_s = "[INST] %s [/INST]",
+    ._system_s = "<s> [INST] %s [/INST] </s>",
+    ._main_s = "<s> [INST] %s [/INST] </s>",
     ._end_turn_s = "</s>",
 };
 
