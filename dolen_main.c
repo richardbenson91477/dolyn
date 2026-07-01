@@ -355,7 +355,6 @@ int32_t main(int32_t argc, char *__argv[]) {
                 log_msg(stderr, "ERROR: Wrong argument for --think.\n", _mode_s);
                 exit(EXIT_FAILURE);
             }
-            continue;
         }
         else {
             print_usage(__argv[0]);
