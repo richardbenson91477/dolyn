@@ -28,17 +28,19 @@ extern const model_registry_entry MODEL_REGISTRY[];
 extern const size_t MODEL_REGISTRY_SIZE;
 
 
+model_iface *init_ms(const char *_model_path_s, int32_t seq_n_max, bool think_);
+
+model_iface *init_q2(const char *_model_path_s, int32_t seq_n_max, bool think_);
+
+model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_);
+
+model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n_max, bool think_);
+
 model_iface *init_g4(const char *_model_path_s, int32_t seq_n_max, bool think_);
 
 model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n_max, bool think_);
 
 model_iface *init_l3(const char *_model_path_s, int32_t seq_n_max, bool think_);
-
-model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n_max, bool think_);
-
-model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_);
-
-model_iface *init_q2(const char *_model_path_s, int32_t seq_n_max, bool think_);
 
 
 #endif // DOLEN_MAIN_H

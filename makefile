@@ -22,13 +22,13 @@ DOLEN_COMMON_INC=dolen_common_cmi.h dolen_common_io.h dolen_common_math.h dolen_
 
 BIN_MAIN = dolen
 BIN_MAIN_DBG = dolen_dbg
-SRC_MAIN = dolen_main.c $(DOLEN_COMMON_SRC) dolen_q3_5.c dolen_q3_5_common.c dolen_q3.c dolen_q3_common.c dolen_g4.c dolen_g4_common.c dolen_ig4_1.c dolen_ig4_1_common.c dolen_l3.c dolen_l3_common.c dolen_q2.c dolen_q2_common.c
-INC_MAIN = dolen_main.h $(DOLEN_COMMON_INC) dolen_q2_common.h dolen_l3_common.h dolen_ig4_1_common.h dolen_g4_common.h dolen_q3_common.h dolen_q3_5_common.h
+SRC_MAIN = dolen_main.c $(DOLEN_COMMON_SRC) dolen_ms.c dolen_ms_common.c dolen_q2.c dolen_q2_common.c dolen_q3.c dolen_q3_common.c dolen_q3_5.c dolen_q3_5_common.c dolen_g4.c dolen_g4_common.c dolen_ig4_1.c dolen_ig4_1_common.c dolen_l3.c dolen_l3_common.c
+INC_MAIN = dolen_main.h $(DOLEN_COMMON_INC) dolen_ms_common.h dolen_q2_common.h dolen_q3_common.h dolen_q3_5_common.h dolen_g4_common.h dolen_ig4_1_common.h dolen_l3_common.h
 
 BIN_Q_MAIN = dolen_quantize
 BIN_Q_DBG = dolen_quantize_dbg
-SRC_Q_MAIN = dolen_quantize_main.c $(DOLEN_COMMON_SRC) dolen_quantize_common.c dolen_q2_quantize.c dolen_q2_common.c dolen_q3_quantize.c dolen_q3_common.c dolen_q3_5_quantize.c dolen_q3_5_common.c dolen_g4_quantize.c dolen_g4_common.c dolen_ig4_1_quantize.c dolen_ig4_1_common.c dolen_l3_quantize.c dolen_l3_common.c
-INC_Q_MAIN = dolen_quantize_main.h $(DOLEN_COMMON_INC) dolen_quantize_common.h dolen_q2_common.h dolen_q3_common.h dolen_q3_5_common.h dolen_g4_common.h dolen_ig4_1_common.h dolen_l3_common.h
+SRC_Q_MAIN = dolen_quantize_main.c $(DOLEN_COMMON_SRC) dolen_quantize_common.c dolen_ms_quantize.c dolen_q2_quantize.c dolen_q2_common.c dolen_q3_quantize.c dolen_q3_common.c dolen_q3_5_quantize.c dolen_q3_5_common.c dolen_g4_quantize.c dolen_g4_common.c dolen_ig4_1_quantize.c dolen_ig4_1_common.c dolen_l3_quantize.c dolen_l3_common.c
+INC_Q_MAIN = dolen_quantize_main.h $(DOLEN_COMMON_INC) dolen_quantize_common.h dolen_ms_common.h dolen_q2_common.h dolen_q3_common.h dolen_q3_5_common.h dolen_g4_common.h dolen_ig4_1_common.h dolen_l3_common.h
 
 BINS_ALL = $(BIN_MAIN) $(BIN_Q_MAIN) $(BIN_MAIN_DBG) $(BIN_Q_MAIN_DBG)
 SRCS_ALL = $(SRC_MAIN) $(SRC_Q_MAIN)

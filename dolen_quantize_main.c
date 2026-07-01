@@ -10,7 +10,7 @@ int main(int argc, char *__argv[]) {
                 " [--type Q] [--embed Q] [--attn Q] [--mlp Q]" \
                 " [--tokenizer PATH]\n" \
                 "Where:\n" 
-                "  ARCH: [q2 | q3 | q3_5 | g4 | ig4_1 | l3]\n" \
+                "  ARCH: [ms | q2 | q3 | q3_5 | g4 | ig4_1 | l3]\n" \
                 "  Q: [q4 | q6 | q8 | f16 | f32]\n\n", 
                 __argv[0]);
         return EXIT_FAILURE;
@@ -56,7 +56,10 @@ int main(int argc, char *__argv[]) {
         log_msg(stderr, "ERROR: \"arch\" required.\n");
         exit(EXIT_FAILURE);
     }
-
+    else if (! strcmp(_arch_s, "ms")) {
+        return quantize_ms_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s)
+            ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     else if (! strcmp(_arch_s, "q2")) {
         return quantize_q2_to_file(__argv[1], __argv[2], embed_type, attn_type, mlp_type, _tokenizer_path_s)
             ? EXIT_FAILURE : EXIT_SUCCESS;

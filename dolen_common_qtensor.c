@@ -534,7 +534,7 @@ void free_qt(qtensor *_qt) {
 }
 
 void free_qt_array(qtensor *_qt_arr, int32_t arr_n) {
-    if (! arr_n) {
+    if ((! arr_n) || (! _qt_arr)) {
         return;
     }
     for (int32_t i = 0; i < arr_n; i++) {
