@@ -4,7 +4,7 @@
 _bin_name="dolen_run"
 _prefix="${_bin_name}"
 _defaults_base="${dolen_path}/${_bin_name}_defaults/${_bin_name}_defaults"
-_suffixes="model temp top_k top_p seed seq_n prompt_n prompt mode system_prompt log think"
+_suffixes="model temp top_k top_p seed seq_n prompt_n prompt mode system_prompt log think threads_n"
 
 envarg_parse "$_bin_name" "$_prefix" "$_defaults_base" "$_suffixes" "$@" &&\
   shift $envarg_parse_shift_count
