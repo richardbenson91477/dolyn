@@ -254,7 +254,7 @@ static void error_usage(const char *_argv0) {
     log_msg(stdout, " -M  | --mode <str>:          chat|gen, default: chat\n");
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
     log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
-    log_msg(stdout, " -h  | --help:                print32_t this help and exit\n");
+    log_msg(stdout, " -h  | --help:                print this help and exit\n");
     log_msg(stdout, " -th | --think:               enable think-mode chat template, default: disabled\n");
 
     exit(EXIT_FAILURE);
