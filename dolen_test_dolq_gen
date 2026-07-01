@@ -5,7 +5,7 @@
     exit -1
     }
 
-prompt="The capitol of France is named "
+prompt="The capitol of France is P"
 seq_n=64
 
 model="$1"
