@@ -9,11 +9,11 @@
 #include "dolen_common_sampler.h"
 #include "dolen_common_tokenizer.h"
 
-#define DOLEN_MAIN_PROMPT_N_MAX_DEFAULT (32768)
-#define DOLEN_MAIN_TEMP_DEFAULT (0.2)
-#define DOLEN_MAIN_TOP_P_DEFAULT (0.95)
-#define DOLEN_MAIN_TOP_K_DEFAULT (40)
 #define DOLEN_MAIN_MODEL_PATH_DEFAULT "model.dolq"
+#define DOLEN_MAIN_TEMP_DEFAULT (0.6)
+#define DOLEN_MAIN_TOP_K_DEFAULT (40)
+#define DOLEN_MAIN_TOP_P_DEFAULT (0.95)
+#define DOLEN_MAIN_PROMPT_N_MAX_DEFAULT (32768)
 #define DOLEN_MAIN_MODE_DEFAULT "chat"
 #define DOLEN_MAIN_SYSTEM_PROMPT_DEFAULT "You are a helpful assistant."
 #define DOLEN_MAIN_THINK_DEFAULT false
