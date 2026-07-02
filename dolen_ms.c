@@ -204,7 +204,8 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
 
             // Sliding Window Attention Support
             int32_t t_start = 0;
-            if (_config->sliding_window > 0 && pos >= _config->sliding_window) {
+            if ((_config->sliding_window > 0) &&
+                    (pos >= _config->sliding_window)) {
                 t_start = pos - _config->sliding_window + 1;
             }
 

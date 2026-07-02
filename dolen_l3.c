@@ -190,9 +190,9 @@ float *forward_l3(L3 *_model, int32_t token, int32_t pos) {
                 }
                 _att[t] = score * inv_sqrt_head;
             }
-            softmax(_att, pos + 1); 
+            softmax(_att, pos + 1);
 
-            float *_x_out = _state->_xb + h * head_size; 
+            float *_x_out = _state->_xb + h * head_size;
             memset(_x_out, 0, head_size * sizeof(float));
             for (int32_t t = 0; t <= pos; t++) {
                 float *_v = _state->__value_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;

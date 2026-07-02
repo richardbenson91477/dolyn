@@ -21,8 +21,7 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int3
     char *_p = _text_s;
     while (*_p) {
         int32_t best_len = 0, best_id = -1;
-        for (int32_t len = 1; (len <= _tokenizer->max_token_length) &&
-                (_p[len - 1]); len++) {
+        for (int32_t len = 1; (len <= _tokenizer->max_token_length) && (_p[len - 1]); len++) {
             if (((_p[len - 1] & 0xC0) == 0x80) &&
                     ((len < _tokenizer->max_token_length) &&
                      (_p[len]))) {
@@ -174,7 +173,8 @@ int32_t tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
             return -1;
         }
 
-        if (len > 0 && fwrite(_tokenizer->__vocab[i], len, 1, _file) != 1) {
+        if ((len > 0) &&
+                (fwrite(_tokenizer->__vocab[i], len, 1, _file) != 1)) {
             return -1;
         }
     }
@@ -204,7 +204,8 @@ int32_t tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_to
 
         _tokenizer->__vocab[i] = (char *)a_calloc((size_t)len + 1);
 
-        if (len > 0 && fread(_tokenizer->__vocab[i], len, 1, _file) != 1) {
+        if ((len > 0) &&
+                (fread(_tokenizer->__vocab[i], len, 1, _file) != 1)) {
             return -1;
         }
 

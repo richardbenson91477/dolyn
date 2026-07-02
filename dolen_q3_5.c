@@ -280,7 +280,8 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
 
     int32_t rotary_partial = (int32_t)((float)head_size * _config->rope_partial_rotary_factor);
 
-    if ((rotary_partial > 0) && _state->_cos_cache) {
+    if ((rotary_partial > 0) &&
+            _state->_cos_cache) {
         float *_cos_row = _state->_cos_cache + pos * rotary_partial;
         float *_sin_row = _state->_sin_cache + pos * rotary_partial;
 

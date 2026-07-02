@@ -171,7 +171,8 @@ float *forward_q3(Q3 *_model, int32_t token, int32_t pos) {
 
         int32_t rotary_half = _config->head_dim / 2;
 
-        if ((rotary_half > 0) && (_state->_cos_cache != NULL)) {
+        if ((rotary_half > 0) &&
+                (_state->_cos_cache != NULL)) {
             float *_cos_row = _state->_cos_cache + pos * rotary_half;
             float *_sin_row = _state->_sin_cache + pos * rotary_half;
 

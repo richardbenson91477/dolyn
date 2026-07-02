@@ -201,7 +201,8 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
         int32_t is_full = _model->_layer_types[l];
-        int32_t use_alternative_attention = is_full && _config->attention_k_eq_v;
+        int32_t use_alternative_attention = is_full &&
+                _config->attention_k_eq_v;
         int32_t head_dim = is_full ? _config->global_head_dim : _config->head_dim;
         int32_t kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
         int32_t kv_dim = kv_heads * head_dim;
@@ -235,7 +236,8 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
         for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_qh = _state->_q + h * head_dim;
             rmsnorm_g4(_qh, _qh, _rms_q, head_dim, eps, true);
-            if ((rotary_dim > 0) && _cos_cache) {
+            if ((rotary_dim > 0) &&
+                    _cos_cache) {
                 apply_rope(_qh, _cos_cache, _sin_cache, rotary_dim, head_dim, pos);
             }
         }
@@ -244,7 +246,8 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
         for (int32_t h = 0; h < kv_heads; h++) {
             float *_kh = _state->_k_raw + h * head_dim;
             rmsnorm_g4(_kh, _kh, _rms_k, head_dim, eps, true);
-            if ((rotary_dim > 0) && _cos_cache) {
+            if ((rotary_dim > 0) &&
+                    _cos_cache) {
                 apply_rope(_kh, _cos_cache, _sin_cache, rotary_dim, head_dim, pos);
             }
         }
