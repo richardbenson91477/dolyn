@@ -5,7 +5,6 @@
 static const quant_preset_t QUANT_PRESETS[] = {
         // Name     Embed       LM_Head     Attn        MLP
         {"Q4_K_M", Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4},
-        {"Q5_K_M", Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
         {"Q6_K",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
         {"Q8_0",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
         {"F16",    Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16},
