@@ -1,7 +1,7 @@
 #include "dolen_quantize_common.h"
 #include <string.h>
 
-static const quant_profile_t PROFILES[] = {
+static const quant_preset_t QUANT_PRESETS[] = {
     // Name     Embed       LM_Head     Attn        MLP
     { "Q4_K_M", Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4 },
     { "Q5_K_M", Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6 },
@@ -11,22 +11,22 @@ static const quant_profile_t PROFILES[] = {
     { "F32",    Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32 }
 };
 
-const quant_profile_t *quantize_find_profile(const char *_name_s) {
+const quant_preset_t *quantize_find_preset(const char *_name_s) {
     if (!_name_s) {
         return NULL;
     }
-    for (size_t i = 0; i < sizeof(PROFILES) / sizeof(PROFILES[0]); i++) {
-        if (strcmp(PROFILES[i].name, _name_s) == 0) {
-            return &PROFILES[i];
+    for (size_t i = 0; i < sizeof(QUANT_PRESETS) / sizeof(QUANT_PRESETS[0]); i++) {
+        if (strcmp(QUANT_PRESETS[i].name, _name_s) == 0) {
+            return &QUANT_PRESETS[i];
         }
     }
     return NULL;
 }
 
-void quantize_print_profiles(void) {
+void quantize_print_presets(void) {
     log_msg(stdout, "Available presets:\n");
-    for (size_t i = 0; i < sizeof(PROFILES) / sizeof(PROFILES[0]); i++) {
-        log_msg(stdout, "  %s\n", PROFILES[i].name);
+    for (size_t i = 0; i < sizeof(QUANT_PRESETS) / sizeof(QUANT_PRESETS[0]); i++) {
+        log_msg(stdout, "  %s\n", QUANT_PRESETS[i].name);
     }
 }
 
@@ -120,7 +120,7 @@ static int32_t json_u64(JsonValue *_js_val, uint64_t *_res) {
 }
 
 static weightmap_entry *find_index_entry(safetensors_idx *_st_idx, const char *_file_name_s,
-const char *_tensor_name_s) {
+        const char *_tensor_name_s) {
     for (size_t i = 0; i < _st_idx->n_entries; i++) {
         weightmap_entry *_wm_entry = &_st_idx->_wm_entries[i];
         if ((! strcmp(_wm_entry->_file_name_s, _file_name_s)) &&
@@ -363,11 +363,13 @@ static int32_t load_single_safetensors(safetensors_idx *_st_idx, const char *_mo
     if (snprintf(file_path, sizeof(file_path), "%s/model.safetensors", _model_dir_s) >= (int32_t)sizeof(file_path)) {
         return -1;
     }
+
     FILE *_file = fopen(file_path, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Could not open %s\n", file_path);
         return -1;
     }
+
     uint8_t length_bytes[8];
     if (fread(length_bytes, 1, sizeof(length_bytes), _file) != sizeof(length_bytes)) {
         log_msg(stderr, "ERROR: Could not read safetensors header length from %s\n", file_path);
@@ -605,7 +607,7 @@ const weightmap_entry *quantize_find_tensor(const quantize_ctx *_qt_ctx, const c
 }
 
 const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *_qt_ctx,
-const char *const *__names_s, size_t n_names) {
+        const char *const *__names_s, size_t n_names) {
     const weightmap_entry *_wm_best = NULL;
     for (size_t n = 0; n < n_names; n++) {
         const weightmap_entry *_wm_entry = quantize_find_tensor(_qt_ctx, __names_s[n]);
@@ -666,7 +668,7 @@ static int32_t validate_entry(const weightmap_entry *_wm_entry, const char *_nam
 }
 
 static int32_t read_f32_range(quantize_ctx *_qt_ctx, const weightmap_entry *_wm_entry,
-uint64_t first_element, size_t elements, void *_raw, float *_f32) {
+        uint64_t first_element, size_t elements, void *_raw, float *_f32) {
     size_t item_size = dtype_size(_wm_entry->dtype);
     uint64_t byte_offset;
     if (first_element > UINT64_MAX / item_size ||
@@ -700,7 +702,7 @@ uint64_t first_element, size_t elements, void *_raw, float *_f32) {
 }
 
 int32_t quantize_write_tensor_entry(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-const weightmap_entry *_wm_entry, int32_t rows, int32_t cols, q_type_t q_type) {
+        const weightmap_entry *_wm_entry, int32_t rows, int32_t cols, q_type_t q_type) {
     log_msg(stdout, "INFO: writing(2) \"%s\", %d rows, %d cols, %d q_type\n", _name_s, rows, cols, (int32_t)q_type);
     if (rows <= 0 ||
         cols <= 0) {
@@ -1003,14 +1005,14 @@ const weightmap_entry *_wm_entry, int32_t rows, int32_t cols, q_type_t q_type) {
 }
 
 int32_t quantize_write_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-int32_t rows, int32_t cols, q_type_t q_type) {
+        int32_t rows, int32_t cols, q_type_t q_type) {
     log_msg(stdout, "INFO: writing \"%s\", %d rows, %d cols, %d q_type\n", _name_s, rows, cols, (int32_t)q_type);
     return quantize_write_tensor_entry(_qt_ctx, _file, _name_s, quantize_find_tensor(_qt_ctx, _name_s),
         rows, cols, q_type);
 }
 
 int32_t quantize_write_tensor_or_empty(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
-int32_t rows, int32_t cols, q_type_t q_type) {
+        int32_t rows, int32_t cols, q_type_t q_type) {
     const weightmap_entry *_wm_entry = quantize_find_tensor(_qt_ctx, _name_s);
     if (! _wm_entry) {
         return quantize_write_empty_tensor(_file);
@@ -1027,7 +1029,7 @@ int32_t quantize_write_empty_tensor(FILE *_file) {
 }
 
 int32_t quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file,
-const char *const *__names_s, size_t n_names, float default_value) {
+        const char *const *__names_s, size_t n_names, float default_value) {
     const weightmap_entry *_wm_entry = quantize_find_last_tensor(_qt_ctx, __names_s, n_names);
     if (! _wm_entry) {
         return quantize_write_bytes(_file, &default_value, sizeof(default_value), 1);
@@ -1095,3 +1097,4 @@ q_type_t parse_q_type(const char *_type_s) {
     log_msg(stderr, "WARNING: Unknown tensor type '%s'. Defaulting to Q8.\n", _type_s);
     return Q_TYPE_Q8;
 }
+

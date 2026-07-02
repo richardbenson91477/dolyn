@@ -6,25 +6,31 @@ static int32_t get_layer_type(int32_t layer_idx, const JsonValue *_layer_types) 
             (_layer_types->type != JSON_ARRAY)) {
         return 0;
     }
+
     if (layer_idx >= (int32_t)_layer_types->data.array.count) {
         return 0;
     }
+
     JsonValue *_js_lt = json_array_get(_layer_types, layer_idx);
     if ((! _js_lt) ||
             (_js_lt->type != JSON_STRING)) {
         return 0;
     }
+
     const char *_type_s = _js_lt->data.string;
     if (! strcmp(_type_s, "linear_attention")) {
         return 1;
     }
+
     return 0;
 }
 
 int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     config_q3_5 *_config = &_model->config;
+
     char _config_path_s[PATH_MAX];
     snprintf(_config_path_s, sizeof(_config_path_s), "%s/config.json", _model_dir_s);
+
     FILE *_file = fopen(_config_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", _config_path_s);
@@ -41,18 +47,23 @@ int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         return -1;
     }
     _json_str[size] = '\0';
+
     fclose(_file);
+
     char _error_s[256] = {0};
+
     JsonValue *_js_root = json_parse(_json_str, size, _error_s, sizeof(_error_s));
     free(_json_str);
     if (! _js_root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
+
     JsonValue *_js_cfg = json_object_get(_js_root, "text_config");
     if (! _js_cfg) {
         _js_cfg = _js_root;
     }
+    
     memset(_config, 0, sizeof(config_q3_5));
     _config->dim = json_get_int(json_object_get(_js_cfg, "hidden_size"), 896);
     _config->n_heads = json_get_int(json_object_get(_js_cfg, "num_attention_heads"), 14);
@@ -91,6 +102,7 @@ int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         json_free(_js_root);
         return -1;
     }
+
     JsonValue *_js_layer_types = json_object_get(_js_cfg, "layer_types");
     int32_t la = 0, ld = 0;
     _config->n_full_attn_layers = 0;
@@ -106,29 +118,34 @@ int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
             _config->n_full_attn_layers++;
         }
     }
+
     json_free(_js_root);
+
     log_msg(stdout, "INFO: Model config loaded\n");
     return 0;
 }
 
 static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
-int32_t rows, int32_t cols, q_type_t type) {
+        int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
     snprintf(_name_s, sizeof(_name_s), "model.language_model.layers.%d.%s", layer, _suffix_s);
+
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", _name_s);
         return -1;
     }
+
     return 0;
 }
 
 int32_t quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s,
-const quant_profile_t *_profile, const char *_tokenizer_path_s) {
+        const quant_preset_t *_preset, const char *_tokenizer_path_s) {
     Q3_5 model;
     memset(&model, 0, sizeof(model));
     if (load_config_q3_5(&model, _model_dir_s)) {
         return -1;
     }
+
     quantize_ctx qt_ctx;
     if (quantize_ctx_open(&qt_ctx, _model_dir_s)) {
         log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", _model_dir_s);
@@ -137,6 +154,7 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
         free(model._deltanet_layer_indices);
         return -1;
     }
+
     FILE *_file = fopen(_file_path_s, "wb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", _file_path_s);
@@ -146,6 +164,7 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
         free(model._deltanet_layer_indices);
         return -1;
     }
+
     config_q3_5 *_config = &model.config;
     int32_t head_size = _config->d_head > 0 ? _config->d_head : (_config->dim / _config->n_heads);
     int32_t kv_dim = _config->n_kv_heads * head_size;
@@ -163,23 +182,29 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
         failed = 1;
         goto cleanup;
     }
+
     tokenizer tokenizer1;
     memset(&tokenizer1, 0, sizeof(tokenizer1));
+
     build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size);
+
     if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
         failed = 1;
         goto cleanup;
     }
+
     if (quantize_write_bytes(_file, model._layer_types, sizeof(int32_t), _config->n_layer)) {
         failed = 1;
         goto cleanup;
     }
+
     if (quantize_write_tensor(&qt_ctx, _file, "model.language_model.embed_tokens.weight",
-        _config->vocab_size, _config->dim, _profile->embed)) {
+        _config->vocab_size, _config->dim, _preset->embed)) {
         failed = 1;
         goto cleanup;
     }
+
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight",
             1, _config->dim, Q_TYPE_F32)) {
@@ -187,22 +212,24 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (model._layer_types[l]) {
             continue;
         }
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
-                    q_dim, _config->dim, _profile->attn) ||
+                    q_dim, _config->dim, _preset->attn) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight",
-                    kv_dim, _config->dim, _profile->attn) ||
+                    kv_dim, _config->dim, _preset->attn) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight",
-                    kv_dim, _config->dim, _profile->attn) ||
+                    kv_dim, _config->dim, _preset->attn) ||
                 write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight",
-                    _config->dim, attn_out_dim, _profile->attn)) {
+                    _config->dim, attn_out_dim, _preset->attn)) {
             failed = 1;
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (! model._layer_types[l] &&
             write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
@@ -211,6 +238,7 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (! model._layer_types[l] &&
             write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
@@ -219,19 +247,21 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
             goto cleanup;
         }
     }
+
     if (_config->n_linear_attn_layers > 0) {
         for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] != 1) {
                 continue;
             }
             if (write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_qkv.weight",
-                        conv_dim, _config->dim, _profile->attn) ||
+                        conv_dim, _config->dim, _preset->attn) ||
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_z.weight",
-                        value_dim, _config->dim, _profile->attn)) {
+                        value_dim, _config->dim, _preset->attn)) {
                 failed = 1;
                 goto cleanup;
             }
         }
+
         for (int32_t l = 0; l < _config->n_layer; l++) {
             if ((model._layer_types[l] == 1) &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.in_proj_b.weight",
@@ -283,7 +313,7 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
         for (int32_t l = 0; l < _config->n_layer; l++) {
             if (model._layer_types[l] == 1 &&
                     write_layer_tensor(&qt_ctx, _file, l, "linear_attn.out_proj.weight",
-                        _config->dim, value_dim, _profile->attn)) {
+                        _config->dim, value_dim, _preset->attn)) {
                 failed = 1;
                 goto cleanup;
             }
@@ -298,22 +328,24 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
     }
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
-                    _config->n_mlp, _config->dim, _profile->mlp) ||
+                    _config->n_mlp, _config->dim, _preset->mlp) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",
-                    _config->dim, _config->n_mlp, _profile->mlp) ||
+                    _config->dim, _config->n_mlp, _preset->mlp) ||
                 write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight",
-                    _config->n_mlp, _config->dim, _profile->mlp)) {
+                    _config->n_mlp, _config->dim, _preset->mlp)) {
             failed = 1;
             goto cleanup;
         }
     }
+
     if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
+
     if ((! _config->tie_word_embeddings) &&
             quantize_write_tensor(&qt_ctx, _file, "lm_head.weight",
-                _config->vocab_size, _config->dim, _profile->lm_head)) {
+                _config->vocab_size, _config->dim, _preset->lm_head)) {
         failed = 1;
         goto cleanup;
     }

@@ -3,6 +3,7 @@
 
 int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     config_ig4_1 *_config = &_model->config;
+
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", _model_dir_s);
     FILE *_file = fopen(config_path, "rb");
@@ -13,22 +14,27 @@ int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_END);
     int64_t size = ftell(_file);
     fseek(_file, 0, SEEK_SET);
+
     char *_json_s = (char *)a_calloc(size + 1);
     if ((! _json_s) ||
-        (fread(_json_s, 1, size, _file) != (size_t)size)) {
+            (fread(_json_s, 1, size, _file) != (size_t)size)) {
         free(_json_s);
         fclose(_file);
         return -1;
     }
     _json_s[size] = '\0';
+
     fclose(_file);
+
     char _error_s[256] = {0};
+
     JsonValue *_js_root = json_parse(_json_s, size, _error_s, sizeof(_error_s));
     free(_json_s);
     if (! _js_root) {
         log_msg(stderr, "ERROR: Failed to parse config.json: %s\n", _error_s);
         return -1;
     }
+
     memset(_config, 0, sizeof(config_ig4_1));
     _config->dim = json_get_int(json_object_get(_js_root, "hidden_size"), 4096);
     _config->n_heads = json_get_int(json_object_get(_js_root, "num_attention_heads"), 32);
@@ -72,7 +78,7 @@ int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
 }
 
 static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
-int32_t rows, int32_t cols, q_type_t type) {
+        int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
     snprintf(_name_s, sizeof(_name_s), "model.layers.%d.%s", layer, _suffix_s);
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
@@ -83,23 +89,28 @@ int32_t rows, int32_t cols, q_type_t type) {
 }
 
 int32_t quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
-const quant_profile_t *_profile, const char *_tokenizer_path_s) {
+        const quant_preset_t *_preset, const char *_tokenizer_path_s) {
     IG4_1 model;
     memset(&model, 0, sizeof(model));
+
     if (load_config_ig4_1(&model, _model_dir_s)) {
         return -1;
     }
+
     quantize_ctx _qt_ctx;
+
     if (quantize_ctx_open(&_qt_ctx, _model_dir_s)) {
         log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", _model_dir_s);
         return -1;
     }
+
     FILE *_file = fopen(_file_path_s, "wb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for writing\n", _file_path_s);
         quantize_ctx_close(&_qt_ctx);
         return -1;
     }
+
     config_ig4_1 *_config = &model.config;
     int32_t head_size = _config->d_head > 0 ? _config->d_head : _config->dim / _config->n_heads;
     int32_t kv_dim = _config->n_kv_heads * head_size;
@@ -108,24 +119,28 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
     uint32_t version = 3; // Bumped from 2 to 3
     int32_t failed = 0;
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
-        quantize_write_bytes(_file, &version, sizeof(version), 1) ||
-        quantize_write_bytes(_file, _config, sizeof(*_config), 1)) {
+            quantize_write_bytes(_file, &version, sizeof(version), 1) ||
+            quantize_write_bytes(_file, _config, sizeof(*_config), 1)) {
         failed = 1;
         goto cleanup;
     }
+
     tokenizer tokenizer1;
     memset(&tokenizer1, 0, sizeof(tokenizer1));
+
     build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size);
     if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
         failed = 1;
         goto cleanup;
     }
+
     if (quantize_write_tensor(&_qt_ctx, _file, "model.embed_tokens.weight",
-            _config->vocab_size, _config->dim, _profile->embed)) {
+            _config->vocab_size, _config->dim, _preset->embed)) {
         failed = 1;
         goto cleanup;
     }
+
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight",
                 1, _config->dim, Q_TYPE_F32)) {
@@ -135,13 +150,13 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
     }
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight",
-            _config->n_heads * head_size, _config->dim, _profile->attn) ||
+                _config->n_heads * head_size, _config->dim, _preset->attn) ||
             write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight",
-            kv_dim, _config->dim, _profile->attn) ||
+                kv_dim, _config->dim, _preset->attn) ||
             write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight",
-            kv_dim, _config->dim, _profile->attn) ||
+                kv_dim, _config->dim, _preset->attn) ||
             write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight",
-            _config->dim, attn_out_dim, _profile->attn)) {
+                _config->dim, attn_out_dim, _preset->attn)) {
             failed = 1;
             goto cleanup;
         }
@@ -154,36 +169,43 @@ const quant_profile_t *_profile, const char *_tokenizer_path_s) {
     }
     for (int32_t l = 0; l < _config->n_layer; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight",
-                _config->n_mlp, _config->dim, _profile->mlp) ||
+                _config->n_mlp, _config->dim, _preset->mlp) ||
             write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight",
-                _config->dim, _config->n_mlp, _profile->mlp) ||
+                _config->dim, _config->n_mlp, _preset->mlp) ||
             write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight",
-                _config->n_mlp, _config->dim, _profile->mlp)) {
+                _config->n_mlp, _config->dim, _preset->mlp)) {
             failed = 1;
             goto cleanup;
         }
     }
+
     if (quantize_write_tensor_or_empty(&_qt_ctx, _file, "model.norm.weight",
                 1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
+
     if ((! _config->tie_word_embeddings) &&
             quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight",
-                _config->vocab_size, _config->dim, _profile->lm_head)) {
+                _config->vocab_size, _config->dim, _preset->lm_head)) {
         failed = 1;
         goto cleanup;
     }
+
 cleanup:
     free_tokenizer(&tokenizer1);
+
     if (fclose(_file)) {
         failed = 1;
     }
+
     quantize_ctx_close(&_qt_ctx);
+
     if (failed) {
         remove(_file_path_s);
         return -1;
     }
+
     log_msg(stdout, "INFO: Quantized model saved to %s\n", _file_path_s);
     return 0;
 }

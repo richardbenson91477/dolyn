@@ -81,3 +81,4 @@ void free_q2(Q2 *_model);
 
 
 #endif /* DOLEN_Q2_COMMON_H */
+

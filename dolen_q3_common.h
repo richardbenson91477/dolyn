@@ -77,3 +77,4 @@ void free_q3(Q3 *_model);
 
 
 #endif // DOLEN_Q3_COMMON_H
+

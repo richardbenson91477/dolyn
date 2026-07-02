@@ -18,6 +18,7 @@ int main(int argc, char *__argv[]) {
         print_help(__argv[0]);
         return EXIT_FAILURE;
     }
+
     char *_model_path_s = "model";
     char *_out_path_s = "model.dolq";
     char *_arch_s = NULL;
@@ -62,35 +63,35 @@ int main(int argc, char *__argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    const quant_profile_t *profile = quantize_find_profile(_preset_s);
-    if (!profile) {
+    const quant_preset_t *_preset = quantize_find_preset(_preset_s);
+    if (! _preset) {
         log_msg(stderr, "ERROR: Unknown preset \"%s\"\n", _preset_s);
-        quantize_print_profiles();
+        quantize_print_presets();
         exit(EXIT_FAILURE);
     }
     
-    log_msg(stdout, "INFO: Using preset \"%s\"\n", profile->name);
+    log_msg(stdout, "INFO: Using preset \"%s\"\n", _preset->name);
 
     if (! strcmp(_arch_s, "ms")) {
-        return quantize_ms_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_ms_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "q2")) {
-        return quantize_q2_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_q2_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "q3")) {
-        return quantize_q3_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_q3_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "q3_5")) {
-        return quantize_q3_5_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_q3_5_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "g4")) {
-        return quantize_g4_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_g4_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "ig4_1")) {
-        return quantize_ig4_1_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_ig4_1_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "l3")) {
-        return quantize_l3_to_file(_model_path_s, _out_path_s, profile, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
+        return quantize_l3_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else {
         print_help(__argv[0]);
@@ -98,3 +99,4 @@ int main(int argc, char *__argv[]) {
         exit(EXIT_FAILURE);
     }
 }
+
