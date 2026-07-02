@@ -64,7 +64,8 @@ int32_t load_quantized_q2(const char *_file_path_s, Q2 *_model, int32_t seq_n_ma
     _weights->_rms_att_weight = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((!_weights->_rms_att_weight) || (!_weights->_rms_ffn_weight)) {
+    if ((!_weights->_rms_att_weight) ||
+            (!_weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for norm weights\n");
         fclose(_file);
         return -1;
@@ -99,9 +100,16 @@ int32_t load_quantized_q2(const char *_file_path_s, Q2 *_model, int32_t seq_n_ma
     _weights->_k_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_v_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((!_weights->_wq) || (!_weights->_wk) || (!_weights->_wv) || (!_weights->_wo) ||
-            (!_weights->_w1) || (!_weights->_w2) || (!_weights->_w3) ||
-            (!_weights->_q_bias) || (!_weights->_k_bias) || (!_weights->_v_bias)) {
+    if ((!_weights->_wq) ||
+            (!_weights->_wk) ||
+            (!_weights->_wv) ||
+            (!_weights->_wo) ||
+            (!_weights->_w1) ||
+            (!_weights->_w2) ||
+            (!_weights->_w3) ||
+            (!_weights->_q_bias) ||
+            (!_weights->_k_bias) ||
+            (!_weights->_v_bias)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
         return -1;

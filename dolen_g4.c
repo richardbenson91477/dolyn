@@ -205,7 +205,8 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
         int32_t head_dim = is_full ? _config->global_head_dim : _config->head_dim;
         int32_t kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
         int32_t kv_dim = kv_heads * head_dim;
-        int32_t rotary_dim = is_full ? (int32_t)(_config->rope_partial_factor * _config->global_head_dim) : _config->head_dim;
+        int32_t rotary_dim = is_full ?
+            (int32_t)(_config->rope_partial_factor * _config->global_head_dim) : _config->head_dim;
         float *_cos_cache = is_full ? _state->_cos_cache_full : _state->_cos_cache_sliding;
         float *_sin_cache = is_full ? _state->_sin_cache_full : _state->_sin_cache_sliding;
 

@@ -18,8 +18,11 @@ int32_t load_config_ms(MS *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
-    if ((!_json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
-        free(_json_s); fclose(_file); return -1;
+    if ((!_json_s) ||
+            (fread(_json_s, 1, size, _file) != (size_t)size)) {
+        free(_json_s);
+        fclose(_file);
+        return -1;
     }
     _json_s[size] = '\0';
     fclose(_file);
@@ -33,7 +36,7 @@ int32_t load_config_ms(MS *_model, const char *_model_dir_s) {
         return -1;
     }
 
-    JsonValue *_js_cfg = _js_root; 
+    JsonValue *_js_cfg = _js_root;
     memset(_config, 0, sizeof(config_ms));
 
     _config->dim = json_get_int(json_object_get(_js_cfg, "hidden_size"), 0);
@@ -74,7 +77,9 @@ int32_t quantize_ms_to_file(const char *_model_dir_s, const char *_file_path_s,
     MS model;
     memset(&model, 0, sizeof(model));
 
-    if (load_config_ms(&model, _model_dir_s)) return -1;
+    if (load_config_ms(&model, _model_dir_s)) {
+        return -1;
+    }
 
     quantize_ctx _qt_ctx;
     if (quantize_ctx_open(&_qt_ctx, _model_dir_s)) {
@@ -99,9 +104,10 @@ int32_t quantize_ms_to_file(const char *_model_dir_s, const char *_file_path_s,
     int32_t failed = 0;
 
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
-        quantize_write_bytes(_file, &version, sizeof(version), 1) ||
-        quantize_write_bytes(_file, _config, sizeof(config_ms), 1)) {
-        failed = 1; goto cleanup;
+            quantize_write_bytes(_file, &version, sizeof(version), 1) ||
+            quantize_write_bytes(_file, _config, sizeof(config_ms), 1)) {
+        failed = 1;
+        goto cleanup;
     }
 
     tokenizer tokenizer1;
@@ -109,50 +115,65 @@ int32_t quantize_ms_to_file(const char *_model_dir_s, const char *_file_path_s,
     build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size);
     if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
-        failed = 1; goto cleanup;
+        failed = 1;
+        goto cleanup;
     }
 
     if (quantize_write_tensor(&_qt_ctx, _file, "model.embed_tokens.weight", _config->vocab_size, _config->dim, embed_type)) {
-        failed = 1; goto cleanup;
+        failed = 1;
+        goto cleanup;
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
-            failed = 1; goto cleanup;
+            failed = 1;
+            goto cleanup;
         }
     }
 
     if (quantize_write_tensor_or_empty(&_qt_ctx, _file, "model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
-        failed = 1; goto cleanup;
+        failed = 1;
+        goto cleanup;
     }
 
     if ((!_config->shared_classifier) &&
-        quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight", _config->vocab_size, _config->dim, embed_type)) {
-        failed = 1; goto cleanup;
+            quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight", _config->vocab_size, _config->dim, embed_type)) {
+        failed = 1;
+        goto cleanup;
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight", all_heads_dim, _config->dim, attn_type) ||
-            write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight", kv_dim, _config->dim, attn_type) ||
-            write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight", kv_dim, _config->dim, attn_type) ||
-            write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight", _config->dim, all_heads_dim, attn_type) ||
-            /* NO QKV Biases for Mistral */
-            write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight", _config->hidden_dim, _config->dim, mlp_type) ||
-            write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight", _config->dim, _config->hidden_dim, mlp_type) ||
-            write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight", _config->hidden_dim, _config->dim, mlp_type)) {
-            failed = 1; goto cleanup;
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight",
+                    kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight",
+                    kv_dim, _config->dim, attn_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight",
+                    _config->dim, all_heads_dim, attn_type) ||
+                /* NO QKV Biases for Mistral */
+                write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight",
+                    _config->hidden_dim, _config->dim, mlp_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight",
+                    _config->dim, _config->hidden_dim, mlp_type) ||
+                write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight",
+                    _config->hidden_dim, _config->dim, mlp_type)) {
+            failed = 1;
+            goto cleanup;
         }
     }
 
 cleanup:
     free_tokenizer(&tokenizer1);
-    if (fclose(_file)) failed = 1;
+    if (fclose(_file)) {
+        failed = 1;
+    }
     quantize_ctx_close(&_qt_ctx);
 
     if (failed) {

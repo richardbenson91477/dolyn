@@ -6,7 +6,7 @@ void print_help(const char *_argv0) {
             " [--out PATH]" \
             " [--arch ARCH]" \
             " [--tokenizer PATH]\n" \
-            " [--type Q] [--embed Q] [--attn Q] [--mlp Q]" \
+            " [--default Q] [--embed Q] [--attn Q] [--mlp Q]" \
             "Where:\n" 
             "  ARCH: [ms | q2 | q3 | q3_5 | g4 | ig4_1 | l3]\n" \
             "  Q: [q4 | q6 | q8 | f16 | f32]\n\n", 
@@ -21,7 +21,7 @@ int main(int argc, char *__argv[]) {
     }
 
     char *_model_path_s = "model";
-    char *_out_path_s = "model.dolq"; 
+    char *_out_path_s = "model.dolq";
     char *_arch_s = NULL;
     char *_tokenizer_path_s = "tokenizer.bin";
     q_type_t embed_type = Q_TYPE_Q8;
@@ -53,7 +53,7 @@ int main(int argc, char *__argv[]) {
             i += 1;
             _tokenizer_path_s = __argv[i];
         }
-        else if ((! strcmp(__argv[i], "--type")) &&
+        else if ((! strcmp(__argv[i], "--default")) &&
                 ((i + 1) < argc)) {
             i += 1;
             q_type_t t = parse_q_type(__argv[i]);

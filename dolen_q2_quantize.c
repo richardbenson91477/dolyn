@@ -17,7 +17,8 @@ int32_t load_config_q2(Q2 *_model, const char *_model_dir_s) {
     fseek(_file, 0, SEEK_SET);
 
     char *_json_s = (char *)a_calloc(size + 1);
-    if ((!_json_s) || (fread(_json_s, 1, size, _file) != (size_t)size)) {
+    if ((!_json_s) ||
+            (fread(_json_s, 1, size, _file) != (size_t)size)) {
         free(_json_s);
         fclose(_file);
         return -1;

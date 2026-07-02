@@ -69,7 +69,7 @@ void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
         }
     }
 
-    int32_t rotary_dim = head_size; 
+    int32_t rotary_dim = head_size;
     int32_t half_rot = rotary_dim / 2;
     _state->_cos_cache = a_calloc((size_t)_config->seq_len * half_rot * sizeof(float));
     _state->_sin_cache = a_calloc((size_t)_config->seq_len * half_rot * sizeof(float));

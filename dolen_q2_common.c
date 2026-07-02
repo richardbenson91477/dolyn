@@ -48,11 +48,24 @@ void alloc_state_q2(state_q2 *_state, config_q2 *_config) {
         _state->_sin_cache = NULL;
     }
 
-    if ((!_state->_x) || (!_state->_xb) || (!_state->_hb) || (!_state->_hb2) ||
-            (!_state->xq._data) || (!_state->xq._scales) || (!_state->hq._data) || (!_state->hq._scales) ||
-            (!_state->_q) || (!_state->_k) || (!_state->_v) || (!_state->_att) || (!_state->_logits) ||
-            (!_state->_key_cache) || (!_state->_value_cache) ||
-            ((rotary_half > 0) && ((!_state->_cos_cache) || (!_state->_sin_cache)))) {
+    if ((!_state->_x) ||
+            (!_state->_xb) ||
+            (!_state->_hb) ||
+            (!_state->_hb2) ||
+            (!_state->xq._data) ||
+            (!_state->xq._scales) ||
+            (!_state->hq._data) ||
+            (!_state->hq._scales) ||
+            (!_state->_q) ||
+            (!_state->_k) ||
+            (!_state->_v) ||
+            (!_state->_att) ||
+            (!_state->_logits) ||
+            (!_state->_key_cache) ||
+            (!_state->_value_cache) ||
+            ((rotary_half > 0) &&
+                ((!_state->_cos_cache) ||
+                 (!_state->_sin_cache)))) {
         log_msg(stderr, "ERROR: alloc failed!\n");
         exit(EXIT_FAILURE);
     }

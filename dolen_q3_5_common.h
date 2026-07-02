@@ -24,7 +24,7 @@ typedef struct {
     int32_t n_linear_k_heads;
     int32_t n_linear_v_heads;
     int32_t d_linear_k;
-    int32_t d_linear_v;  
+    int32_t d_linear_v;
     int32_t linear_conv_kernel;
     int32_t n_full_attn_layers;
     int32_t n_linear_attn_layers;

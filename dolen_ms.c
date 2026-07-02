@@ -8,7 +8,7 @@ static const chat_template CHAT_TEMPLATE_MS = {
 
 int32_t load_quantized_ms(const char *_file_path_s, MS *_model, int32_t seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");
-    if (!_file) {
+    if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
         return -1;
     }
@@ -18,49 +18,62 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model, int32_t seq_n_ma
     uint64_t magic;
     uint32_t version;
     if ((fread(&magic, sizeof(uint64_t), 1, _file) != 1) ||
-        (fread(&version, sizeof(uint32_t), 1, _file) != 1)) {
+            (fread(&version, sizeof(uint32_t), 1, _file) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", _file_path_s);
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     if (magic != MAGIC_MS) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", _file_path_s);
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     if (version != 1) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, _file_path_s);
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     config_ms *_config = &_model->config;
     if (fread(_config, sizeof(config_ms), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", _file_path_s);
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     if (tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     weights_ms *_weights = &_model->weights;
-    if (seq_n_max) _config->seq_len = seq_n_max;
+    if (seq_n_max) {
+        _config->seq_len = seq_n_max;
+    }
 
     _weights->_rms_att_weight = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((!_weights->_rms_att_weight) || (!_weights->_rms_ffn_weight)) {
+    if ((! _weights->_rms_att_weight) ||
+            (! _weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for norm weights\n");
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     read_qt(_file, &_weights->embed_tokens_weight);
-    for (int32_t l = 0; l < _config->n_layers; l++) read_qt(_file, &_weights->_rms_att_weight[l]);
-    for (int32_t l = 0; l < _config->n_layers; l++) read_qt(_file, &_weights->_rms_ffn_weight[l]);
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        read_qt(_file, &_weights->_rms_att_weight[l]);
+    }
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        read_qt(_file, &_weights->_rms_ffn_weight[l]);
+    }
     read_qt(_file, &_weights->rms_final_weight);
 
-    if (!_config->shared_classifier) {
+    if (! _config->shared_classifier) {
         read_qt(_file, &_weights->wcls);
     } else {
         _weights->wcls = _weights->embed_tokens_weight;
@@ -74,10 +87,16 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model, int32_t seq_n_ma
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
 
-    if ((!_weights->_wq) || (!_weights->_wk) || (!_weights->_wv) || (!_weights->_wo) ||
-        (!_weights->_w1) || (!_weights->_w2) || (!_weights->_w3)) {
+    if ((! _weights->_wq) ||
+            (! _weights->_wk) ||
+            (! _weights->_wv) ||
+            (! _weights->_wo) ||
+            (! _weights->_w1) ||
+            (! _weights->_w2) ||
+            (!  _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
-        fclose(_file); return -1;
+        fclose(_file);
+        return -1;
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
@@ -121,7 +140,8 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
         /* NO QKV Biases for Mistral */
 
         int32_t rotary_half = _config->head_dim / 2;
-        if ((rotary_half > 0) && (_state->_cos_cache != NULL)) {
+        if ((rotary_half > 0) &&
+                (_state->_cos_cache != NULL)) {
             float *_cos_row = _state->_cos_cache + pos * rotary_half;
             float *_sin_row = _state->_sin_cache + pos * rotary_half;
 
@@ -219,7 +239,9 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
         quantize_vec(&_state->xq, _state->_xb, all_heads_dim);
         matmul_qq(_state->_xb, &_state->xq, &_weights->_wo[l]);
 
-        for (int32_t i = 0; i < _config->dim; i++) _state->_x[i] += _state->_xb[i];
+        for (int32_t i = 0; i < _config->dim; i++) {
+            _state->_x[i] += _state->_xb[i];
+        }
 
         rmsnorm(_state->_xb, _state->_x, (float *)_weights->_rms_ffn_weight[l]._data, _config->dim, eps);
         quantize_vec(&_state->xq, _state->_xb, _config->dim);
@@ -235,7 +257,9 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
         quantize_vec(&_state->hq, _state->_hb, _config->hidden_dim);
         matmul_qq(_state->_xb, &_state->hq, &_weights->_w2[l]);
 
-        for (int32_t i = 0; i < _config->dim; i++) _state->_x[i] += _state->_xb[i];
+        for (int32_t i = 0; i < _config->dim; i++) {
+            _state->_x[i] += _state->_xb[i];
+        }
     }
 
     rmsnorm(_state->_x, _state->_x, (float *)_weights->rms_final_weight._data, _config->dim, eps);
@@ -277,3 +301,4 @@ model_iface *init_ms(const char *_model_path_s, int32_t seq_n_max, bool think_) 
 
     return _model_i;
 }
+
