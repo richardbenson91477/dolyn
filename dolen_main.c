@@ -244,36 +244,35 @@ static void print_usage(const char *_argv0) {
     log_msg(stdout, "Usage: %s [options]\n", _argv0);
     log_msg(stdout, "Options:\n");
     log_msg(stdout, " -h  | --help:                print this help and exit\n");
-    log_msg(stdout, " -m  | --model <str>:         model path, default: none\n");
-    log_msg(stdout, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", TEMP_DEFAULT);
-    log_msg(stdout, " -k  | --top_k <int>:         top-k value, default: %d\n", TOP_K_DEFAULT);
-    log_msg(stdout, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", TOP_P_DEFAULT);
+    log_msg(stdout, " -m  | --model <str>:         model path, default: \"%s\"\n", DOLEN_MAIN_MODEL_PATH_DEFAULT);
+    log_msg(stdout, " -t  | --temp <float>:        temperature in [0,inf], default: %f\n", DOLEN_MAIN_TEMP_DEFAULT);
+    log_msg(stdout, " -k  | --top_k <int>:         top-k value, default: %d\n", DOLEN_MAIN_TOP_K_DEFAULT);
+    log_msg(stdout, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", DOLEN_MAIN_TOP_P_DEFAULT);
     log_msg(stdout, " -s  | --seed <int>:          random seed, default: current time\n");
     log_msg(stdout, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
-    log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", PROMPT_N_MAX_DEFAULT);
+    log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", DOLEN_MAIN_PROMPT_N_MAX_DEFAULT);
     log_msg(stdout, " -p  | --prompt <str>:        prompt, default: none\n");
     log_msg(stdout, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
-    log_msg(stdout, " -M  | --mode <str>:          chat|gen, default: chat\n");
-    log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: none\n");
+    log_msg(stdout, " -M  | --mode <str>:          chat|gen, default: \"%s\"\n", DOLEN_MAIN_MODE_DEFAULT);
+    log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: \"%s\"\n", DOLEN_MAIN_SYSTEM_PROMPT_DEFAULT);
     log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
-    log_msg(stdout, " -th | --think <true|false>:  use think-mode chat template, default: false\n");
+    log_msg(stdout, " -th | --think <true|false>:  use think-mode chat template, default: %s\n",
+            DOLEN_MAIN_THINK_DEFAULT ? "true" : "false");
 }
 
 int32_t main(int32_t argc, char *__argv[]) {
-    float temp = TEMP_DEFAULT;
-    int32_t top_k = TOP_K_DEFAULT;
-    float top_p = TOP_P_DEFAULT;
+    float temp = DOLEN_MAIN_TEMP_DEFAULT;
+    int32_t top_k = DOLEN_MAIN_TOP_K_DEFAULT;
+    float top_p = DOLEN_MAIN_TOP_P_DEFAULT;
     uint64_t seed = 0;
     int32_t seq_n_max = 0;
-    int32_t prompt_n_max = PROMPT_N_MAX_DEFAULT;
+    int32_t prompt_n_max = DOLEN_MAIN_PROMPT_N_MAX_DEFAULT;
     char *_model_path_s = NULL;
-    char *_model_path_s_default = "model.dolq";
     char *_prompt_s = NULL;
     char *_prompt_file = NULL;
-    char *_mode_s = "chat";
+    char *_mode_s = NULL;
     char *_system_prompt_s = NULL;
-    char *_system_prompt_s_default = "You are a helpful assistant.";
-    bool think_ = false;
+    bool think_ = DOLEN_MAIN_THINK_DEFAULT;
 
     for (int32_t i = 1; i < argc;) {
         if ((! strcmp(__argv[i], "-h")) ||
@@ -368,11 +367,15 @@ int32_t main(int32_t argc, char *__argv[]) {
     }
 
     if (! _model_path_s) {
-        _model_path_s = strdup(_model_path_s_default);
+        _model_path_s = strdup(DOLEN_MAIN_MODEL_PATH_DEFAULT);
+    }
+
+    if (! _mode_s) {
+        _mode_s = strdup(DOLEN_MAIN_MODE_DEFAULT);
     }
 
     if (! _system_prompt_s) {
-        _system_prompt_s = strdup(_system_prompt_s_default);
+        _system_prompt_s = strdup(DOLEN_MAIN_SYSTEM_PROMPT_DEFAULT);
     }
 
 
