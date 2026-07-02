@@ -3,11 +3,11 @@
 
 // The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_Q3_5 = {
-    ._system_s = "<|im_start|\x3e" "system\n%s" "<|im_end|\x3e" "\n",
-    ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
-             "<|im_start|\x3e" "assistant\n"
-             "<think\x3e" "\n\n</think\x3e" "\n\n",
-    ._end_turn_s = "<|im_end|\x3e" "\n",
+        ._system_s = "<|im_start|\x3e" "system\n%s" "<|im_end|\x3e" "\n",
+        ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
+                "<|im_start|\x3e" "assistant\n"
+                "<think\x3e" "\n\n</think\x3e" "\n\n",
+        ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {

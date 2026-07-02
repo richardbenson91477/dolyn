@@ -1,10 +1,12 @@
 #include "dolen_ms_common.h"
 
+
 static const chat_template CHAT_TEMPLATE_MS = {
-    ._system_s = NULL,
-    ._main_s = "<s>[INST] %s [/INST]",
-    ._end_turn_s = "</s>",
+        ._system_s = NULL,
+        ._main_s = "<s>[INST] %s [/INST]",
+        ._end_turn_s = "</s>",
 };
+
 
 int32_t load_quantized_ms(const char *_file_path_s, MS *_model, int32_t seq_n_max) {
     FILE *_file = fopen(_file_path_s, "rb");

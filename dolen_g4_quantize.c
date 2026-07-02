@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_g4_common.h"
 
+
 int32_t load_config_g4(G4 *_model, const char *_model_dir_s) {
     config_g4 *_config = &_model->config;
 

@@ -1,5 +1,6 @@
 #include "dolen_common_math.h"
 
+
 void rmsnorm(float *_o, float *_x, float *_weight, int32_t size, float eps) {
     float ss = 0.0f;
 

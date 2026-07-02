@@ -1,5 +1,6 @@
 #include "dolen_g4_common.h"
 
+
 // The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_G4 = {
     ._system_s = "<|turn|\x3e" "system\n%s" "<turn|\x3e" "\n",
@@ -15,6 +16,7 @@ static const chat_template CHAT_TEMPLATE_THINK_G4 = {
              "<|turn|\x3e" "model\n",
     ._end_turn_s = "<turn|\x3e" "\n",
 };
+
 
 int32_t load_quantized_g4(const char *_path_s, G4 *_model, int32_t seq_n_max) {
     FILE *_file = fopen(_path_s, "rb");

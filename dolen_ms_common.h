@@ -7,6 +7,7 @@
 #include "dolen_common_mem.h"
 #include "dolen_common_qtensor.h"
 
+
 typedef struct {
     int32_t dim;                    /* hidden_size */
     int32_t hidden_dim;             /* intermediate_size */
@@ -66,8 +67,12 @@ typedef struct {
     tokenizer tokenizer1;
 } MS;
 
+
 void alloc_state_ms(state_ms *_state, config_ms *_config);
+
 void free_state_ms(state_ms *_state);
+
 void free_ms(MS *_model);
+
 
 #endif /* DOLEN_MS_COMMON_H */

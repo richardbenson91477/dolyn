@@ -1,5 +1,6 @@
 #include "dolen_ms_common.h"
 
+
 void alloc_state_ms(state_ms *_state, config_ms *_config) {
     int32_t all_heads_dim = _config->n_heads * _config->head_dim;
     int32_t kv_dim = _config->n_kv_heads * _config->head_dim;

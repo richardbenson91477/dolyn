@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_l3_common.h"
 
+
 int32_t load_config_l3(L3 *_model, const char *_model_dir_s) {
     config_l3 *p = &_model->config;
 

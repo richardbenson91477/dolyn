@@ -5,16 +5,16 @@
 static const chat_template CHAT_TEMPLATE_Q3 = {
     ._system_s = "<|im_start|\x3e" "system\n%s" "<|im_end|\x3e" "\n",
     ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
-             "<|im_start|\x3e" "assistant\n"
-             "<think\x3e" "\n\n</think\x3e" "\n\n",
+            "<|im_start|\x3e" "assistant\n"
+            "<think\x3e" "\n\n</think\x3e" "\n\n",
     ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
     ._system_s = "<|im_start|\x3e" "system\n%s" "<|im_end|\x3e" "\n",
     ._main_s = "<|im_start|\x3e" "user\n%s" "<|im_end|\x3e" "\n"
-             "<|im_start|\x3e" "assistant\n"
-             "<think\x3e",
+            "<|im_start|\x3e" "assistant\n"
+            "<think\x3e",
     ._end_turn_s = "<|im_end|\x3e" "\n",
 };
 

@@ -1,15 +1,17 @@
 #include "dolen_quantize_common.h"
 #include <string.h>
 
+
 static const quant_preset_t QUANT_PRESETS[] = {
-    // Name     Embed       LM_Head     Attn        MLP
-    { "Q4_K_M", Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4 },
-    { "Q5_K_M", Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6 },
-    { "Q6_K",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6 },
-    { "Q8_0",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8 },
-    { "F16",    Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16 },
-    { "F32",    Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32 }
+        // Name     Embed       LM_Head     Attn        MLP
+        {"Q4_K_M", Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4},
+        {"Q5_K_M", Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
+        {"Q6_K",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
+        {"Q8_0",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
+        {"F16",    Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16},
+        {"F32",    Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32}
 };
+
 
 const quant_preset_t *quantize_find_preset(const char *_name_s) {
     if (!_name_s) {

@@ -1,16 +1,16 @@
 #include "dolen_quantize_main.h"
 
+
 void print_help(const char *_argv0) {
     log_msg(stdout, "Usage: %s "
-        " [--model PATH] "
-        " [--out PATH]"
-        " [--arch ARCH]"
-        " [--tokenizer PATH]\n"
-        " [--preset P]\n"
-        "Where:\n"
-        "  ARCH: [ms | q2 | q3 | q3_5 | g4 | ig4_1 | l3]\n"
-        "  PRESET: [Q4_K_M | Q5_K_M | Q6_K | Q8_0 | F16 | F32]\n",
+            " [--model PATH] "
+            " [--out PATH]"
+            " [--arch [ms | q2 | q3 | q3_5 | g4 | ig4_1 | l3]]"
+            " [--tokenizer PATH]"
+            " [--preset P]\n",
         _argv0);
+
+    quantize_print_presets();
 }
 
 int main(int argc, char *__argv[]) {

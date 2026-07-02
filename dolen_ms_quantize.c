@@ -1,6 +1,7 @@
 #include "dolen_quantize_common.h"
 #include "dolen_ms_common.h"
 
+
 int32_t load_config_ms(MS *_model, const char *_model_dir_s) {
     config_ms *_config = &_model->config;
 
