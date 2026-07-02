@@ -7,13 +7,6 @@ CFLAGS = -fPIC
 CFLAGS_OPT = $(CFLAGS) -fopenmp -O3 -pipe -march=x86-64-v4 -fomit-frame-pointer -funroll-loops -fpermissive
 CFLAGS_DBG = $(CFLAGS) -fopenmp -Og -ggdb -fkeep-inline-functions
 
-MODEL_PATH := ${lena_rolocal_path}/models/dolen_models
-MODEL_MAIN := "$(MODEL_PATH)/qwen3_5_4b_a_q8.dolq"
-PROMPT := "Count from 1 to 10 (e.g., One, Two, ...)."
-SYS_PROMPT := "You are a helpful language model."
-SEQN := 1024
-
-
 SRC_EXT = ext/csafetensors.c ext/json.c
 INC_EXT = ext/csafetensors.h ext/json.h
 
@@ -49,7 +42,7 @@ $(BIN_Q_DBG): $(SRC_Q_MAIN) $(INC_Q_MAIN) $(SRC_EXT) $(INC_EXT)
 	$(CC) $(CFLAGS_DBG) -o $@ $(SRC_Q_MAIN) $(SRC_EXT) -lm
 
 test: $(BIN_MAIN)
-	./$(BIN_MAIN) -m $(MODEL_MAIN) -p $(PROMPT) -sp $(SYS_PROMPT) -n $(SEQN)
+	./dolen_test_dolq_chat "./test_model.dolq"
 
 debug: $(BIN_MAIN_DBG)
 	./dolen_gdb $(BIN_MAIN_DBG) $(MODEL_MAIN) $(PROMPT) $(SYS_PROMPT) $(SEQN)
