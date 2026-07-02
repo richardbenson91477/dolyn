@@ -260,17 +260,19 @@ static void print_usage(const char *_argv0) {
 }
 
 int32_t main(int32_t argc, char *__argv[]) {
-    char *_model_path_s = "model.dolq";
     float temp = TEMP_DEFAULT;
     int32_t top_k = TOP_K_DEFAULT;
     float top_p = TOP_P_DEFAULT;
-    uint64_t rng_seed = 0;
+    uint64_t seed = 0;
     int32_t seq_n_max = 0;
     int32_t prompt_n_max = PROMPT_N_MAX_DEFAULT;
+    char *_model_path_s = NULL;
+    char *_model_path_s_default = "model.dolq";
     char *_prompt_s = NULL;
     char *_prompt_file = NULL;
     char *_mode_s = "chat";
     char *_system_prompt_s = NULL;
+    char *_system_prompt_s_default = "You are a helpful assistant.";
     bool think_ = false;
 
     for (int32_t i = 1; i < argc;) {
@@ -288,7 +290,7 @@ int32_t main(int32_t argc, char *__argv[]) {
 
         if ((! strcmp(__argv[i], "-m")) ||
                 (! strcmp(__argv[i], "--model"))) {
-            _model_path_s = __argv[i + 1];
+            _model_path_s = strdup(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-t")) ||
                 (! strcmp(__argv[i], "--temp"))) {
@@ -304,7 +306,7 @@ int32_t main(int32_t argc, char *__argv[]) {
         }
         else if ((! strcmp(__argv[i], "-s")) ||
                 (! strcmp(__argv[i], "--seed"))) {
-            rng_seed = atoi(__argv[i + 1]);
+            seed = atoi(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-n")) ||
                 (! strcmp(__argv[i], "--seq_n"))) {
@@ -324,11 +326,11 @@ int32_t main(int32_t argc, char *__argv[]) {
         }
         else if ((! strcmp(__argv[i], "-pf")) ||
                 (! strcmp(__argv[i], "--prompt_file"))) {
-            _prompt_file = __argv[i + 1];
+            _prompt_file = strdup(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-M")) ||
                 (! strcmp(__argv[i], "--mode"))) {
-            _mode_s = __argv[i + 1];
+            _mode_s = strdup(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-sp")) ||
                 (! strcmp(__argv[i], "--system_prompt"))) {
@@ -340,7 +342,7 @@ int32_t main(int32_t argc, char *__argv[]) {
         }
         else if ((! strcmp(__argv[i], "-l")) ||
                 (! strcmp(__argv[i], "--log"))) {
-            _log_path = __argv[i + 1];
+            _log_path = strdup(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-th")) ||
                 (! strcmp(__argv[i], "--think"))) {
@@ -365,16 +367,25 @@ int32_t main(int32_t argc, char *__argv[]) {
         i += 2;
     }
 
+    if (! _model_path_s) {
+        _model_path_s = strdup(_model_path_s_default);
+    }
+
+    if (! _system_prompt_s) {
+        _system_prompt_s = strdup(_system_prompt_s_default);
+    }
+
+
     uint64_t magic = peek_model_magic(_model_path_s);
     if (! magic) {
         log_msg(stderr, "ERROR: peek_model_magic(\"%s\") returned 0\n", _model_path_s);
         exit(EXIT_FAILURE);
     }
 
-    if (! rng_seed) {
-        rng_seed = (uint32_t)time(NULL);
+    if (! seed) {
+        seed = (uint32_t)time(NULL);
     }
-    log_msg(stdout, "INFO: Using seed %lu\n", rng_seed);
+    log_msg(stdout, "INFO: Using seed %lu\n", seed);
 
     if (_prompt_file) {
         if (_prompt_s) {
@@ -433,7 +444,7 @@ int32_t main(int32_t argc, char *__argv[]) {
 
 
     sampler _sampler;
-    build_sampler(&_sampler, _model_i->_tokenizer->vocab_size, temp, top_k, top_p, rng_seed);
+    build_sampler(&_sampler, _model_i->_tokenizer->vocab_size, temp, top_k, top_p, seed);
 
     if (! memcmp(_mode_s, "gen", strlen("gen") + 1)) {
         generate(_model_i, &_sampler, _prompt_s, _model_i->seq_n_max);
