@@ -3,7 +3,8 @@
 
 void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int32_t *_layer_types) {
     int32_t max_head_dim = _config->head_dim > _config->global_head_dim ? _config->head_dim : _config->global_head_dim;
-    int32_t max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ? _config->n_kv_heads : _config->n_global_kv_heads;
+    int32_t max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ?
+            _config->n_kv_heads : _config->n_global_kv_heads;
     int32_t max_kv_dim = max_kv_heads * max_head_dim;
     int32_t attn_out_dim = _config->n_heads * max_head_dim;
 

@@ -462,7 +462,6 @@ int32_t load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_
     }
     FILE *_file = fopen(index_path, "rb");
     if (! _file) {
-        // Fallback: Check for single file model
         char single_path[PATH_MAX];
         if (snprintf(single_path, sizeof(single_path), "%s/model.safetensors", _model_dir_s)
             >= (int32_t)sizeof(single_path)) {
@@ -473,7 +472,7 @@ int32_t load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_
             fclose(_single_file);
             return load_single_safetensors(_st_idx, _model_dir_s);
         }
-        return -1; // Neither index nor single file exists
+        return -1;
     }
     if (fseeko(_file, 0, SEEK_END)) {
         fclose(_file);

@@ -70,7 +70,6 @@ int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     _config->attention_multiplier = json_get_double(json_object_get(_js_root, "attention_multiplier"), 0.0);
     _config->residual_multiplier = json_get_double(json_object_get(_js_root, "residual_multiplier"), 1.0);
     _config->logits_scaling = json_get_double(json_object_get(_js_root, "logits_scaling"), 1.0);
-    // Extract Token IDs dynamically
     _config->bos_token_id = json_get_int(json_object_get(_js_root, "bos_token_id"), 100257);
     _config->eos_token_id = json_get_int(json_object_get(_js_root, "eos_token_id"), 100257);
     json_free(_js_root);
@@ -117,7 +116,7 @@ int32_t quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_
     int32_t kv_dim = _config->n_kv_heads * head_size;
     int32_t attn_out_dim = _config->n_heads * head_size;
     uint64_t magic = MAGIC_IG4_1;
-    uint32_t version = 3; // Bumped from 2 to 3
+    uint32_t version = 3;
     int32_t failed = 0;
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -163,7 +162,8 @@ int32_t quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_
         }
     }
     for (int32_t l = 0; l < _config->n_layer; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }

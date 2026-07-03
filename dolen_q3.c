@@ -323,7 +323,6 @@ model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_) 
         return NULL;
     }
 
-    // Map dynamically from config instead of hardcoding Qwen3 specific IDs
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
     _model->tokenizer1.im_end_id = _model->config.eos_token_id;

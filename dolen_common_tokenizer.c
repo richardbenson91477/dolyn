@@ -40,7 +40,6 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int3
             _p += best_len;
         }
         else {
-            // Attempt to look up the byte-fallback token (e.g., "<0x41>")
             char byte_str[8];
             snprintf(byte_str, sizeof(byte_str), "<0x%02X>", (unsigned char)*_p);
             int32_t id = str_lookup(byte_str, _tokenizer->_vocab_sorted, _tokenizer->vocab_size);
@@ -48,7 +47,6 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int3
             if (id != -1) {
                 _tokens[(*_tokens_n)++] = id;
             } else {
-                // Fallback to the hardcoded offset if the vocab doesn't use <0xXX> format
                 _tokens[(*_tokens_n)++] = (unsigned char)*_p + 3;
             }
             _p++;

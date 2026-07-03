@@ -58,7 +58,6 @@ int32_t load_config_g4(G4 *_model, const char *_model_dir_s) {
     _config->final_logit_softcapping = json_get_double(json_object_get(_js_cfg, "final_logit_softcapping"), 30.0);
     _config->attention_k_eq_v = json_get_bool(json_object_get(_js_cfg, "attention_k_eq_v"), 0);
     _config->original_max_seq_len = json_get_int(json_object_get(_js_cfg, "original_max_position_embeddings"), 8192);
-    // Extract Token IDs dynamically
     _config->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 2);
     _config->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 1);
     JsonValue *_js_rope_params = json_object_get(_js_cfg, "rope_parameters");
@@ -131,7 +130,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
     }
     config_g4 *_config = &model.config;
     uint64_t magic = MAGIC_G4;
-    uint32_t version = 6; // Bumped from 5 to 6
+    uint32_t version = 6;
     int32_t failed = 0;
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -152,7 +151,6 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         goto cleanup;
     }
     
-    // FIXED LM_HEAD / EMBED LOGIC
     if (quantize_write_tensor(&qt_ctx, _file, "model.language_model.embed_tokens.weight", 
             _config->vocab_size, _config->dim, _preset->embed)) {
         log_msg(stderr, "ERROR: Failed quantizing embedding weights\n");
@@ -170,44 +168,51 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "pre_feedforward_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "pre_feedforward_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&qt_ctx, _file, l, "post_feedforward_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
-            failed = 1;
-            goto cleanup;
-        }
-    }
-    for (int32_t l = 0; l < _config->n_layers; l++) {
-        int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight", 1, hd, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "post_feedforward_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int32_t l = 0; l < _config->n_layers; l++) {
         int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
-        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight", 1, hd, Q_TYPE_F32)) {
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
+                1, hd, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
-    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
+        if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
+                1, hd, Q_TYPE_F32)) {
+            failed = 1;
+            goto cleanup;
+        }
+    }
+    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight",
+            1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }

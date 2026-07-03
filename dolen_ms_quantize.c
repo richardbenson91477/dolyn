@@ -50,7 +50,6 @@ int32_t load_config_ms(MS *_model, const char *_model_dir_s) {
     _config->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 32768);
     _config->head_dim = json_get_int(json_object_get(_js_cfg, "head_dim"), _config->dim / _config->n_heads);
     _config->shared_classifier = json_get_bool(json_object_get(_js_cfg, "tie_word_embeddings"), 0);
-    // Mistral Defaults
     _config->rope_theta = get_json_float_val(json_object_get(_js_cfg, "rope_theta"), 10000.0f);
     _config->rms_norm_eps = get_json_float_val(json_object_get(_js_cfg, "rms_norm_eps"), 1e-5f);
     _config->sliding_window = json_get_int(json_object_get(_js_cfg, "sliding_window"), 0);
@@ -126,19 +125,22 @@ int32_t quantize_ms_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight", 1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight",
+                1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    if (quantize_write_tensor_or_empty(&_qt_ctx, _file, "model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
+    if (quantize_write_tensor_or_empty(&_qt_ctx, _file, "model.norm.weight",
+            1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }

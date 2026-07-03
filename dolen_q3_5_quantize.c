@@ -87,7 +87,6 @@ int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
     _config->d_linear_k = json_get_int(json_object_get(_js_cfg, "linear_key_head_dim"), 0);
     _config->d_linear_v = json_get_int(json_object_get(_js_cfg, "linear_value_head_dim"), 0);
     _config->linear_conv_kernel = json_get_int(json_object_get(_js_cfg, "linear_conv_kernel_dim"), 4);
-    // Extract Token IDs dynamically
     _config->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 0);
     _config->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 248044);
     _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
@@ -175,7 +174,7 @@ int32_t quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s
     int32_t q_dim = _config->n_heads * head_size * 2;
     int32_t attn_out_dim = _config->n_heads * head_size;
     uint64_t magic = MAGIC_Q3_5;
-    uint32_t version = 3; // Bumped from 2 to 3
+    uint32_t version = 3;
     int32_t failed = 0;
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
@@ -339,7 +338,8 @@ int32_t quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s
         }
     }
 
-    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight", 1, _config->dim, Q_TYPE_F32)) {
+    if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight",
+            1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }

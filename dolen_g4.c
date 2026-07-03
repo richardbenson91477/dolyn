@@ -375,7 +375,6 @@ model_iface *init_g4(const char *_model_path_s, int32_t seq_n_max, bool think_) 
         return NULL;
     }
 
-    // Map dynamically from config instead of hardcoding Gemma specific IDs
     _model->tokenizer.bos_id = _model->config.bos_token_id;
     _model->tokenizer.eos_id = _model->config.eos_token_id;
     

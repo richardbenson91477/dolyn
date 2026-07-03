@@ -23,7 +23,7 @@ int main(int argc, char *__argv[]) {
     char *_out_path_s = "model.dolq";
     char *_arch_s = NULL;
     char *_tokenizer_path_s = "tokenizer.bin";
-    char *_preset_s = "Q8_0"; // Default preset
+    char *_preset_s = "Q8_0";
 
     for (int32_t i = 1; i < argc; i++) {
         if (! strcmp(__argv[i], "--help")) {

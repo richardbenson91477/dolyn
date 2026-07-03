@@ -62,7 +62,6 @@ int32_t load_config_q3(Q3 *_model, const char *_model_dir_s) {
     } else {
         _config->rope_scaling_factor = 1.0f;
     }
-    // Extract Token IDs dynamically
     _config->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 151643);
     _config->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 151645);
 
@@ -109,7 +108,7 @@ int32_t quantize_q3_to_file(const char *_model_dir_s, const char *_file_path_s,
     int32_t kv_dim = _config->n_kv_heads * head_size;
     int32_t all_heads_dim = _config->n_heads * head_size;
     uint64_t magic = MAGIC_Q3;
-    uint32_t version = 3; // Bumped from 2 to 3
+    uint32_t version = 3;
     int32_t failed = 0;
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
