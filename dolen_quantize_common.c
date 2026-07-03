@@ -7,8 +7,9 @@ static const quant_preset_t QUANT_PRESETS[] = {
         {"Q4_KS",  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4},
         {"Q4_KM",  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4},
         {"Q4_KL",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4},
-        {"Q6_K",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
-        {"Q6_KM",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6},
+        {"Q6_KS",  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6},
+        {"Q6_KM",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
+        {"Q6_KL",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6},
         {"Q8_0",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
         {"F16",    Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16},
         {"F32",    Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32}
