@@ -5,22 +5,13 @@ static const quant_preset_t QUANT_PRESETS[] = {
     // Name    MLP         Attn       Embed
     {"Q4",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4},
     {"Q446",  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q6},
-    {"Q448",  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q8},
-    {"Q44H",  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_F16},
     {"Q466",  Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6},
-    {"Q468",  Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q8},
-    {"Q46H",  Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_F16},
-    {"Q488",  Q_TYPE_Q4,  Q_TYPE_Q8,  Q_TYPE_Q8},
-    {"Q48H",  Q_TYPE_Q4,  Q_TYPE_Q8,  Q_TYPE_F16},
 
     {"Q6",    Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6},
     {"Q668",  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q8},
-    {"Q66H",  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_F16},
     {"Q688",  Q_TYPE_Q6,  Q_TYPE_Q8,  Q_TYPE_Q8},
-    {"Q68H",  Q_TYPE_Q6,  Q_TYPE_Q8,  Q_TYPE_F16},
 
     {"Q8",    Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
-    {"Q88H",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_F16},
 
     {"F16",   Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16},
     {"F32",   Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32}
