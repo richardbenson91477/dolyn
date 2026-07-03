@@ -24,10 +24,10 @@ typedef enum {
 
 typedef struct {
     const char *name;
-    q_type_t embed;
-    q_type_t lm_head;
-    q_type_t attn;
     q_type_t mlp;
+    q_type_t attn;
+    q_type_t lm_head;
+    q_type_t embed;
 } quant_preset_t;
 
 typedef enum {

@@ -1,18 +1,30 @@
 #include "dolen_quantize_common.h"
 #include <string.h>
 
-
 static const quant_preset_t QUANT_PRESETS[] = {
-        // Name  Embed       LM_Head     Attn        MLP
-        {"Q4S",  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4},
-        {"Q4M",  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4},
-        {"Q4L",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q4},
-        {"Q6S",  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6},
-        {"Q6M",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6,  Q_TYPE_Q6},
-        {"Q6L",  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q6},
-        {"Q8",   Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
-        {"F16",  Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16},
-        {"F32",  Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32}
+    // Name        MLP         Attn        LM_Head     Embed
+    {"Q4",        Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4},
+    {"Q4_644",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4},
+    {"Q4_664",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q4},
+    {"Q4_446",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q6},
+    {"Q4_448",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q8},
+    {"Q4_466",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6},
+    {"Q4_468",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q8},
+    {"Q4_666",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6},
+    {"Q4_668",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q8},
+    {"Q4_688",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q8,  Q_TYPE_Q8},
+    {"Q4_888",    Q_TYPE_Q4,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
+
+    {"Q4_44H",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_F16},
+    {"Q4_4FH",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_F16, Q_TYPE_F16},
+
+    {"Q6",        Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6},
+    {"Q6_668",    Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q8},
+    {"Q6_888",    Q_TYPE_Q6,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
+
+    {"Q8",        Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
+    {"F16",       Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16, Q_TYPE_F16},
+    {"F32",       Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32, Q_TYPE_F32}
 };
 
 
