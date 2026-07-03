@@ -346,7 +346,7 @@ int32_t quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s
 
     if ((! _config->tie_word_embeddings) &&
             quantize_write_tensor(&qt_ctx, _file, "lm_head.weight",
-                _config->vocab_size, _config->dim, _preset->lm_head)) {
+                _config->vocab_size, _config->dim, _preset->embed)) {
         failed = 1;
         goto cleanup;
     }

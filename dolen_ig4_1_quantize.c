@@ -188,7 +188,7 @@ int32_t quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_
 
     if ((! _config->tie_word_embeddings) &&
             quantize_write_tensor(&_qt_ctx, _file, "lm_head.weight",
-                _config->vocab_size, _config->dim, _preset->lm_head)) {
+                _config->vocab_size, _config->dim, _preset->embed)) {
         failed = 1;
         goto cleanup;
     }

@@ -160,7 +160,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
     
     if (! _config->tie_word_embeddings) {
         if (quantize_write_tensor(&qt_ctx, _file, "lm_head.weight", 
-                _config->vocab_size, _config->dim, _preset->lm_head)) {
+                _config->vocab_size, _config->dim, _preset->embed)) {
             log_msg(stderr, "ERROR: Failed quantizing lm_head weights\n");
             failed = 1;
             goto cleanup;

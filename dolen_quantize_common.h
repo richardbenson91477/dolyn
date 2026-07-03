@@ -16,17 +16,15 @@
 
 
 typedef enum {
-    ROLE_EMBED,
-    ROLE_LM_HEAD,
-    ROLE_ATTN,
     ROLE_MLP,
+    ROLE_ATTN,
+    ROLE_EMBED,
 } tensor_role_t;
 
 typedef struct {
     const char *name;
     q_type_t mlp;
     q_type_t attn;
-    q_type_t lm_head;
     q_type_t embed;
 } quant_preset_t;
 
