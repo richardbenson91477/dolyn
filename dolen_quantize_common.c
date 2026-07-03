@@ -4,8 +4,6 @@
 static const quant_preset_t QUANT_PRESETS[] = {
     // Name        MLP         Attn        LM_Head     Embed
     {"Q4",        Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4},
-    {"Q4_644",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q4,  Q_TYPE_Q4},
-    {"Q4_664",    Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q4},
     {"Q4_446",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q6},
     {"Q4_448",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q8},
     {"Q4_466",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q6,  Q_TYPE_Q6},
@@ -16,7 +14,7 @@ static const quant_preset_t QUANT_PRESETS[] = {
     {"Q4_888",    Q_TYPE_Q4,  Q_TYPE_Q8,  Q_TYPE_Q8,  Q_TYPE_Q8},
 
     {"Q4_44H",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_F16},
-    {"Q4_4FH",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_F16, Q_TYPE_F16},
+    {"Q4_4HH",    Q_TYPE_Q4,  Q_TYPE_Q4,  Q_TYPE_F16, Q_TYPE_F16},
 
     {"Q6",        Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6},
     {"Q6_668",    Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q6,  Q_TYPE_Q8},
