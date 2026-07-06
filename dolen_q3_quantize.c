@@ -71,10 +71,10 @@ int32_t load_config_q3(Q3 *_model, const char *_model_dir_s) {
     return 0;
 }
 
-static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t layer, const char *_suffix_s,
-        int32_t rows, int32_t cols, q_type_t type) {
+static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_prefix_s, const char *_suffix_s,
+        int32_t layer, int32_t rows, int32_t cols, q_type_t type) {
     char _name_s[256];
-    snprintf(_name_s, sizeof(_name_s), "model.layers.%d.%s", layer, _suffix_s);
+    snprintf(_name_s, sizeof(_name_s), "%slayers.%d.%s", _prefix_s, layer, _suffix_s);
     if (quantize_write_tensor_or_empty(_qt_ctx, _file, _name_s, rows, cols, type)) {
         log_msg(stderr, "ERROR: Failed quantizing %s\n", _name_s);
         return -1;
@@ -126,42 +126,57 @@ int32_t quantize_q3_to_file(const char *_model_dir_s, const char *_file_path_s,
         goto cleanup;
     }
 
-    if (quantize_write_tensor(&_qt_ctx, _file, "model.embed_tokens.weight",
+    const char *model_prefix = "model.";
+    if (quantize_find_tensor(&_qt_ctx, "model.language_model.embed_tokens.weight")) {
+        model_prefix = "model.language_model.";
+        log_msg(stdout, "INFO: Detected VLM tensor naming convention (vision weights will be ignored).\n");
+    } else {
+        log_msg(stdout, "INFO: Detected standard text-only tensor naming convention.\n");
+    }
+
+    char embed_name[256];
+    snprintf(embed_name, sizeof(embed_name), "%sembed_tokens.weight", model_prefix);
+    if (quantize_write_tensor(&_qt_ctx, _file, embed_name,
             _config->vocab_size, _config->dim, _preset->embed)) {
         failed = 1;
         goto cleanup;
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "input_layernorm.weight",
-            1, _config->dim, Q_TYPE_F32)) {
-            failed = 1;
-            goto cleanup;
-        }
-    }
-    for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight",
-            1, _config->dim, Q_TYPE_F32)) {
+        if (write_layer_tensor(&_qt_ctx, _file, model_prefix, "input_layernorm.weight",
+                l, 1, _config->dim, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
 
-    if (quantize_write_tensor_or_empty(&_qt_ctx, _file, "model.norm.weight",
-        1, _config->dim, Q_TYPE_F32)) {
+    for (int32_t l = 0; l < _config->n_layers; l++) {
+        if (write_layer_tensor(&_qt_ctx, _file, model_prefix, "post_attention_layernorm.weight",
+                l, 1, _config->dim, Q_TYPE_F32)) {
+            failed = 1;
+            goto cleanup;
+        }
+    }
+
+    char norm_name[256];
+    snprintf(norm_name, sizeof(norm_name), "%snorm.weight", model_prefix);
+    if (quantize_write_tensor_or_empty(&_qt_ctx, _file, norm_name,
+            1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_norm.weight",
-            1, head_size, Q_TYPE_F32)) {
+        if (write_layer_tensor(&_qt_ctx, _file, model_prefix, "self_attn.q_norm.weight",
+                l, 1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_norm.weight",
-            1, head_size, Q_TYPE_F32)) {
+        if (write_layer_tensor(&_qt_ctx, _file, model_prefix, "self_attn.k_norm.weight",
+                l, 1, head_size, Q_TYPE_F32)) {
             failed = 1;
             goto cleanup;
         }
@@ -175,20 +190,20 @@ int32_t quantize_q3_to_file(const char *_model_dir_s, const char *_file_path_s,
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        if (write_layer_tensor(&_qt_ctx, _file, l, "self_attn.q_proj.weight",
-                    all_heads_dim, _config->dim, _preset->attn) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.k_proj.weight",
-                    kv_dim, _config->dim, _preset->attn) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.v_proj.weight",
-                    kv_dim, _config->dim, _preset->attn) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "self_attn.o_proj.weight",
-                    _config->dim, all_heads_dim, _preset->attn) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "mlp.gate_proj.weight",
-                    _config->hidden_dim, _config->dim, _preset->mlp) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "mlp.down_proj.weight",
-                    _config->dim, _config->hidden_dim, _preset->mlp) ||
-                write_layer_tensor(&_qt_ctx, _file, l, "mlp.up_proj.weight",
-                    _config->hidden_dim, _config->dim, _preset->mlp)) {
+        if (write_layer_tensor(&_qt_ctx, _file, model_prefix, "self_attn.q_proj.weight",
+                    l, all_heads_dim, _config->dim, _preset->attn) ||
+                write_layer_tensor(&_qt_ctx, _file, model_prefix, "self_attn.k_proj.weight",
+                        l, kv_dim, _config->dim, _preset->attn) ||
+                write_layer_tensor(&_qt_ctx, _file, model_prefix, "self_attn.v_proj.weight",
+                        l, kv_dim, _config->dim, _preset->attn) ||
+                write_layer_tensor(&_qt_ctx, _file, model_prefix, "self_attn.o_proj.weight",
+                        l, _config->dim, all_heads_dim, _preset->attn) ||
+                write_layer_tensor(&_qt_ctx, _file, model_prefix, "mlp.gate_proj.weight",
+                        l, _config->hidden_dim, _config->dim, _preset->mlp) ||
+                write_layer_tensor(&_qt_ctx, _file, model_prefix, "mlp.down_proj.weight",
+                        l, _config->dim, _config->hidden_dim, _preset->mlp) ||
+                write_layer_tensor(&_qt_ctx, _file, model_prefix, "mlp.up_proj.weight",
+                        l, _config->hidden_dim, _config->dim, _preset->mlp)) {
             failed = 1;
             goto cleanup;
         }
