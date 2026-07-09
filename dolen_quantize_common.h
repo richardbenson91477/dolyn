@@ -94,7 +94,6 @@ int32_t quantize_write_empty_tensor(FILE *_file);
 int32_t quantize_write_scalar_or_default(quantize_ctx *_qt_ctx, FILE *_file, const char *const *__names_s, size_t names_n,
     float default_value);
 
-q_type_t parse_q_type(const char *_type_s);
 
 int32_t quantize_ms_to_file(const char *_model_dir_s, const char *_file_path_s,
     const quant_preset_t *_preset, const char *_tokenizer_path_s);

@@ -375,7 +375,6 @@ model_iface *init_g4(const char *_model_path_s, int32_t seq_n, bool think_) {
 
     _model->tokenizer.bos_id = _model->config.bos_token_id;
     _model->tokenizer.eos_id = _model->config.eos_token_id;
-    
     _model->tokenizer.im_end_id = 106;
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
