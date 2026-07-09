@@ -157,7 +157,6 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
             if (first_turn_ &&
                     _init_prompt_s) {
                 strncpy(_prompt_s, _init_prompt_s, prompt_n_max);
-                _prompt_s[prompt_n_max] = '\0';
             }
             else {
                 log_msg(stdout, "In: ");
