@@ -17,24 +17,29 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int3
     if (_text_s[0] == '\0') {
         return;
     }
+
     char *_buf_s = a_calloc((_tokenizer->max_token_length + 1) * sizeof(char));
     char *_p = _text_s;
     while (*_p) {
-        int32_t best_len = 0, best_id = -1;
+        int32_t best_len = 0;
+        int32_t best_id = -1;
         for (int32_t len = 1; (len <= _tokenizer->max_token_length) && (_p[len - 1]); len++) {
             if (((_p[len - 1] & 0xC0) == 0x80) &&
                     ((len < _tokenizer->max_token_length) &&
                      (_p[len]))) {
                 continue;
             }
+
             strncpy(_buf_s, _p, len);
             _buf_s[len] = '\0';
+
             int32_t id = str_lookup(_buf_s, _tokenizer->_vocab_sorted, _tokenizer->vocab_size);
             if (id != -1) {
                 best_len = len;
                 best_id = id;
             }
         }
+
         if (best_id != -1) {
             _tokens[(*_tokens_n)++] = best_id;
             _p += best_len;
@@ -52,6 +57,7 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int3
             _p++;
         }
     }
+
     free(_buf_s);
 }
 
@@ -59,16 +65,6 @@ bool encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_token, int8_t eos,
     if (! _text_s) {
         log_msg(stderr, "ERROR: Cannot encode NULL text\n");
         return false;
-    }
-
-    if (! _tokenizer->_vocab_sorted) {
-        _tokenizer->_vocab_sorted = a_calloc(_tokenizer->vocab_size * sizeof(token_map));
-        for (int32_t i = 0; i < _tokenizer->vocab_size; i++) {
-            _tokenizer->_vocab_sorted[i]._str_s = _tokenizer->__vocab[i];
-            _tokenizer->_vocab_sorted[i].id = i;
-        }
-        qsort(_tokenizer->_vocab_sorted, _tokenizer->vocab_size, sizeof(token_map), compare_tokens);
-        _tokenizer->is_sorted = 1;
     }
 
     *_tokens_n = 0;
@@ -187,6 +183,13 @@ bool tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_token
 
         _tokenizer->__vocab[i][len] = '\0';
     }
+
+    _tokenizer->_vocab_sorted = a_calloc(_tokenizer->vocab_size * sizeof(token_map));
+    for (int32_t i = 0; i < _tokenizer->vocab_size; i++) {
+        _tokenizer->_vocab_sorted[i]._str_s = _tokenizer->__vocab[i];
+        _tokenizer->_vocab_sorted[i].id = i;
+    }
+    qsort(_tokenizer->_vocab_sorted, _tokenizer->vocab_size, sizeof(token_map), compare_tokens);
 
     return true;
 }

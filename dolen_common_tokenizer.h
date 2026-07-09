@@ -21,7 +21,6 @@ typedef struct {
     int32_t bos_id;
     int32_t eos_id;
     int32_t im_end_id;
-    int32_t is_sorted;
 } tokenizer;
 
 
