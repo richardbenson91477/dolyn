@@ -36,7 +36,7 @@ static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
         return false;
     }
 
-    int64_t start = 0;
+    int64_t start_t = 0;
     int32_t next;
     int32_t token = _prompt_tokens[0];
     int32_t pos = 0;
@@ -60,15 +60,15 @@ static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
 
         token = next;
 
-        if (! start) {
-            start = time_in_ms();
+        if (! start_t) {
+            start_t = time_in_ms();
         }
     }
     log_msg(stdout, "\n");
 
     if (pos > 1) {
-        int64_t end = time_in_ms();
-        log_msg(stdout, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end - start) * 1000);
+        int64_t end_t = time_in_ms();
+        log_msg(stdout, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end_t - start_t) * 1000);
     }
 
     free(_prompt_tokens);
@@ -147,7 +147,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
     int32_t next = 0;
     int32_t token;
     int32_t pos = 0;
-    int64_t start = 0;
+    int64_t start_t = 0;
     int32_t generated_tokens = 0;
 
     char *_prompt_s = (char *)a_calloc((prompt_n_max + 1) * sizeof(char));
@@ -184,7 +184,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
             user_turn_ = false;
             first_turn_ = false;
             generated_tokens = 0;
-            start = time_in_ms();
+            start_t = time_in_ms();
 
             log_msg(stdout, "Out: ");
         }
@@ -203,10 +203,10 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
         if (user_idx >= prompt_tokens_n) {
             if (is_chat_stop_token(_model_i, next)) {
                 log_msg(stdout, "\n");
-                int64_t end = time_in_ms();
+                int64_t end_t = time_in_ms();
                 if ((generated_tokens > 0) &&
-                        ((end - start) > 0)) {
-                    log_msg(stdout, "\ntok/s: %.2f\n", generated_tokens / (double)(end - start) * 1000);
+                        ((end_t - start_t) > 0)) {
+                    log_msg(stdout, "\ntok/s: %.2f\n", generated_tokens / (double)(end_t - start_t) * 1000);
                 }
                 user_turn_ = 1;
             }
