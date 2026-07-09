@@ -82,6 +82,7 @@ bool load_quantized_l3(const char *_file_path_s, L3 *_model) {
             (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
+        free_l3(_model);
         return false;
     }
 

@@ -64,6 +64,7 @@ bool load_quantized_q2(const char *_file_path_s, Q2 *_model) {
             (!_weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for norm weights\n");
         fclose(_file);
+        free_q2(_model);
         return false;
     }
 
@@ -91,7 +92,6 @@ bool load_quantized_q2(const char *_file_path_s, Q2 *_model) {
     _weights->_w1 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    
     _weights->_q_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_k_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_v_bias = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
@@ -108,6 +108,7 @@ bool load_quantized_q2(const char *_file_path_s, Q2 *_model) {
             (!_weights->_v_bias)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
+        free_q2(_model);
         return false;
     }
 
@@ -116,11 +117,9 @@ bool load_quantized_q2(const char *_file_path_s, Q2 *_model) {
         read_qt(_file, &_weights->_wk[l]);
         read_qt(_file, &_weights->_wv[l]);
         read_qt(_file, &_weights->_wo[l]);
-        
         read_qt(_file, &_weights->_q_bias[l]);
         read_qt(_file, &_weights->_k_bias[l]);
         read_qt(_file, &_weights->_v_bias[l]);
-
         read_qt(_file, &_weights->_w1[l]);
         read_qt(_file, &_weights->_w2[l]);
         read_qt(_file, &_weights->_w3[l]);

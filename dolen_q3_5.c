@@ -123,6 +123,7 @@ bool load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (! _weights->_wo)) {
         log_msg(stderr, "ERROR: Failed to allocate attention weights\n");
         fclose(_file);
+        free_q3_5(_model);
         return false;
     }
 
@@ -162,6 +163,7 @@ bool load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
                 (! _weights->_out_proj)) {
             log_msg(stderr, "ERROR: Failed to allocate linear attention weights\n");
             fclose(_file);
+            free_q3_5(_model);
             return false;
         }
 
@@ -204,6 +206,7 @@ bool load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate MLP weights\n");
         fclose(_file);
+        free_q3_5(_model);
         return false;
     }
     for (int32_t i = 0; i < _config->n_layer; i++) {

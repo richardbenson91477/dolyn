@@ -60,6 +60,7 @@ bool load_quantized_ms(const char *_file_path_s, MS *_model) {
             (! _weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for norm weights\n");
         fclose(_file);
+        free_ms(_model);
         return false;
     }
 
@@ -95,6 +96,7 @@ bool load_quantized_ms(const char *_file_path_s, MS *_model) {
             (!  _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
+        free_ms(_model);
         return false;
     }
 

@@ -78,6 +78,7 @@ bool load_quantized_q3(const char *_file_path_s, Q3 *_model) {
             (! _weights->_k_norm)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for weights\n");
         fclose(_file);
+        free_q3(_model);
         return false;
     }
 
@@ -122,6 +123,7 @@ bool load_quantized_q3(const char *_file_path_s, Q3 *_model) {
             (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
+        free_q3(_model);
         return false;
     }
 

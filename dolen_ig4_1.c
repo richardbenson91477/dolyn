@@ -14,7 +14,7 @@ bool load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
-        return -1;
+        return false;
     }
 
     memset(_model, 0, sizeof(IG4_1));
@@ -26,31 +26,31 @@ bool load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
             (fread(&version, sizeof(uint32_t), 1, _file) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (magic != MAGIC_IG4_1) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (version != 3) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (fread(&(_model->config), sizeof(config_ig4_1), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (! tokenizer_read_from_file(_file, _model->config.vocab_size, &(_model->tokenizer))) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     config_ig4_1 *_config = &(_model->config);
@@ -59,7 +59,7 @@ bool load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
     if (! (_config->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", _config->rope_theta);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     read_qt(_file, &(_weights->embed_tokens_weight));
@@ -78,6 +78,24 @@ bool load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
     _weights->_wk = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
     _weights->_wv = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
     _weights->_wo = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
+    _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
+    _weights->_w1 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
+    _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
+    _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
+
+    if ((! _weights->_wq) ||
+            (! _weights->_wk) ||
+            (! _weights->_wv) ||
+            (! _weights->_wo) ||
+            (! _weights->_rms_ffn_weight) ||
+            (! _weights->_w1) ||
+            (! _weights->_w2) ||
+            (! _weights->_w3)) {
+        log_msg(stderr, "ERROR: Alloc failed\n");
+        fclose(_file);
+        free_ig4_1(_model);
+        return false;
+    }
 
     for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &(_weights->_wq[i]));
@@ -86,19 +104,10 @@ bool load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
         read_qt(_file, &(_weights->_wo[i]));
     }
 
-    _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    if (! _weights->_rms_ffn_weight) {
-        log_msg(stderr, "ERROR: Failed to allocate rms_ffn_weight\n");
-        fclose(_file);
-        return -1;
-    }
     for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &(_weights->_rms_ffn_weight[i]));
     }
 
-    _weights->_w1 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    _weights->_w2 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
-    _weights->_w3 = (qtensor *)a_calloc((size_t)_config->n_layer * sizeof(qtensor));
     for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &(_weights->_w1[i]));
         read_qt(_file, &(_weights->_w2[i]));

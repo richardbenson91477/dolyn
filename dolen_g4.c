@@ -78,15 +78,32 @@ bool load_quantized_g4(const char *_path_s, G4 *_model) {
     _weights->_rms_post_ffn_layernorm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_q_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_k_norm = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_q_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_k_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_v_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_o_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_gate_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_up_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_down_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
+    _weights->_layer_scalars = (float *)a_calloc((size_t)_config->n_layers * sizeof(float));
 
     if (! _weights->_rms_input_layernorm ||
             (! _weights->_rms_post_attn_layernorm) ||
             (! _weights->_rms_pre_ffn_layernorm) ||
             (! _weights->_rms_post_ffn_layernorm) ||
             (! _weights->_rms_q_norm) ||
-            (! _weights->_rms_k_norm)) {
+            (! _weights->_rms_k_norm) ||
+            (! _weights->_q_proj) ||
+            (! _weights->_k_proj) ||
+            (! _weights->_v_proj) ||
+            (! _weights->_o_proj) ||
+            (! _weights->_gate_proj) ||
+            (! _weights->_up_proj) ||
+            (! _weights->_down_proj) ||
+            (! _weights->_layer_scalars)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
+        free_g4(_model);
         return false;
     }
 
@@ -112,15 +129,6 @@ bool load_quantized_g4(const char *_path_s, G4 *_model) {
     }
 
     read_qt(_file, &_weights->rms_final_norm);
-
-    _weights->_q_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_k_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_v_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_o_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_gate_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_up_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_down_proj = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
-    _weights->_layer_scalars = (float *)a_calloc((size_t)_config->n_layers * sizeof(float));
 
     for (int32_t i = 0; i < _config->n_layers; i++) {
         _weights->_layer_scalars[i] = 1.0f;
