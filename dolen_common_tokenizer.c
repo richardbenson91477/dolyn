@@ -55,10 +55,10 @@ void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int3
     free(_buf_s);
 }
 
-void encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_token, int8_t eos, int32_t *_tokens, int32_t *_tokens_n) {
+bool encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_token, int8_t eos, int32_t *_tokens, int32_t *_tokens_n) {
     if (! _text_s) {
         log_msg(stderr, "ERROR: Cannot encode NULL text\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     if (! _tokenizer->_vocab_sorted) {
@@ -91,6 +91,8 @@ void encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_token, int8_t eos,
     if (eos) {
         _tokens[(*_tokens_n)++] = _tokenizer->eos_id;
     }
+
+    return true;
 }
 
 char *decode(tokenizer *_tokenizer, int32_t token) {
@@ -104,7 +106,7 @@ char *decode(tokenizer *_tokenizer, int32_t token) {
     return _piece_s;
 }
 
-void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32_t vocab_size) {
+bool build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32_t vocab_size) {
     _tokenizer->vocab_size = vocab_size;
     _tokenizer->__vocab = (char **)a_calloc(vocab_size * sizeof(char *));
     _tokenizer->_vocab_sorted = NULL;
@@ -118,32 +120,33 @@ void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32
     FILE *_file = fopen(_tokenizer_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Couldn't open %s\n", _tokenizer_path_s);
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     if (fread(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed read: max_token_length\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     int32_t len;
     for (int32_t i = 0; i < vocab_size; i++) {
         if (fread(&len, sizeof(int32_t), 1, _file) != 1) {
             log_msg(stderr, "ERROR: Failed read: len (%u)\n", i);
-            exit(EXIT_FAILURE);
+            return false;
         }
 
         _tokenizer->__vocab[i] = (char *)a_calloc(len + 1);
         if (len > 0) {
             if (fread(_tokenizer->__vocab[i], len, 1, _file) != 1) {
                 log_msg(stderr, "ERROR: Failed read: vocab (%u)\n", i);
-                exit(EXIT_FAILURE);
+                return false;
             }
         }
         _tokenizer->__vocab[i][len] = '\0';
     }
 
     fclose(_file);
+    return true;
 }
 
 void free_tokenizer(tokenizer *_tokenizer) {

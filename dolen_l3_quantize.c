@@ -64,7 +64,7 @@ int32_t load_config_l3(L3 *_model, const char *_model_dir_s) {
 
     // Extract Token IDs dynamically
     p->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 128000);
-    p->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 128001);
+    p->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 128009);
 
     json_free(_js_root);
 

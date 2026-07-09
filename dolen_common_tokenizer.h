@@ -31,11 +31,11 @@ int32_t str_lookup(char *_str_s, token_map *_vocab_sorted, int32_t vocab_size);
 
 void encode_segment(tokenizer *_tokenizer, char *_text_s, int32_t *_tokens, int32_t *_tokens_n);
 
-void encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_id, int8_t eos_id, int32_t *_tokens, int32_t *_tokens_n);
+bool encode(tokenizer *_tokenizer, char *_text_s, int32_t bos_id, int8_t eos_id, int32_t *_tokens, int32_t *_tokens_n);
 
 char *decode(tokenizer *_tokenizer, int32_t token);
 
-void build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32_t vocab_size);
+bool build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32_t vocab_size);
 
 void free_tokenizer(tokenizer *_tokenizer);
 

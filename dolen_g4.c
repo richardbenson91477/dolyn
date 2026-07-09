@@ -179,13 +179,13 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
 
     if (token < 0 || token >= _config->vocab_size) {
         log_msg(stderr, "ERROR: token %d is outside vocabulary [0, %d)\n", token, _config->vocab_size);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     if ((pos < 0) || 
             (pos >= _state->seq_n)) {
         log_msg(stderr, "ERROR: position %d is outside KV cache [0, %d)\n", pos, _state->seq_n);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     dequantize_row(_x, &_weights->embed_tokens_weight, token);
@@ -349,6 +349,7 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
             _state->_logits[i] = tanhf(_state->_logits[i] * inv) * cap;
         }
     }
+
     return _state->_logits;
 }
 
@@ -375,8 +376,6 @@ model_iface *init_g4(const char *_model_path_s, int32_t seq_n, bool think_) {
     _model->tokenizer.bos_id = _model->config.bos_token_id;
     _model->tokenizer.eos_id = _model->config.eos_token_id;
     
-    // Gemma's text_config defines eos_token_id as 1 (<end_of_turn>).
-    // The ChatML equivalent (<turn|>) is 106, which isn't explicitly named in the HF config.
     _model->tokenizer.im_end_id = 106;
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));

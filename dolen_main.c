@@ -21,7 +21,7 @@ static const chat_template CHAT_TEMPLATE_CHATML = {
 };
 
 
-static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int32_t steps_n_max) {
+static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int32_t steps_n_max) {
     if (_prompt_s == NULL) {
         _prompt_s = "";
     }
@@ -33,7 +33,7 @@ static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
 
     if (prompt_tokens_n < 1) {
         log_msg(stderr, "ERROR: Expected at least 1 prompt token\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     int64_t start = 0;
@@ -72,6 +72,7 @@ static void generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
     }
 
     free(_prompt_tokens);
+    return true;
 }
 
 static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_, const char *_system_prompt_s,
@@ -97,7 +98,7 @@ static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_,
     char *_rendered_s = a_calloc(len1 + len2 + 1);
     if (! _rendered_s) {
         log_msg(stderr, "ERROR: Failed to allocate rendered chat prompt\n");
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     if (first_turn_ &&

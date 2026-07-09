@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 
 #define GROUP_SIZE 64 // Group Size
@@ -28,7 +29,7 @@ typedef struct {
 } qtensor;
 
 
-void dequantize_row(float *_output, const qtensor *_qt, int32_t row_idx);
+bool dequantize_row(float *_output, const qtensor *_qt, int32_t row_idx);
 
 void matmul_qt(float *_output, const float *_input, const qtensor *_qt);
 

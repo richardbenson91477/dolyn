@@ -3,11 +3,11 @@
 #include "dolen_common_mem.h"
 
 
-void dequantize_row(float *_output, const qtensor *_qt, int32_t row_idx) {
+bool dequantize_row(float *_output, const qtensor *_qt, int32_t row_idx) {
     if ((row_idx >= _qt->rows) ||
             (row_idx < 0)) {
         log_msg(stderr, "ERROR: Row index %d out of bounds (max %d)\n", row_idx, _qt->rows);
-        exit(EXIT_FAILURE);
+        return false;
     }
     int32_t cols = _qt->cols;
 
@@ -97,6 +97,8 @@ void dequantize_row(float *_output, const qtensor *_qt, int32_t row_idx) {
             }
         }
     }
+
+    return true;
 }
 
 void matmul_qt(float *restrict _output, const float *restrict _input, const qtensor *restrict _qt) {

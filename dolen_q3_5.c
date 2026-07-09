@@ -570,8 +570,6 @@ model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n, bool think_) {
 
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
-    // Qwen3.5 HF config sets eos_token_id to <|endoftext|> (248044).
-    // For ChatML, we still need <|im_end|> (248046) to halt generation correctly.
     _model->tokenizer1.im_end_id = 248046; 
 
     model_iface *_model_i = a_calloc(sizeof(model_iface));
