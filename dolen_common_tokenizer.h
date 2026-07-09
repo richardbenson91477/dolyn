@@ -39,9 +39,9 @@ bool build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32
 
 void free_tokenizer(tokenizer *_tokenizer);
 
-int32_t tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer);
+bool tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer);
 
-int32_t tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_tokenizer);
+bool tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_tokenizer);
 
 
 #endif // DOLEN_COMMON_TOKENIZER_H

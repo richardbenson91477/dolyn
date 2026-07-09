@@ -45,7 +45,7 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model) {
         return -1;
     }
 
-    if (tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
+    if (! tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
         return -1;

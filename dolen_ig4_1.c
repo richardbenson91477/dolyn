@@ -47,7 +47,7 @@ int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
         return -1;
     }
 
-    if (tokenizer_read_from_file(_file, _model->config.vocab_size, &(_model->tokenizer))) {
+    if (! tokenizer_read_from_file(_file, _model->config.vocab_size, &(_model->tokenizer))) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
         return -1;

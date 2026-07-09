@@ -162,29 +162,30 @@ void free_tokenizer(tokenizer *_tokenizer) {
     free(_tokenizer->_vocab_sorted);
 }
 
-int32_t tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
+bool tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
     if (fwrite(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
-        return -1;
+        return false;
     }
 
     for (int32_t i = 0; i < _tokenizer->vocab_size; i++) {
         int32_t len = (int32_t)strlen(_tokenizer->__vocab[i]);
 
         if (fwrite(&len, sizeof(int32_t), 1, _file) != 1) {
-            return -1;
+            return false;
         }
 
         if ((len > 0) &&
                 (fwrite(_tokenizer->__vocab[i], len, 1, _file) != 1)) {
-            return -1;
+            return false;
         }
     }
-    return 0;
+
+    return true;
 }
 
-int32_t tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_tokenizer) {
+bool tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_tokenizer) {
     if (fread(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
-        return -1;
+        return false;
     }
 
     _tokenizer->__vocab = (char **)a_calloc((size_t)vocab_size * sizeof(char *));
@@ -200,19 +201,19 @@ int32_t tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_to
     int32_t len;
     for (int32_t i = 0; i < vocab_size; i++) {
         if (fread(&len, sizeof(int32_t), 1, _file) != 1) {
-            return -1;
+            return false;
         }
 
         _tokenizer->__vocab[i] = (char *)a_calloc((size_t)len + 1);
 
         if ((len > 0) &&
                 (fread(_tokenizer->__vocab[i], len, 1, _file) != 1)) {
-            return -1;
+            return false;
         }
 
         _tokenizer->__vocab[i][len] = '\0';
     }
 
-    return 0;
+    return true;
 }
 
