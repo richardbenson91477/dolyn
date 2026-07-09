@@ -107,42 +107,15 @@ char *decode(tokenizer *_tokenizer, int32_t token) {
 }
 
 bool build_tokenizer(tokenizer *_tokenizer, const char *_tokenizer_path_s, int32_t vocab_size) {
-    _tokenizer->vocab_size = vocab_size;
-    _tokenizer->__vocab = (char **)a_calloc(vocab_size * sizeof(char *));
-    _tokenizer->_vocab_sorted = NULL;
-    _tokenizer->is_sorted = 0;
-
-    for (int32_t i = 0; i < 256; i++) {
-        _tokenizer->_byte_pieces_s[i * 2] = (unsigned char)i;
-        _tokenizer->_byte_pieces_s[i * 2 + 1] = '\0';
-    }
-
     FILE *_file = fopen(_tokenizer_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Couldn't open %s\n", _tokenizer_path_s);
         return false;
     }
 
-    if (fread(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
-        log_msg(stderr, "ERROR: Failed read: max_token_length\n");
+    if (! tokenizer_read_from_file(_file, vocab_size, _tokenizer)) {
+        fclose(_file);
         return false;
-    }
-
-    int32_t len;
-    for (int32_t i = 0; i < vocab_size; i++) {
-        if (fread(&len, sizeof(int32_t), 1, _file) != 1) {
-            log_msg(stderr, "ERROR: Failed read: len (%u)\n", i);
-            return false;
-        }
-
-        _tokenizer->__vocab[i] = (char *)a_calloc(len + 1);
-        if (len > 0) {
-            if (fread(_tokenizer->__vocab[i], len, 1, _file) != 1) {
-                log_msg(stderr, "ERROR: Failed read: vocab (%u)\n", i);
-                return false;
-            }
-        }
-        _tokenizer->__vocab[i][len] = '\0';
     }
 
     fclose(_file);
@@ -185,13 +158,12 @@ bool tokenizer_write_to_file(FILE *_file, const tokenizer *_tokenizer) {
 
 bool tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_tokenizer) {
     if (fread(&_tokenizer->max_token_length, sizeof(int32_t), 1, _file) != 1) {
+        log_msg(stderr, "ERROR: Failed read: max_token_length\n");
         return false;
     }
 
-    _tokenizer->__vocab = (char **)a_calloc((size_t)vocab_size * sizeof(char *));
-    _tokenizer->_vocab_sorted = NULL;
-    _tokenizer->is_sorted = 0;
     _tokenizer->vocab_size = vocab_size;
+    _tokenizer->__vocab = (char **)a_calloc((size_t)vocab_size * sizeof(char *));
 
     for (int32_t i = 0; i < 256; i++) {
         _tokenizer->_byte_pieces_s[i * 2] = (unsigned char)i;
@@ -201,6 +173,7 @@ bool tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_token
     int32_t len;
     for (int32_t i = 0; i < vocab_size; i++) {
         if (fread(&len, sizeof(int32_t), 1, _file) != 1) {
+            log_msg(stderr, "ERROR: Failed read: len (%u)\n", i);
             return false;
         }
 
@@ -208,6 +181,7 @@ bool tokenizer_read_from_file(FILE *_file, int32_t vocab_size, tokenizer *_token
 
         if ((len > 0) &&
                 (fread(_tokenizer->__vocab[i], len, 1, _file) != 1)) {
+            log_msg(stderr, "ERROR: Failed read: vocab (%u)\n", i);
             return false;
         }
 
