@@ -15,7 +15,7 @@ typedef struct {
     int32_t n_heads;
     int32_t n_kv_heads;
     int32_t vocab_size;
-    int32_t seq_len;
+    int32_t seq_n;
     int32_t head_dim;
     int32_t shared_classifier;
     float rope_theta;
@@ -43,6 +43,7 @@ typedef struct {
 } weights_q3;
 
 typedef struct {
+    int32_t seq_n;
     float *_x;
     float *_xb;
     float *_hb;
@@ -69,7 +70,7 @@ typedef struct {
 } Q3;
 
 
-void alloc_state_q3(state_q3 *_state, config_q3 *_config);
+bool alloc_state_q3(Q3 *_model, int32_t seq_n);
 
 void free_state_q3(state_q3 *_state);
 

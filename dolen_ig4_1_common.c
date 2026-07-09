@@ -1,7 +1,12 @@
 #include "dolen_ig4_1_common.h"
 
 
-void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
+bool alloc_state_ig4_1(IG4_1 *_model, int32_t seq_n) {
+    state_ig4_1 *_state = &(_model->state);
+    config_ig4_1 *_config = &(_model->config);
+
+    _state->seq_n = seq_n;
+
     int32_t dim = _config->dim;
     int32_t head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
     int32_t kv_dim = _config->n_kv_heads * head_size;
@@ -24,7 +29,7 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
     _state->_q = a_calloc((size_t)attn_dim * sizeof(float));
     _state->_k = a_calloc((size_t)kv_dim * sizeof(float));
     _state->_v = a_calloc((size_t)kv_dim * sizeof(float));
-    _state->_att = a_calloc((size_t)_config->n_heads * _config->seq_len * sizeof(float));
+    _state->_att = a_calloc((size_t)_config->n_heads * seq_n * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
 
     int32_t num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
@@ -40,16 +45,16 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
     _state->hq.rows = 1;
     _state->hq.cols = max_act_dim;
 
-    _state->_key_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim
+    _state->_key_cache = a_calloc((size_t)_config->n_layer * (size_t)seq_n * (size_t)kv_dim
             * sizeof(float));
-    _state->_value_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim 
+    _state->_value_cache = a_calloc((size_t)_config->n_layer * (size_t)seq_n * (size_t)kv_dim 
             * sizeof(float));
 
     int32_t rotary_dim = head_size;
-    _state->_cos_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_dim * sizeof(float));
-    _state->_sin_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_dim * sizeof(float));
+    _state->_cos_cache = (float *)a_calloc((size_t)seq_n * rotary_dim * sizeof(float));
+    _state->_sin_cache = (float *)a_calloc((size_t)seq_n * rotary_dim * sizeof(float));
     float theta = _config->rope_theta;
-    for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+    for (int32_t pos = 0; pos < seq_n; pos++) {
         for (int32_t i = 0; i < rotary_dim / 2; i++) {
             float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_dim);
             float val = pos * freq;
@@ -75,10 +80,11 @@ void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config) {
             (! _state->_key_cache) ||
             (! _state->_value_cache)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     _state->allocated = 1;
+    return true;
 }
 
 void free_state_ig4_1(state_ig4_1 *_state) {

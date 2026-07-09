@@ -49,7 +49,7 @@ int32_t load_config_g4(G4 *_model, const char *_model_dir_s) {
     _config->n_kv_heads = json_get_int(json_object_get(_js_cfg, "num_key_value_heads"), 0);
     _config->n_global_kv_heads = json_get_int(json_object_get(_js_cfg, "num_global_key_value_heads"), _config->n_kv_heads);
     _config->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 0);
-    _config->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 262144);
+    _config->seq_n = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 262144);
     _config->head_dim = json_get_int(json_object_get(_js_cfg, "head_dim"), 0);
     _config->global_head_dim = json_get_int(json_object_get(_js_cfg, "global_head_dim"), _config->head_dim);
     _config->sliding_window = json_get_int(json_object_get(_js_cfg, "sliding_window"), 1024);
@@ -57,7 +57,7 @@ int32_t load_config_g4(G4 *_model, const char *_model_dir_s) {
     _config->rms_norm_eps = json_get_double(json_object_get(_js_cfg, "rms_norm_eps"), 1e-6);
     _config->final_logit_softcapping = json_get_double(json_object_get(_js_cfg, "final_logit_softcapping"), 30.0);
     _config->attention_k_eq_v = json_get_bool(json_object_get(_js_cfg, "attention_k_eq_v"), 0);
-    _config->original_max_seq_len = json_get_int(json_object_get(_js_cfg, "original_max_position_embeddings"), 8192);
+    _config->original_max_pos_embeds = json_get_int(json_object_get(_js_cfg, "original_max_position_embeddings"), 8192);
     _config->bos_token_id = json_get_int(json_object_get(_js_cfg, "bos_token_id"), 2);
     _config->eos_token_id = json_get_int(json_object_get(_js_cfg, "eos_token_id"), 1);
     JsonValue *_js_rope_params = json_object_get(_js_cfg, "rope_parameters");

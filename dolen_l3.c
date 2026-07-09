@@ -15,7 +15,7 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
 };
 
 
-int32_t load_quantized_l3(const char *_file_path_s, L3 *_model, int32_t seq_n_max) {
+int32_t load_quantized_l3(const char *_file_path_s, L3 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
@@ -57,10 +57,6 @@ int32_t load_quantized_l3(const char *_file_path_s, L3 *_model, int32_t seq_n_ma
         log_msg(stderr, "ERROR: Failed to read tokenizer\n");
         fclose(_file);
         return -1;
-    }
-
-    if (seq_n_max) {
-        _config->seq_len = seq_n_max;
     }
 
     weights_l3 *_weights = &_model->weights;
@@ -122,8 +118,6 @@ int32_t load_quantized_l3(const char *_file_path_s, L3 *_model, int32_t seq_n_ma
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized L3 loaded from %s\n", _file_path_s);
-
-    alloc_state_l3(&_model->state, _config);
     return 0;
 }
 
@@ -178,7 +172,7 @@ float *forward_l3(L3 *_model, int32_t token, int32_t pos) {
 #pragma omp parallel for
         for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * head_size;
-            float *_att = _state->_att + h * _config->seq_len;
+            float *_att = _state->_att + h * _state->seq_n;
             int32_t kv_head = h / kv_mul;
 
             for (int32_t t = 0; t <= pos; t++) {
@@ -255,15 +249,18 @@ static void free_l3_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_l3(const char *_model_path_s, int32_t seq_n_max, bool think_) {
+model_iface *init_l3(const char *_model_path_s, int32_t seq_n, bool think_) {
     L3 *_model = a_calloc(sizeof(L3));
-    if (load_quantized_l3(_model_path_s, _model, seq_n_max)) {
-        free_l3(_model);
-        free(_model);
+
+    if (load_quantized_l3(_model_path_s, _model)) {
         return NULL;
     }
 
-    // Dynamically map Token IDs from the embedded configuration
+    if (! alloc_state_l3(_model, seq_n)) {
+        return NULL;
+    }
+
+
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
     _model->tokenizer1.im_end_id = _model->config.eos_token_id;
@@ -273,9 +270,10 @@ model_iface *init_l3(const char *_model_path_s, int32_t seq_n_max, bool think_) 
         ._model = _model,
         .forward = forward_l3_wrap,
         .free_model = free_l3_wrap,
-        .seq_n_max = seq_n_max ? seq_n_max : _model->config.seq_len,
+        .seq_n = seq_n ? seq_n : _model->config.seq_n,
+        .seq_n_model_max = _model->config.seq_n,
         ._chat_template = think_ ? &CHAT_TEMPLATE_THINK_L3 : &CHAT_TEMPLATE_L3,
-        ._tokenizer = &_model->tokenizer1
+        ._tokenizer = &(_model->tokenizer1),
     };
 
     return _model_i;

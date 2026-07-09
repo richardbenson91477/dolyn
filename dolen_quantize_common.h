@@ -72,13 +72,13 @@ int32_t load_safetensors_index(safetensors_idx *_st_idx, const char *_model_dir_
 
 void free_safetensors_index(safetensors_idx *_st_idx);
 
-int32_t quantize_ctx_open(quantize_ctx *_q_ctx, const char *_model_dir);
+int32_t quantize_ctx_open(quantize_ctx *_qt_ctx, const char *_model_dir);
 
-void quantize_ctx_close(quantize_ctx *_q_ctx);
+void quantize_ctx_close(quantize_ctx *_qt_ctx);
 
-const weightmap_entry *quantize_find_tensor(const quantize_ctx *_q_ctx, const char *_name_s);
+const weightmap_entry *quantize_find_tensor(const quantize_ctx *_qt_ctx, const char *_name_s);
 
-const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *_q_ctx, const char *const *__names, size_t names_n);
+const weightmap_entry *quantize_find_last_tensor(const quantize_ctx *_qt_ctx, const char *const *__names, size_t names_n);
 
 int32_t quantize_write_tensor(quantize_ctx *_qt_ctx, FILE *_file, const char *_name_s,
     int32_t rows, int32_t cols, q_type_t q_type);

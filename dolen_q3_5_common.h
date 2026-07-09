@@ -15,7 +15,7 @@ typedef struct {
     int32_t n_layer;
     int32_t n_mlp;
     int32_t vocab_size;
-    int32_t seq_len;
+    int32_t seq_n;
     float rope_theta;
     float rope_partial_rotary_factor;
     float rms_norm_eps;
@@ -59,6 +59,7 @@ typedef struct {
 } weights_q3_5;
 
 typedef struct {
+    int32_t seq_n;
     float *_x;
     float *_xb;
     float *_xb2;
@@ -98,7 +99,7 @@ typedef struct {
 } Q3_5;
 
 
-void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config);
+bool alloc_state_q3_5(Q3_5 *_model, int32_t seq_n);
 
 void free_state_q3_5(state_q3_5 *_state);
 

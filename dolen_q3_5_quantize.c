@@ -75,7 +75,7 @@ int32_t load_config_q3_5(Q3_5 *_model, const char *_model_dir_s) {
         _config->n_mlp = json_get_int(json_object_get(_js_cfg, "shared_expert_intermediate_size"), 4864);
     }
     _config->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 151936);
-    _config->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 262144);
+    _config->seq_n = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 262144);
     JsonValue *_js_rope_params = json_object_get(_js_cfg, "rope_parameters");
     _config->rope_theta = json_get_double(json_object_get(_js_rope_params, "rope_theta"), 10000.0);
     _config->rope_partial_rotary_factor = json_get_double(json_object_get(_js_rope_params, "partial_rotary_factor"), 1.0);

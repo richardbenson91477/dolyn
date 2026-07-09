@@ -15,7 +15,7 @@ typedef struct {
     int32_t n_layer;
     int32_t n_mlp;
     int32_t vocab_size;
-    int32_t seq_len;
+    int32_t seq_n;
     float rope_theta;
     float rms_norm_eps;
     int32_t tie_word_embeddings;
@@ -46,6 +46,7 @@ typedef struct {
 } weights_ig4_1;
 
 typedef struct {
+    int32_t seq_n;
     float *_x;
     float *_xb;
     float *_xb2;
@@ -72,9 +73,13 @@ typedef struct {
     tokenizer tokenizer;
 } IG4_1;
 
-void alloc_state_ig4_1(state_ig4_1 *_state, config_ig4_1 *_config);
+
+bool alloc_state_ig4_1(IG4_1 *_model, int32_t seq_n);
+
 void free_state_ig4_1(state_ig4_1 *_state);
+
 void free_ig4_1(IG4_1 *_model);
+
 
 #endif // DOLEN_IG4_1_COMMON_H
 

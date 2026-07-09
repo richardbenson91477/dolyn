@@ -43,7 +43,7 @@ int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     _config->n_layer = json_get_int(json_object_get(_js_root, "num_hidden_layers"), 32);
     _config->n_mlp = json_get_int(json_object_get(_js_root, "intermediate_size"), 11008);
     _config->vocab_size = json_get_int(json_object_get(_js_root, "vocab_size"), 32000);
-    _config->seq_len = json_get_int(json_object_get(_js_root, "max_position_embeddings"), 2048);
+    _config->seq_n = json_get_int(json_object_get(_js_root, "max_position_embeddings"), 2048);
     JsonValue *_js_rope_theta_value = NULL;
     JsonValue *_js_rope_params = json_object_get(_js_root, "rope_parameters");
     if (_js_rope_params && (_js_rope_params->type == JSON_OBJECT)) {

@@ -249,13 +249,13 @@ static void print_usage(const char *_argv0) {
     log_msg(stdout, " -k  | --top_k <int>:         top-k value, default: %d\n", DOLEN_MAIN_TOP_K_DEFAULT);
     log_msg(stdout, " -tp | --top_p <float>:       top-p value in [0,1] default: %f\n", DOLEN_MAIN_TOP_P_DEFAULT);
     log_msg(stdout, " -s  | --seed <int>:          random seed, default: current time\n");
-    log_msg(stdout, " -n  | --seq_n <int>:         maximum number of steps, default: model max\n");
+    log_msg(stdout, " -n  | --seq_n <int>:         max seq, (0 for model max): default: %d\n", DOLEN_MAIN_SEQ_N_DEFAULT);
     log_msg(stdout, " -pn | --prompt_n <int>:      prompt maximum length, default: %d\n", DOLEN_MAIN_PROMPT_N_MAX_DEFAULT);
     log_msg(stdout, " -p  | --prompt <str>:        prompt, default: none\n");
     log_msg(stdout, " -pf | --prompt_file <str>:   path to a file containing the initial prompt, default: none\n");
     log_msg(stdout, " -M  | --mode <str>:          chat|gen, default: \"%s\"\n", DOLEN_MAIN_MODE_DEFAULT);
     log_msg(stdout, " -sp | --system_prompt <str>: system prompt, default: \"%s\"\n", DOLEN_MAIN_SYSTEM_PROMPT_DEFAULT);
-    log_msg(stdout, " -l  | --log <str>:           path to append all I/O to, default: none\n");
+    log_msg(stdout, " -l  | --log <str>:           path to append all I/O, default: none\n");
     log_msg(stdout, " -th | --think <true|false>:  use think-mode chat template, default: %s\n",
             DOLEN_MAIN_THINK_DEFAULT ? "true" : "false");
 }
@@ -265,7 +265,7 @@ int32_t main(int32_t argc, char *__argv[]) {
     int32_t top_k = DOLEN_MAIN_TOP_K_DEFAULT;
     float top_p = DOLEN_MAIN_TOP_P_DEFAULT;
     uint64_t seed = 0;
-    int32_t seq_n_max = 0;
+    int32_t seq_n = DOLEN_MAIN_SEQ_N_DEFAULT;
     int32_t prompt_n_max = DOLEN_MAIN_PROMPT_N_MAX_DEFAULT;
     char *_model_path_s = NULL;
     char *_prompt_s = NULL;
@@ -309,7 +309,7 @@ int32_t main(int32_t argc, char *__argv[]) {
         }
         else if ((! strcmp(__argv[i], "-n")) ||
                 (! strcmp(__argv[i], "--seq_n"))) {
-            seq_n_max = atoi(__argv[i + 1]);
+            seq_n = atoi(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-pn")) ||
                 (! strcmp(__argv[i], "--prompt_n"))) {
@@ -440,20 +440,23 @@ int32_t main(int32_t argc, char *__argv[]) {
     
     log_msg(stdout, "INFO: Detected model type: \"%s\"\n", _model_type_s);
 
-    model_iface *_model_i = init_fn(_model_path_s, seq_n_max, think_);
+    model_iface *_model_i = init_fn(_model_path_s, seq_n, think_);
     if (! _model_i) {
         exit(EXIT_FAILURE);
     }
 
+    if (_model_i->seq_n != _model_i->seq_n_model_max) {
+        log_msg(stdout, "INFO: seq_n %d < seq_n_model_max %d\n", seq_n, _model_i->seq_n_model_max);
+    }
 
     sampler _sampler;
     build_sampler(&_sampler, _model_i->_tokenizer->vocab_size, temp, top_k, top_p, seed);
 
     if (! memcmp(_mode_s, "gen", strlen("gen") + 1)) {
-        generate(_model_i, &_sampler, _prompt_s, _model_i->seq_n_max);
+        generate(_model_i, &_sampler, _prompt_s, _model_i->seq_n);
     }
     else if (! memcmp(_mode_s, "chat", strlen("chat") + 1)) {
-        chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, prompt_n_max, _model_i->seq_n_max);
+        chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, prompt_n_max, _model_i->seq_n);
     }
     else {
         print_usage(__argv[0]);

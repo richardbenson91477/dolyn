@@ -1,7 +1,12 @@
 #include "dolen_g4_common.h"
 
 
-void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, const int32_t *_layer_types) {
+bool alloc_state_g4(G4 *_model, int32_t seq_n) {
+    state_g4 *_state = &(_model->state);
+    config_g4 *_config = &(_model->config);
+
+    _state->seq_n = seq_n;
+
     int32_t max_head_dim = _config->head_dim > _config->global_head_dim ? _config->head_dim : _config->global_head_dim;
     int32_t max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ?
             _config->n_kv_heads : _config->n_global_kv_heads;
@@ -27,19 +32,19 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
     _state->_k = a_calloc((size_t)max_kv_dim * sizeof(float));
     _state->_k_raw = a_calloc((size_t)max_kv_dim * sizeof(float));
     _state->_v = a_calloc((size_t)max_kv_dim * sizeof(float));
-    _state->_att = a_calloc((size_t)_config->n_heads * _config->seq_len * sizeof(float));
+    _state->_att = a_calloc((size_t)_config->n_heads * seq_n * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
 
     _state->n_layers = _config->n_layers;
     _state->__key_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
     _state->__value_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        int32_t is_full = _layer_types ? _layer_types[l] : 0;
+        int32_t is_full = _model->_layer_types ? _model->_layer_types[l] : 0;
         int32_t kv_heads = is_full ? _config->n_global_kv_heads : _config->n_kv_heads;
         int32_t head_dim = is_full ? _config->global_head_dim : _config->head_dim;
         int32_t kv_dim = kv_heads * head_dim;
-        _state->__key_cache[l] = a_calloc((size_t)_config->seq_len * (size_t)kv_dim * sizeof(float));
-        _state->__value_cache[l] = a_calloc((size_t)_config->seq_len * (size_t)kv_dim * sizeof(float));
+        _state->__key_cache[l] = a_calloc((size_t)seq_n * (size_t)kv_dim * sizeof(float));
+        _state->__value_cache[l] = a_calloc((size_t)seq_n * (size_t)kv_dim * sizeof(float));
     }
 
     int32_t num_groups_xq = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
@@ -59,10 +64,10 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
     int32_t rotary_dim_full = (int32_t)(_config->rope_partial_factor * _config->global_head_dim);
 
     if (cache_stride_full > 0) {
-        _state->_cos_cache_full = a_calloc((size_t)_config->seq_len * cache_stride_full * sizeof(float));
-        _state->_sin_cache_full = a_calloc((size_t)_config->seq_len * cache_stride_full * sizeof(float));
+        _state->_cos_cache_full = a_calloc((size_t)seq_n * cache_stride_full * sizeof(float));
+        _state->_sin_cache_full = a_calloc((size_t)seq_n * cache_stride_full * sizeof(float));
 
-        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+        for (int32_t pos = 0; pos < seq_n; pos++) {
             for (int32_t i = 0; i < cache_stride_full; i++) {
                 float cos_val, sin_val;
                 if (i < rotary_dim_full / 2) {
@@ -81,9 +86,9 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
     }
 
     if (cache_stride_sliding > 0) {
-        _state->_cos_cache_sliding = a_calloc((size_t)_config->seq_len * cache_stride_sliding * sizeof(float));
-        _state->_sin_cache_sliding = a_calloc((size_t)_config->seq_len * cache_stride_sliding * sizeof(float));
-        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+        _state->_cos_cache_sliding = a_calloc((size_t)seq_n * cache_stride_sliding * sizeof(float));
+        _state->_sin_cache_sliding = a_calloc((size_t)seq_n * cache_stride_sliding * sizeof(float));
+        for (int32_t pos = 0; pos < seq_n; pos++) {
             for (int32_t i = 0; i < cache_stride_sliding; i++) {
                 float freq = 1.0f / powf(_config->rope_theta_sliding, (float)(2 * i) / _config->head_dim);
                 float val = (float)pos * freq;
@@ -113,17 +118,11 @@ void alloc_state_g4(state_g4 *_state, config_g4 *_config, weights_g4 *_weights, 
             (! _state->hq._data) ||
             (! _state->hq._scales)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
-    if ((_config->seq_len > 1) &&
-            ((! _state->_cos_cache_full) ||
-            (! _state->_sin_cache_full) ||
-            (! _state->_cos_cache_sliding) ||
-            (! _state->_sin_cache_sliding))) {
-        log_msg(stderr, "ERROR: Alloc failed for RoPE cache!\n");
-        exit(EXIT_FAILURE);
-    }
+
     _state->allocated = 1;
+    return true;
 }
 
 void free_state_g4(state_g4 *_state) {

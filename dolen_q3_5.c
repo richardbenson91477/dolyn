@@ -19,7 +19,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
 };
 
 
-int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int32_t seq_n_max) {
+int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
@@ -64,10 +64,6 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int32_t seq_
 
     config_q3_5 *_config = &_model->config;
     weights_q3_5 *_weights = &_model->weights;
-
-    if (seq_n_max) {
-        _config->seq_len = seq_n_max;
-    }
 
     _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
     _model->_attn_layer_indices = (int32_t *)a_calloc((size_t)_config->n_layer * sizeof(int32_t));
@@ -226,9 +222,6 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model, int32_t seq_
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-
-    alloc_state_q3_5(&_model->state, &_model->config);
-
     return 0;
 }
 
@@ -242,7 +235,7 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
     int32_t kv_dim = _config->n_kv_heads * head_size;
     int32_t attn_out_dim = _config->n_heads * head_size;
     int32_t kv_mul = _config->n_heads / _config->n_kv_heads;
-    int64_t loff = (int64_t)la * _config->seq_len * kv_dim;
+    int64_t loff = (int64_t)la * _state->seq_n * kv_dim;
     float eps = _config->rms_norm_eps;
     float *_key_cache_row = _state->_key_cache + loff + pos * kv_dim;
     float *_value_cache_row = _state->_value_cache + loff + pos * kv_dim;
@@ -318,7 +311,7 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
 #pragma omp parallel for
     for (int32_t h = 0; h < _config->n_heads; h++) {
         float *_q = _state->_q + h * head_size;
-        float *_att = _state->_att + h * _config->seq_len;
+        float *_att = _state->_att + h * _state->seq_n;
 
         for (int32_t t = 0; t <= pos; t++) {
             float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
@@ -563,18 +556,20 @@ static void free_q3_5_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n_max, bool think_) {
+model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n, bool think_) {
     Q3_5 *_model = a_calloc(1 * sizeof(Q3_5));
 
-    if (load_quantized_q3_5(_model_path_s, _model, seq_n_max)) {
-        free_q3_5(_model);
-        free(_model);
+    if (load_quantized_q3_5(_model_path_s, _model)) {
         return NULL;
     }
 
+    if (! alloc_state_q3_5(_model, seq_n)) {
+        return NULL;
+    }
+
+
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
-    
     // Qwen3.5 HF config sets eos_token_id to <|endoftext|> (248044).
     // For ChatML, we still need <|im_end|> (248046) to halt generation correctly.
     _model->tokenizer1.im_end_id = 248046; 
@@ -584,10 +579,12 @@ model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n_max, bool think_
         ._model = _model,
         .forward = forward_q3_5_wrap,
         .free_model = free_q3_5_wrap,
-        .seq_n_max = seq_n_max ? seq_n_max : _model->config.seq_len,
+        .seq_n = seq_n ? seq_n : _model->config.seq_n,
+        .seq_n_model_max = _model->config.seq_n,
         ._chat_template = think_ ? &CHAT_TEMPLATE_THINK_Q3_5 : &CHAT_TEMPLATE_Q3_5,
-        ._tokenizer = &_model->tokenizer1,
+        ._tokenizer = &(_model->tokenizer1),
     };
+
     return _model_i;
 }
 

@@ -15,7 +15,7 @@ typedef struct {
     int32_t n_heads;
     int32_t n_kv_heads;
     int32_t vocab_size;
-    int32_t seq_len;
+    int32_t seq_n;
     int32_t head_dim;
     float rope_theta;
     float rms_norm_eps;
@@ -40,6 +40,7 @@ typedef struct {
 } weights_l3;
 
 typedef struct {
+    int32_t seq_n;
     float *_x;
     float *_xb;
     float *_xb2;
@@ -68,13 +69,13 @@ typedef struct {
 } L3;
 
 
-void alloc_state_l3(state_l3 *_state, config_l3 *_config);
+bool alloc_state_l3(L3 *_model, int32_t seq_n);
 
 void free_state_l3(state_l3 *_state);
 
 void free_l3(L3 *_model);
 
-int32_t load_quantized_l3(const char *_path_s, L3 *_model, int32_t seq_n_max);
+int32_t load_quantized_l3(const char *_path_s, L3 *_model);
 
 float *forward_l3(L3 *_model, int32_t token, int32_t pos);
 

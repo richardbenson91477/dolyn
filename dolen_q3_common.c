@@ -1,7 +1,12 @@
 #include "dolen_q3_common.h"
 
 
-void alloc_state_q3(state_q3 *_state, config_q3 *_config) {
+bool alloc_state_q3(Q3 *_model, int32_t seq_n) {
+    state_q3 *_state = &(_model->state);
+    config_q3 *_config = &(_model->config);
+
+    _state->seq_n = seq_n;
+
     int32_t all_heads_dim = _config->n_heads * _config->head_dim;
     int32_t kv_dim = _config->n_kv_heads * _config->head_dim;
 
@@ -26,18 +31,18 @@ void alloc_state_q3(state_q3 *_state, config_q3 *_config) {
     _state->_q = a_calloc((size_t)all_heads_dim * sizeof(float));
     _state->_k = a_calloc((size_t)kv_dim * sizeof(float));
     _state->_v = a_calloc((size_t)kv_dim * sizeof(float));
-    _state->_att = a_calloc((size_t)_config->n_heads * _config->seq_len * sizeof(float));
+    _state->_att = a_calloc((size_t)_config->n_heads * seq_n * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
-    _state->_key_cache = a_calloc((size_t)_config->n_layers * (size_t)_config->seq_len * (size_t)kv_dim
+    _state->_key_cache = a_calloc((size_t)_config->n_layers * (size_t)seq_n * (size_t)kv_dim
             * sizeof(float));
-    _state->_value_cache = a_calloc((size_t)_config->n_layers * (size_t)_config->seq_len * (size_t)kv_dim
+    _state->_value_cache = a_calloc((size_t)_config->n_layers * (size_t)seq_n * (size_t)kv_dim
             * sizeof(float));
 
     int32_t rotary_half = _config->head_dim / 2;
     if (rotary_half > 0) {
-        _state->_cos_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_half * sizeof(float));
-        _state->_sin_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_half * sizeof(float));
-        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+        _state->_cos_cache = (float *)a_calloc((size_t)seq_n * rotary_half * sizeof(float));
+        _state->_sin_cache = (float *)a_calloc((size_t)seq_n * rotary_half * sizeof(float));
+        for (int32_t pos = 0; pos < seq_n; pos++) {
             float scaled_pos = pos / _config->rope_scaling_factor;
             for (int32_t i = 0; i < rotary_half; i++) {
                 float freq = 1.0f / powf(_config->rope_theta, (float)i / rotary_half);
@@ -71,10 +76,11 @@ void alloc_state_q3(state_q3 *_state, config_q3 *_config) {
                 ((! _state->_cos_cache) ||
                  (! _state->_sin_cache)))) {
         log_msg(stderr, "ERROR: alloc failed!\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     _state->allocated = 1;
+    return true;
 }
 
 void free_state_q3(state_q3 *_state) {
@@ -97,13 +103,8 @@ void free_state_q3(state_q3 *_state) {
     free(_state->_logits);
     free(_state->_key_cache);
     free(_state->_value_cache);
-
-    if (_state->_cos_cache) {
-        free(_state->_cos_cache);
-    }
-    if (_state->_sin_cache) {
-        free(_state->_sin_cache);
-    }
+    free(_state->_cos_cache);
+    free(_state->_sin_cache);
 
     _state->allocated = 0;
 }

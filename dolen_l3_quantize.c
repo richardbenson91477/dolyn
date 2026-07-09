@@ -50,7 +50,7 @@ int32_t load_config_l3(L3 *_model, const char *_model_dir_s) {
     p->n_heads = json_get_int(json_object_get(_js_cfg, "num_attention_heads"), 32);
     p->n_kv_heads = json_get_int(json_object_get(_js_cfg, "num_key_value_heads"), p->n_heads);
     p->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 32000);
-    p->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 2048);
+    p->seq_n = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 2048);
     p->rms_norm_eps = json_get_double(json_object_get(_js_cfg, "rms_norm_eps"), 1e-6);
     p->tie_word_embeddings = json_get_bool(json_object_get(_js_cfg, "tie_word_embeddings"), 0);
     p->head_dim = json_get_int(json_object_get(_js_cfg, "head_dim"), p->dim / p->n_heads);

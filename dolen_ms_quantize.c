@@ -47,7 +47,7 @@ int32_t load_config_ms(MS *_model, const char *_model_dir_s) {
     _config->n_heads = json_get_int(json_object_get(_js_cfg, "num_attention_heads"), 0);
     _config->n_kv_heads = json_get_int(json_object_get(_js_cfg, "num_key_value_heads"), _config->n_heads);
     _config->vocab_size = json_get_int(json_object_get(_js_cfg, "vocab_size"), 0);
-    _config->seq_len = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 32768);
+    _config->seq_n = json_get_int(json_object_get(_js_cfg, "max_position_embeddings"), 32768);
     _config->head_dim = json_get_int(json_object_get(_js_cfg, "head_dim"), _config->dim / _config->n_heads);
     _config->shared_classifier = json_get_bool(json_object_get(_js_cfg, "tie_word_embeddings"), 0);
     _config->rope_theta = get_json_float_val(json_object_get(_js_cfg, "rope_theta"), 10000.0f);

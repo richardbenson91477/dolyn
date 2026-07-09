@@ -1,7 +1,12 @@
 #include "dolen_l3_common.h"
 
 
-void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
+bool alloc_state_l3(L3 *_model, int seq_n) {
+    state_l3 *_state = &(_model->state);
+    config_l3 *_config = &(_model->config);
+
+    _state->seq_n = seq_n;
+
     int32_t dim = _config->dim;
     int32_t head_size = _config->head_dim;
     int32_t kv_dim = _config->n_kv_heads * head_size;
@@ -28,7 +33,7 @@ void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
     _state->_q = a_calloc((size_t)q_dim * sizeof(float));
     _state->_k = a_calloc((size_t)kv_dim * sizeof(float));
     _state->_v = a_calloc((size_t)kv_dim * sizeof(float));
-    _state->_att = a_calloc((size_t)_config->n_heads * _config->seq_len * sizeof(float));
+    _state->_att = a_calloc((size_t)_config->n_heads * seq_n * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
 
     int32_t num_groups = (max_act_dim + GROUP_SIZE - 1) / GROUP_SIZE;
@@ -51,31 +56,28 @@ void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
     if ((! _state->__key_cache) ||
             (! _state->__value_cache)) {
         log_msg(stderr, "ERROR: Alloc failed for KV cache pointer arrays\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        size_t cache_size = (size_t)_config->seq_len * kv_dim * sizeof(float);
+        size_t cache_size = (size_t)seq_n * kv_dim * sizeof(float);
         _state->__key_cache[l] = a_calloc(cache_size);
         _state->__value_cache[l] = a_calloc(cache_size);
         
         if ((! _state->__key_cache[l]) ||
                 (! _state->__value_cache[l])) {
             log_msg(stderr, "ERROR: Alloc failed for KV cache layer %d!\n", l);
-            log_msg(stderr, "       Requested size: %zu bytes (seq_len=%d, kv_dim=%d)\n", 
-                    cache_size, _config->seq_len, kv_dim);
-            log_msg(stderr, "       This usually means you ran out of RAM, or seq_len/kv_dim are unexpectedly large.\n");
-            exit(EXIT_FAILURE);
+            return false;
         }
     }
 
     int32_t rotary_dim = head_size;
     int32_t half_rot = rotary_dim / 2;
-    _state->_cos_cache = a_calloc((size_t)_config->seq_len * half_rot * sizeof(float));
-    _state->_sin_cache = a_calloc((size_t)_config->seq_len * half_rot * sizeof(float));
+    _state->_cos_cache = a_calloc((size_t)seq_n * half_rot * sizeof(float));
+    _state->_sin_cache = a_calloc((size_t)seq_n * half_rot * sizeof(float));
     
     float theta = _config->rope_theta;
-    for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+    for (int32_t pos = 0; pos < seq_n; pos++) {
         for (int32_t i = 0; i < half_rot; i++) {
             float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_dim);
             float val = (float)pos * freq;
@@ -99,9 +101,11 @@ void alloc_state_l3(state_l3 *_state, config_l3 *_config) {
             (! _state->hq._data) ||
             (! _state->hq._scales)) {
         log_msg(stderr, "ERROR: Alloc failed for state buffers!\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
+
     _state->allocated = 1;
+    return true;
 }
 
 void free_state_l3(state_l3 *_state) {
@@ -141,12 +145,8 @@ void free_state_l3(state_l3 *_state) {
     free(_state->xq._scales);
     free(_state->hq._data);
     free(_state->hq._scales);
-    if (_state->_cos_cache) {
-        free(_state->_cos_cache);
-    }
-    if (_state->_sin_cache) {
-        free(_state->_sin_cache);
-    }
+    free(_state->_cos_cache);
+    free(_state->_sin_cache);
 
     _state->allocated = 0;
 }

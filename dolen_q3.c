@@ -19,7 +19,7 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3 = {
 };
 
 
-int32_t load_quantized_q3(const char *_file_path_s, Q3 *_model, int32_t seq_n_max) {
+int32_t load_quantized_q3(const char *_file_path_s, Q3 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
@@ -65,10 +65,6 @@ int32_t load_quantized_q3(const char *_file_path_s, Q3 *_model, int32_t seq_n_ma
     }
 
     weights_q3 *_weights = &_model->weights;
-
-    if (seq_n_max) {
-        _config->seq_len = seq_n_max;
-    }
 
     _weights->_rms_att_weight = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
     _weights->_rms_ffn_weight = (qtensor *)a_calloc((size_t)_config->n_layers * sizeof(qtensor));
@@ -141,9 +137,6 @@ int32_t load_quantized_q3(const char *_file_path_s, Q3 *_model, int32_t seq_n_ma
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-
-    alloc_state_q3(&(_model->state), &(_model->config));
-
     return 0;
 }
 
@@ -159,7 +152,7 @@ float *forward_q3(Q3 *_model, int32_t token, int32_t pos) {
     dequantize_row(_state->_x, &_weights->embed_tokens_weight, token);
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        int64_t loff = (int64_t)l * _config->seq_len * kv_dim;
+        int64_t loff = (int64_t)l * _state->seq_n * kv_dim;
 
         rmsnorm(_state->_xb, _state->_x, (float *)_weights->_rms_att_weight[l]._data, _config->dim, eps);
 
@@ -241,7 +234,7 @@ float *forward_q3(Q3 *_model, int32_t token, int32_t pos) {
 #pragma omp parallel for
         for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * _config->head_dim;
-            float *_att = _state->_att + h * _config->seq_len;
+            float *_att = _state->_att + h * _state->seq_n;
             for (int32_t t = 0; t <= pos; t++) {
                 float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                 float score = 0.0f;
@@ -314,14 +307,17 @@ static void free_q3_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_) {
-    Q3 *_model = a_calloc(1 * sizeof(Q3));
+model_iface *init_q3(const char *_model_path_s, int32_t seq_n, bool think_) {
+    Q3 *_model = a_calloc(sizeof(Q3));
 
-    if (load_quantized_q3(_model_path_s, _model, seq_n_max)) {
-        free_q3(_model);
-        free(_model);
+    if (load_quantized_q3(_model_path_s, _model)) {
         return NULL;
     }
+
+    if (! alloc_state_q3(_model, seq_n)) {
+        return NULL;
+    }
+
 
     _model->tokenizer1.bos_id = _model->config.bos_token_id;
     _model->tokenizer1.eos_id = _model->config.eos_token_id;
@@ -332,10 +328,12 @@ model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_) 
         ._model = _model,
         .forward = forward_q3_wrap,
         .free_model = free_q3_wrap,
-        .seq_n_max = seq_n_max ? seq_n_max : _model->config.seq_len,
+        .seq_n = seq_n ? seq_n : _model->config.seq_n,
+        .seq_n_model_max = _model->config.seq_n,
         ._chat_template = think_ ? &CHAT_TEMPLATE_THINK_Q3 : &CHAT_TEMPLATE_Q3,
-        ._tokenizer = &_model->tokenizer1,
+        ._tokenizer = &(_model->tokenizer1),
     };
+
     return _model_i;
 }
 

@@ -10,7 +10,7 @@ static const chat_template CHAT_TEMPLATE_IG4_1 = {
 };
 
 
-int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int32_t seq_n_max) {
+int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
@@ -60,10 +60,6 @@ int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int32_t se
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in quantized model\n", _config->rope_theta);
         fclose(_file);
         return -1;
-    }
-
-    if (seq_n_max) {
-        _config->seq_len = seq_n_max;
     }
 
     read_qt(_file, &(_weights->embed_tokens_weight));
@@ -120,7 +116,6 @@ int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model, int32_t se
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-    alloc_state_ig4_1(&(_model->state), &(_model->config));
     return 0;
 }
 
@@ -134,7 +129,7 @@ void forward_ig4_1_attention_layer(IG4_1 *_model, int32_t l, int32_t pos) {
     int32_t kv_dim = _config->n_kv_heads * head_size;
     int32_t attn_out_dim = _config->n_heads * head_size;
     int32_t kv_mul = _config->n_heads / _config->n_kv_heads;
-    int64_t loff = (int64_t)l * _config->seq_len * kv_dim;
+    int64_t loff = (int64_t)l * _state->seq_n * kv_dim;
     float eps = _config->rms_norm_eps;
     float *_key_cache_row = _state->_key_cache + loff + pos * kv_dim;
     float *_value_cache_row = _state->_value_cache + loff + pos * kv_dim;
@@ -187,7 +182,7 @@ void forward_ig4_1_attention_layer(IG4_1 *_model, int32_t l, int32_t pos) {
 #pragma omp parallel for
     for (int32_t h = 0; h < _config->n_heads; h++) {
         float *_q = _state->_q + h * head_size;
-        float *_att = _state->_att + h * _config->seq_len;
+        float *_att = _state->_att + h * _state->seq_n;
 
         for (int32_t t = 0; t <= pos; t++) {
             float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
@@ -309,18 +304,21 @@ static void free_ig4_1_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n_max, bool think_) {
+model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n, bool think_) {
     IG4_1 *_model = a_calloc(1 * sizeof(IG4_1));
 
     if (think_) {
         log_msg(stderr, "WARNING: Think mode requested but not supported.\n");
     }
 
-    if (load_quantized_ig4_1(_model_path_s, _model, seq_n_max)) {
-        free_ig4_1(_model);
-        free(_model);
+    if (load_quantized_ig4_1(_model_path_s, _model)) {
         return NULL;
     }
+
+    if (! alloc_state_ig4_1(_model, seq_n)) {
+        return NULL;
+    }
+
 
     _model->tokenizer.bos_id = _model->config.bos_token_id;
     _model->tokenizer.eos_id = _model->config.eos_token_id;
@@ -331,10 +329,12 @@ model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n_max, bool think
         ._model = _model,
         .forward = forward_ig4_1_wrap,
         .free_model = free_ig4_1_wrap,
-        .seq_n_max = seq_n_max ? seq_n_max : _model->config.seq_len,
+        .seq_n = seq_n ? seq_n : _model->config.seq_n,
+        .seq_n_model_max = _model->config.seq_n,
         ._chat_template = &CHAT_TEMPLATE_IG4_1,
-        ._tokenizer = &(_model->tokenizer)
+        ._tokenizer = &(_model->tokenizer),
     };
+
     return _model_i;
 }
 

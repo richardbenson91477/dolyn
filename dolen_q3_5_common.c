@@ -1,7 +1,12 @@
 #include "dolen_q3_5_common.h"
 
 
-void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
+bool alloc_state_q3_5(Q3_5 *_model, int32_t seq_n) {
+    state_q3_5 *_state = &(_model->state);
+    config_q3_5 *_config = &(_model->config);
+
+    _state->seq_n = seq_n;
+
     int32_t dim = _config->dim;
     int32_t head_size = _config->d_head > 0 ? _config->d_head : dim / _config->n_heads;
     int32_t kv_dim = _config->n_kv_heads * head_size;
@@ -34,7 +39,7 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
     _state->_q = a_calloc((size_t)q_dim * sizeof(float));
     _state->_k = a_calloc((size_t)kv_dim * sizeof(float));
     _state->_v = a_calloc((size_t)kv_dim * sizeof(float));
-    _state->_att = a_calloc((size_t)_config->n_heads * _config->seq_len * sizeof(float));
+    _state->_att = a_calloc((size_t)_config->n_heads * seq_n * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
     _state->_gate = a_calloc((size_t)_config->n_heads * head_size * sizeof(float));
 
@@ -52,9 +57,9 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
     _state->hq.cols = max_act_dim;
 
     if (n_kv_layers > 0) {
-        _state->_key_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim
+        _state->_key_cache = a_calloc((size_t)_config->n_layer * (size_t)seq_n * (size_t)kv_dim
                 * sizeof(float));
-        _state->_value_cache = a_calloc((size_t)_config->n_layer * (size_t)_config->seq_len * (size_t)kv_dim
+        _state->_value_cache = a_calloc((size_t)_config->n_layer * (size_t)seq_n * (size_t)kv_dim
                 * sizeof(float));
     }
 
@@ -76,10 +81,10 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
     int32_t rotary_partial = (int32_t)((float)head_size * _config->rope_partial_rotary_factor);
 
     if (rotary_partial > 0) {
-        _state->_cos_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_partial * sizeof(float));
-        _state->_sin_cache = (float *)a_calloc((size_t)_config->seq_len * rotary_partial * sizeof(float));
+        _state->_cos_cache = (float *)a_calloc((size_t)seq_n * rotary_partial * sizeof(float));
+        _state->_sin_cache = (float *)a_calloc((size_t)seq_n * rotary_partial * sizeof(float));
         float theta = _config->rope_theta;
-        for (int32_t pos = 0; pos < _config->seq_len; pos++) {
+        for (int32_t pos = 0; pos < seq_n; pos++) {
             for (int32_t i = 0; i < rotary_partial; i++) {
                 float freq = 1.0f / powf(theta, (float)(2 * i) / rotary_partial);
                 float val = pos * freq;
@@ -109,16 +114,17 @@ void alloc_state_q3_5(state_q3_5 *_state, config_q3_5 *_config) {
             (! _state->hq._data) ||
             (! _state->hq._scales)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
     if (n_kv_layers > 0 &&
             ((! _state->_key_cache) ||
              (! _state->_value_cache))) {
         log_msg(stderr, "ERROR: alloc failed for KV cache!\n");
-        exit(EXIT_FAILURE);
+        return false;
     }
 
     _state->allocated = 1;
+    return true;
 }
 
 void free_state_q3_5(state_q3_5 *_state) {

@@ -13,6 +13,7 @@
 #define DOLEN_MAIN_TEMP_DEFAULT (0.6)
 #define DOLEN_MAIN_TOP_K_DEFAULT (40)
 #define DOLEN_MAIN_TOP_P_DEFAULT (0.95)
+#define DOLEN_MAIN_SEQ_N_DEFAULT (16384)
 #define DOLEN_MAIN_PROMPT_N_MAX_DEFAULT (32768)
 #define DOLEN_MAIN_MODE_DEFAULT "chat"
 #define DOLEN_MAIN_SYSTEM_PROMPT_DEFAULT "You are a helpful assistant."
@@ -31,19 +32,19 @@ extern const model_registry_entry MODEL_REGISTRY[];
 extern const size_t MODEL_REGISTRY_SIZE;
 
 
-model_iface *init_ms(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_ms(const char *_model_path_s, int32_t seq_n, bool think_);
 
-model_iface *init_q2(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_q2(const char *_model_path_s, int32_t seq_n, bool think_);
 
-model_iface *init_q3(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_q3(const char *_model_path_s, int32_t seq_n, bool think_);
 
-model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n, bool think_);
 
-model_iface *init_g4(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_g4(const char *_model_path_s, int32_t seq_n, bool think_);
 
-model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n, bool think_);
 
-model_iface *init_l3(const char *_model_path_s, int32_t seq_n_max, bool think_);
+model_iface *init_l3(const char *_model_path_s, int32_t seq_n, bool think_);
 
 
 #endif // DOLEN_MAIN_H

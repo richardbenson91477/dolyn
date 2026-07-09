@@ -18,7 +18,7 @@ static const chat_template CHAT_TEMPLATE_THINK_G4 = {
 };
 
 
-int32_t load_quantized_g4(const char *_path_s, G4 *_model, int32_t seq_n_max) {
+int32_t load_quantized_g4(const char *_path_s, G4 *_model) {
     FILE *_file = fopen(_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _path_s);
@@ -61,10 +61,6 @@ int32_t load_quantized_g4(const char *_path_s, G4 *_model, int32_t seq_n_max) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _path_s);
         fclose(_file);
         return -1;
-    }
-
-    if (seq_n_max) {
-        _config->seq_len = seq_n_max;
     }
 
     _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layers * sizeof(int32_t));
@@ -149,9 +145,6 @@ int32_t load_quantized_g4(const char *_path_s, G4 *_model, int32_t seq_n_max) {
     fclose(_file);
 
     log_msg(stdout, "INFO: Quantized G4 loaded from %s\n", _path_s);
-
-    alloc_state_g4(&_model->state, _config, _weights, _model->_layer_types);
-
     return 0;
 }
 
@@ -189,8 +182,9 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
         exit(EXIT_FAILURE);
     }
 
-    if (pos < 0 || pos >= _config->seq_len) {
-        log_msg(stderr, "ERROR: position %d is outside KV cache [0, %d)\n", pos, _config->seq_len);
+    if ((pos < 0) || 
+            (pos >= _state->seq_n)) {
+        log_msg(stderr, "ERROR: position %d is outside KV cache [0, %d)\n", pos, _state->seq_n);
         exit(EXIT_FAILURE);
     }
 
@@ -269,7 +263,7 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
 #pragma omp parallel for
         for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * head_dim;
-            float *_att = _state->_att + h * _config->seq_len;
+            float *_att = _state->_att + h * _state->seq_n;
             int32_t kv_head = h / (_config->n_heads / kv_heads);
 
             for (int32_t t = 0; t < start_t; t++) {
@@ -367,13 +361,16 @@ static void free_g4_wrap(void *_model) {
     free(_model);
 }
 
-model_iface *init_g4(const char *_model_path_s, int32_t seq_n_max, bool think_) {
+model_iface *init_g4(const char *_model_path_s, int32_t seq_n, bool think_) {
     G4 *_model = a_calloc(1 * sizeof(G4));
-    if (load_quantized_g4(_model_path_s, _model, seq_n_max)) {
-        free_g4(_model);
-        free(_model);
+    if (load_quantized_g4(_model_path_s, _model)) {
         return NULL;
     }
+
+    if (! alloc_state_g4(_model, seq_n)) {
+        return NULL;
+    }
+
 
     _model->tokenizer.bos_id = _model->config.bos_token_id;
     _model->tokenizer.eos_id = _model->config.eos_token_id;
@@ -387,9 +384,10 @@ model_iface *init_g4(const char *_model_path_s, int32_t seq_n_max, bool think_) 
         ._model = _model,
         .forward = forward_g4_wrap,
         .free_model = free_g4_wrap,
-        .seq_n_max = seq_n_max ? seq_n_max : _model->config.seq_len,
+        .seq_n = seq_n ? seq_n : _model->config.seq_n,
+        .seq_n_model_max = _model->config.seq_n,
         ._chat_template = think_ ? &CHAT_TEMPLATE_THINK_G4 : &CHAT_TEMPLATE_G4,
-        ._tokenizer = &_model->tokenizer
+        ._tokenizer = &(_model->tokenizer),
     };
 
     return _model_i;
