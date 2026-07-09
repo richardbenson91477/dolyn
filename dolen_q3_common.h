@@ -59,7 +59,6 @@ typedef struct {
     float *_value_cache;
     float *_cos_cache;
     float *_sin_cache;
-    int32_t allocated;
 } state_q3;
 
 typedef struct {

@@ -8,11 +8,11 @@ static const chat_template CHAT_TEMPLATE_MS = {
 };
 
 
-int32_t load_quantized_ms(const char *_file_path_s, MS *_model) {
+bool load_quantized_ms(const char *_file_path_s, MS *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
-        return -1;
+        return false;
     }
 
     memset(_model, 0, sizeof(MS));
@@ -23,32 +23,32 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model) {
             (fread(&version, sizeof(uint32_t), 1, _file) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (magic != MAGIC_MS) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (version != 1) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     config_ms *_config = &_model->config;
     if (fread(_config, sizeof(config_ms), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (! tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     weights_ms *_weights = &_model->weights;
@@ -60,7 +60,7 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model) {
             (! _weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for norm weights\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     read_qt(_file, &_weights->embed_tokens_weight);
@@ -95,7 +95,7 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model) {
             (!  _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for quantized tensors\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
@@ -110,7 +110,7 @@ int32_t load_quantized_ms(const char *_file_path_s, MS *_model) {
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-    return 0;
+    return true;
 }
 
 float *forward_ms(MS *_model, int32_t token, int32_t pos) {
@@ -279,11 +279,13 @@ static void free_ms_wrap(void *_model) {
 model_iface *init_ms(const char *_model_path_s, int32_t seq_n, bool think_) {
     MS *_model = a_calloc(sizeof(MS));
 
-    if (load_quantized_ms(_model_path_s, _model)) {
+    if (! load_quantized_ms(_model_path_s, _model)) {
+        free_ms_wrap(_model);
         return NULL;
     }
 
     if (! alloc_state_ms(_model, seq_n)) {
+        free_ms_wrap(_model);
         return NULL;
     }
 

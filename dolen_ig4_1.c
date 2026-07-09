@@ -10,7 +10,7 @@ static const chat_template CHAT_TEMPLATE_IG4_1 = {
 };
 
 
-int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
+bool load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
@@ -116,7 +116,7 @@ int32_t load_quantized_ig4_1(const char *_file_path_s, IG4_1 *_model) {
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-    return 0;
+    return true;
 }
 
 void forward_ig4_1_attention_layer(IG4_1 *_model, int32_t l, int32_t pos) {
@@ -311,11 +311,13 @@ model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n, bool think_) {
         log_msg(stderr, "WARNING: Think mode requested but not supported.\n");
     }
 
-    if (load_quantized_ig4_1(_model_path_s, _model)) {
+    if (! load_quantized_ig4_1(_model_path_s, _model)) {
+        free_ig4_1_wrap(_model);
         return NULL;
     }
 
     if (! alloc_state_ig4_1(_model, seq_n)) {
+        free_ig4_1_wrap(_model);
         return NULL;
     }
 

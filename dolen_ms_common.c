@@ -71,17 +71,14 @@ bool alloc_state_ms(MS *_model, int32_t seq_n) {
                 ((!_state->_cos_cache) ||
                  (!_state->_sin_cache)))) {
         log_msg(stderr, "ERROR: alloc failed!\n");
+        free_state_ms(_state);
         return false;
     }
 
-    _state->allocated = 1;
     return true;
 }
 
 void free_state_ms(state_ms *_state) {
-    if (!_state->allocated) {
-        return;
-    }
     free(_state->_x);
     free(_state->_xb);
     free(_state->_hb);
@@ -97,13 +94,14 @@ void free_state_ms(state_ms *_state) {
     free(_state->_logits);
     free(_state->_key_cache);
     free(_state->_value_cache);
+
     if (_state->_cos_cache) {
         free(_state->_cos_cache);
     }
+
     if (_state->_sin_cache) {
         free(_state->_sin_cache);
     }
-    _state->allocated = 0;
 }
 
 void free_ms(MS *_model) {
@@ -126,9 +124,7 @@ void free_ms(MS *_model) {
         free_qt(&(_weights->wcls));
     }
 
-    if (_model->state.allocated == 1) {
-        free_state_ms(&(_model->state));
-    }
+    free_state_ms(&(_model->state));
 
     free_tokenizer(&(_model->tokenizer1));
 }

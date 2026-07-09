@@ -18,11 +18,11 @@ static const chat_template CHAT_TEMPLATE_THINK_G4 = {
 };
 
 
-int32_t load_quantized_g4(const char *_path_s, G4 *_model) {
+bool load_quantized_g4(const char *_path_s, G4 *_model) {
     FILE *_file = fopen(_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _path_s);
-        return -1;
+        return false;
     }
 
     memset(_model, 0, sizeof(G4));
@@ -34,19 +34,19 @@ int32_t load_quantized_g4(const char *_path_s, G4 *_model) {
             fread(&version, sizeof(version), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read header\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (magic != MAGIC_G4) {
         log_msg(stderr, "ERROR: Invalid magic number\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (version != 6) {
         log_msg(stderr, "ERROR: Unsupported version %u (expected 6). RE-RUN QUANTIZER.\n", version);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     config_g4 *_config = &_model->config;
@@ -54,20 +54,20 @@ int32_t load_quantized_g4(const char *_path_s, G4 *_model) {
     if (fread(_config, sizeof(config_g4), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (! tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     _model->_layer_types = (int32_t *)a_calloc((size_t)_config->n_layers * sizeof(int32_t));
     if (fread(_model->_layer_types, sizeof(int32_t), (size_t)_config->n_layers, _file) != (size_t)_config->n_layers) {
         log_msg(stderr, "ERROR: Failed to read layer_types\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     weights_g4 *_weights = &_model->weights;
@@ -87,7 +87,7 @@ int32_t load_quantized_g4(const char *_path_s, G4 *_model) {
             (! _weights->_rms_k_norm)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     read_qt(_file, &_weights->embed_tokens_weight);
@@ -145,7 +145,7 @@ int32_t load_quantized_g4(const char *_path_s, G4 *_model) {
     fclose(_file);
 
     log_msg(stdout, "INFO: Quantized G4 loaded from %s\n", _path_s);
-    return 0;
+    return true;
 }
 
 static void apply_rope(float *_vec, float *_cos, float *_sin, int32_t rotary_dim, int32_t vec_dim, int32_t pos) {
@@ -364,11 +364,13 @@ static void free_g4_wrap(void *_model) {
 
 model_iface *init_g4(const char *_model_path_s, int32_t seq_n, bool think_) {
     G4 *_model = a_calloc(1 * sizeof(G4));
-    if (load_quantized_g4(_model_path_s, _model)) {
+    if (! load_quantized_g4(_model_path_s, _model)) {
+        free_g4_wrap(_model);
         return NULL;
     }
 
     if (! alloc_state_g4(_model, seq_n)) {
+        free_g4_wrap(_model);
         return NULL;
     }
 

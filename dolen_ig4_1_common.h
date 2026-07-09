@@ -63,7 +63,6 @@ typedef struct {
     qtensor hq;
     float *_cos_cache;
     float *_sin_cache;
-    int32_t allocated;
 } state_ig4_1;
 
 typedef struct {

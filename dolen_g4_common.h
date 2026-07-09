@@ -73,7 +73,6 @@ typedef struct {
     float *_sin_cache_full;
     float *_cos_cache_sliding;
     float *_sin_cache_sliding;
-    int32_t allocated;
     int32_t n_layers;
 } state_g4;
 
@@ -92,7 +91,7 @@ void free_state_g4(state_g4 *_state);
 
 void free_g4(G4 *_model);
 
-int32_t load_quantized_g4(const char *_path_s, G4 *_model);
+bool load_quantized_g4(const char *_path_s, G4 *_model);
 
 float *forward_g4(G4 *_model, int32_t token, int32_t pos);
 

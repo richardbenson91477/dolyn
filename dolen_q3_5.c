@@ -19,11 +19,11 @@ static const chat_template CHAT_TEMPLATE_THINK_Q3_5 = {
 };
 
 
-int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
+bool load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s for reading\n", _file_path_s);
-        return -1;
+        return false;
     }
 
     memset(_model, 0, sizeof(Q3_5));
@@ -35,31 +35,31 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (fread(&version, sizeof(uint32_t), 1, _file) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (magic != MAGIC_Q3_5) {
         log_msg(stderr, "ERROR: Invalid magic number in %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (version != 3) {
         log_msg(stderr, "ERROR: Unsupported version %d in %s\n", version, _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (fread(&_model->config, sizeof(config_q3_5), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (! tokenizer_read_from_file(_file, _model->config.vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     config_q3_5 *_config = &_model->config;
@@ -74,13 +74,13 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (! _model->_deltanet_layer_indices)) {
         log_msg(stderr, "ERROR: Failed to allocate memory for layer indices\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (fread(_model->_layer_types, sizeof(int32_t), (size_t)_config->n_layer, _file) != (size_t)_config->n_layer) {
         log_msg(stderr, "ERROR: Failed to read layer_types from %s\n", _file_path_s);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     int32_t la = 0, ld = 0;
@@ -103,7 +103,7 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (! _weights->_rms_ffn_weight)) {
         log_msg(stderr, "ERROR: Failed to allocate norm weights\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     read_qt(_file, &_weights->embed_tokens_weight);
@@ -123,7 +123,7 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (! _weights->_wo)) {
         log_msg(stderr, "ERROR: Failed to allocate attention weights\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     for (int32_t i = 0; i < _config->n_full_attn_layers; i++) {
@@ -162,7 +162,7 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
                 (! _weights->_out_proj)) {
             log_msg(stderr, "ERROR: Failed to allocate linear attention weights\n");
             fclose(_file);
-            return -1;
+            return false;
         }
 
         for (int32_t i = 0; i < _config->n_linear_attn_layers; i++) {
@@ -204,7 +204,7 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
             (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Failed to allocate MLP weights\n");
         fclose(_file);
-        return -1;
+        return false;
     }
     for (int32_t i = 0; i < _config->n_layer; i++) {
         read_qt(_file, &_weights->_w1[i]);
@@ -222,7 +222,7 @@ int32_t load_quantized_q3_5(const char *_file_path_s, Q3_5 *_model) {
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized model loaded from %s\n", _file_path_s);
-    return 0;
+    return true;
 }
 
 void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t pos) {
@@ -559,11 +559,13 @@ static void free_q3_5_wrap(void *_model) {
 model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n, bool think_) {
     Q3_5 *_model = a_calloc(1 * sizeof(Q3_5));
 
-    if (load_quantized_q3_5(_model_path_s, _model)) {
+    if (! load_quantized_q3_5(_model_path_s, _model)) {
+        free_q3_5_wrap(_model);
         return NULL;
     }
 
     if (! alloc_state_q3_5(_model, seq_n)) {
+        free_q3_5_wrap(_model);
         return NULL;
     }
 

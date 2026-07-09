@@ -57,7 +57,6 @@ typedef struct {
     qtensor hq;
     float *_cos_cache;
     float *_sin_cache;
-    int32_t allocated;
     int32_t n_layers;
 } state_l3;
 
@@ -75,7 +74,7 @@ void free_state_l3(state_l3 *_state);
 
 void free_l3(L3 *_model);
 
-int32_t load_quantized_l3(const char *_path_s, L3 *_model);
+bool load_quantized_l3(const char *_path_s, L3 *_model);
 
 float *forward_l3(L3 *_model, int32_t token, int32_t pos);
 

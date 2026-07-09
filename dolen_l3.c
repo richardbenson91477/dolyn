@@ -15,11 +15,11 @@ static const chat_template CHAT_TEMPLATE_THINK_L3 = {
 };
 
 
-int32_t load_quantized_l3(const char *_file_path_s, L3 *_model) {
+bool load_quantized_l3(const char *_file_path_s, L3 *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
-        return -1;
+        return false;
     }
 
     memset(_model, 0, sizeof(L3));
@@ -31,32 +31,32 @@ int32_t load_quantized_l3(const char *_file_path_s, L3 *_model) {
             (fread(&version, sizeof(version), 1, _file) != 1)) {
         log_msg(stderr, "ERROR: Failed to read header\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (magic != MAGIC_L3) {
         log_msg(stderr, "ERROR: Invalid magic number\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (version != 2) {
         log_msg(stderr, "ERROR: Unsupported version %u (expected 2)\n", version);
         fclose(_file);
-        return -1;
+        return false;
     }
 
     config_l3 *_config = &_model->config;
     if (fread(_config, sizeof(config_l3), 1, _file) != 1) {
         log_msg(stderr, "ERROR: Failed to read config\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     if (! tokenizer_read_from_file(_file, _config->vocab_size, &_model->tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to read tokenizer\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     weights_l3 *_weights = &_model->weights;
@@ -82,7 +82,7 @@ int32_t load_quantized_l3(const char *_file_path_s, L3 *_model) {
             (! _weights->_w3)) {
         log_msg(stderr, "ERROR: Alloc failed\n");
         fclose(_file);
-        return -1;
+        return false;
     }
 
     read_qt(_file, &_weights->embed_tokens_weight);
@@ -118,7 +118,7 @@ int32_t load_quantized_l3(const char *_file_path_s, L3 *_model) {
 
     fclose(_file);
     log_msg(stdout, "INFO: Quantized L3 loaded from %s\n", _file_path_s);
-    return 0;
+    return true;
 }
 
 static void apply_rope(float *_vec, float *_cos, float *_sin, int32_t rotary_dim, int32_t pos) {
@@ -252,11 +252,13 @@ static void free_l3_wrap(void *_model) {
 model_iface *init_l3(const char *_model_path_s, int32_t seq_n, bool think_) {
     L3 *_model = a_calloc(sizeof(L3));
 
-    if (load_quantized_l3(_model_path_s, _model)) {
+    if (! load_quantized_l3(_model_path_s, _model)) {
+        free_l3_wrap(_model);
         return NULL;
     }
 
     if (! alloc_state_l3(_model, seq_n)) {
+        free_l3_wrap(_model);
         return NULL;
     }
 

@@ -120,18 +120,14 @@ bool alloc_state_q3_5(Q3_5 *_model, int32_t seq_n) {
             ((! _state->_key_cache) ||
              (! _state->_value_cache))) {
         log_msg(stderr, "ERROR: alloc failed for KV cache!\n");
+        free_state_q3_5(_state);
         return false;
     }
 
-    _state->allocated = 1;
     return true;
 }
 
 void free_state_q3_5(state_q3_5 *_state) {
-    if (! _state->allocated) {
-        return;
-    }
-
     free(_state->_x);
     free(_state->_xb);
     free(_state->_xb2);
@@ -161,11 +157,10 @@ void free_state_q3_5(state_q3_5 *_state) {
     if (_state->_cos_cache) {
         free(_state->_cos_cache);
     }
+
     if (_state->_sin_cache) {
         free(_state->_sin_cache);
     }
-
-    _state->allocated = 0;
 }
 
 void free_q3_5(Q3_5 *model_q3_5) {
@@ -205,9 +200,7 @@ void free_q3_5(Q3_5 *model_q3_5) {
     free(model_q3_5->_attn_layer_indices);
     free(model_q3_5->_deltanet_layer_indices);
 
-    if (model_q3_5->state.allocated) {
-        free_state_q3_5(&model_q3_5->state);
-    }
+    free_state_q3_5(&model_q3_5->state);
 
     free_tokenizer(&model_q3_5->tokenizer1);
 }

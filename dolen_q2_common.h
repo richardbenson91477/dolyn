@@ -63,7 +63,6 @@ typedef struct {
     float *_value_cache;
     float *_cos_cache;          // precomputed cos
     float *_sin_cache;          // precomputed sin
-    int32_t allocated;
 } state_q2;
 
 typedef struct {

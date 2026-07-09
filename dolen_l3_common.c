@@ -104,15 +104,10 @@ bool alloc_state_l3(L3 *_model, int seq_n) {
         return false;
     }
 
-    _state->allocated = 1;
     return true;
 }
 
 void free_state_l3(state_l3 *_state) {
-    if (! _state->allocated) {
-        return;
-    }
-
     free(_state->_x);
     free(_state->_xb);
     free(_state->_xb2);
@@ -147,8 +142,6 @@ void free_state_l3(state_l3 *_state) {
     free(_state->hq._scales);
     free(_state->_cos_cache);
     free(_state->_sin_cache);
-
-    _state->allocated = 0;
 }
 
 void free_l3(L3 *_model) {
@@ -174,9 +167,7 @@ void free_l3(L3 *_model) {
         free_qt(&_weights->wcls);
     }
 
-    if (_model->state.allocated) {
-        free_state_l3(&(_model->state));
-    }
+    free_state_l3(&(_model->state));
 
     free_tokenizer(&(_model->tokenizer1));
 

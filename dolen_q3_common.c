@@ -76,18 +76,14 @@ bool alloc_state_q3(Q3 *_model, int32_t seq_n) {
                 ((! _state->_cos_cache) ||
                  (! _state->_sin_cache)))) {
         log_msg(stderr, "ERROR: alloc failed!\n");
+        free_state_q3(_state);
         return false;
     }
 
-    _state->allocated = 1;
     return true;
 }
 
 void free_state_q3(state_q3 *_state) {
-    if (! _state->allocated) {
-        return;
-    }
-
     free(_state->_x);
     free(_state->_xb);
     free(_state->_hb);
@@ -103,10 +99,14 @@ void free_state_q3(state_q3 *_state) {
     free(_state->_logits);
     free(_state->_key_cache);
     free(_state->_value_cache);
-    free(_state->_cos_cache);
-    free(_state->_sin_cache);
 
-    _state->allocated = 0;
+    if (_state->_cos_cache) {
+        free(_state->_cos_cache);
+    }
+
+    if (_state->_sin_cache) {
+        free(_state->_sin_cache);
+    }
 }
 
 void free_q3(Q3 *model_q3) {
@@ -133,9 +133,7 @@ void free_q3(Q3 *model_q3) {
         free_qt(&(_weights->wcls));
     }
 
-    if (model_q3->state.allocated == 1) {
-        free_state_q3(&(model_q3->state));
-    }
+    free_state_q3(&(model_q3->state));
 
     free_tokenizer(&(model_q3->tokenizer1));
 }

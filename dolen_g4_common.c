@@ -9,7 +9,7 @@ bool alloc_state_g4(G4 *_model, int32_t seq_n) {
 
     int32_t max_head_dim = _config->head_dim > _config->global_head_dim ? _config->head_dim : _config->global_head_dim;
     int32_t max_kv_heads = _config->n_kv_heads > _config->n_global_kv_heads ?
-            _config->n_kv_heads : _config->n_global_kv_heads;
+                _config->n_kv_heads : _config->n_global_kv_heads;
     int32_t max_kv_dim = max_kv_heads * max_head_dim;
     int32_t attn_out_dim = _config->n_heads * max_head_dim;
 
@@ -118,18 +118,14 @@ bool alloc_state_g4(G4 *_model, int32_t seq_n) {
             (! _state->hq._data) ||
             (! _state->hq._scales)) {
         log_msg(stderr, "ERROR: Alloc failed!\n");
+        free_state_g4(_state);
         return false;
     }
 
-    _state->allocated = 1;
     return true;
 }
 
 void free_state_g4(state_g4 *_state) {
-    if (! _state->allocated) {
-        return;
-    }
-
     free(_state->_x);
     free(_state->_xb);
     free(_state->_hb);
@@ -158,12 +154,22 @@ void free_state_g4(state_g4 *_state) {
     free(_state->xq._scales);
     free(_state->hq._data);
     free(_state->hq._scales);
-    free(_state->_cos_cache_full);
-    free(_state->_sin_cache_full);
-    free(_state->_cos_cache_sliding);
-    free(_state->_sin_cache_sliding);
 
-    _state->allocated = 0;
+    if (_state->_cos_cache_full) {
+        free(_state->_cos_cache_full);
+    }
+
+    if (_state->_sin_cache_full) {
+        free(_state->_sin_cache_full);
+    }
+
+    if (_state->_cos_cache_sliding) {
+        free(_state->_cos_cache_sliding);
+    }
+
+    if (_state->_sin_cache_sliding) {
+        free(_state->_sin_cache_sliding);
+    }
 }
 
 void free_g4(G4 *_model) {
@@ -197,9 +203,7 @@ void free_g4(G4 *_model) {
 
     free(_weights->_layer_scalars);
 
-    if (_model->state.allocated == 1) {
-        free_state_g4(&(_model->state));
-    }
+    free_state_g4(&(_model->state));
 
     free_tokenizer(&(_model->tokenizer));
 

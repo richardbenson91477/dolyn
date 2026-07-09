@@ -83,15 +83,10 @@ bool alloc_state_ig4_1(IG4_1 *_model, int32_t seq_n) {
         return false;
     }
 
-    _state->allocated = 1;
     return true;
 }
 
 void free_state_ig4_1(state_ig4_1 *_state) {
-    if (! _state->allocated) {
-        return;
-    }
-
     free(_state->_x);
     free(_state->_xb);
     free(_state->_xb2);
@@ -110,8 +105,6 @@ void free_state_ig4_1(state_ig4_1 *_state) {
     free(_state->hq._scales);
     free(_state->_cos_cache);
     free(_state->_sin_cache);
-
-    _state->allocated = 0;
 }
 
 void free_ig4_1(IG4_1 *_model) {
@@ -137,9 +130,7 @@ void free_ig4_1(IG4_1 *_model) {
         free_qt(&(_weights->wcls));
     }
 
-    if (_model->state.allocated) {
-        free_state_ig4_1(&(_model->state));
-    }
+    free_state_ig4_1(&(_model->state));
 
     free_tokenizer(&(_model->tokenizer));
 }
