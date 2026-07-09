@@ -115,12 +115,14 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
     if (load_config_g4(&model, _model_dir_s)) {
         return -1;
     }
+
     quantize_ctx qt_ctx;
     if (quantize_ctx_open(&qt_ctx, _model_dir_s)) {
         log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", _model_dir_s);
         free(model._layer_types);
         return -1;
     }
+
     FILE *_file = fopen(_out_path_s, "wb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _out_path_s);
@@ -128,6 +130,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         free(model._layer_types);
         return -1;
     }
+
     config_g4 *_config = &model.config;
     uint64_t magic = MAGIC_G4;
     uint32_t version = 6;
@@ -138,6 +141,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         failed = 1;
         goto cleanup;
     }
+
     tokenizer tokenizer1;
     memset(&tokenizer1, 0, sizeof(tokenizer1));
     build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size);
@@ -146,6 +150,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
         failed = 1;
         goto cleanup;
     }
+
     if (quantize_write_bytes(_file, model._layer_types, sizeof(int32_t), _config->n_layers)) {
         failed = 1;
         goto cleanup;
@@ -174,6 +179,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight",
                 1, _config->dim, Q_TYPE_F32)) {
@@ -181,6 +187,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "pre_feedforward_layernorm.weight",
                 1, _config->dim, Q_TYPE_F32)) {
@@ -188,6 +195,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_feedforward_layernorm.weight",
                 1, _config->dim, Q_TYPE_F32)) {
@@ -195,6 +203,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_norm.weight",
@@ -203,6 +212,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         int32_t hd = model._layer_types[l] ? _config->global_head_dim : _config->head_dim;
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_norm.weight",
@@ -211,59 +221,70 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.language_model.norm.weight",
             1, _config->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         int32_t is_full = model._layer_types[l];
         int32_t use_alternative_attention = is_full && _config->attention_k_eq_v;
         int32_t hd = is_full ? _config->global_head_dim : _config->head_dim;
         int32_t kv_heads = use_alternative_attention ? _config->n_global_kv_heads : _config->n_kv_heads;
+
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
             _config->n_heads * hd, _config->dim, _preset->attn)) {
             failed = 1;
             goto cleanup;
         }
+
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.k_proj.weight",
             kv_heads * hd, _config->dim, _preset->attn)) {
             failed = 1;
             goto cleanup;
         }
+
         if (use_alternative_attention) {
             if (quantize_write_empty_tensor(_file)) {
                 failed = 1;
                 goto cleanup;
             }
-        } else {
+        }
+        else {
             if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.v_proj.weight",
                     kv_heads * hd, _config->dim, _preset->attn)) {
                 failed = 1;
                 goto cleanup;
             }
         }
+
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.o_proj.weight",
                 _config->dim, _config->n_heads * hd, _preset->attn)) {
             failed = 1;
             goto cleanup;
         }
+
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
                 _config->hidden_dim, _config->dim, _preset->mlp)) {
             failed = 1;
             goto cleanup;
         }
+
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.up_proj.weight",
                 _config->hidden_dim, _config->dim, _preset->mlp)) {
             failed = 1;
             goto cleanup;
         }
+
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.down_proj.weight",
                 _config->dim, _config->hidden_dim, _preset->mlp)) {
             failed = 1;
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         char scalar0[256], scalar1[256], scalar2[256];
         snprintf(scalar0, sizeof(scalar0), "model.language_model.layers.%d.layer_scalar", l);
@@ -275,6 +296,7 @@ int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_out_path_s,
             goto cleanup;
         }
     }
+
     if (_config->use_rope_freqs) {
         if (quantize_write_tensor(&qt_ctx, _file, "model.language_model.layers.0.self_attn.rope_freqs.weight",
                 1, _config->global_head_dim / 2, Q_TYPE_F32)) {

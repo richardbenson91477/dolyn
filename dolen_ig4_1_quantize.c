@@ -7,6 +7,7 @@ int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
 
     char config_path[PATH_MAX];
     snprintf(config_path, sizeof(config_path), "%s/config.json", _model_dir_s);
+
     FILE *_file = fopen(config_path, "rb");
     if (! _file) {
         log_msg(stderr, "ERROR: Could not open config.json at %s\n", config_path);
@@ -49,20 +50,24 @@ int32_t load_config_ig4_1(IG4_1 *_model, const char *_model_dir_s) {
     if (_js_rope_params && (_js_rope_params->type == JSON_OBJECT)) {
         _js_rope_theta_value = json_object_get(_js_rope_params, "rope_theta");
     }
+
     if (! _js_rope_theta_value) {
         _js_rope_theta_value = json_object_get(_js_root, "rope_theta");
     }
+
     if (! _js_rope_theta_value) {
         log_msg(stderr, "ERROR: config.json has no rope_theta\n");
         json_free(_js_root);
         return -1;
     }
+
     _config->rope_theta = json_get_double(_js_rope_theta_value, 0.0);
     if (! (_config->rope_theta > 1.0f)) {
         log_msg(stderr, "ERROR: Invalid rope_theta %.9g in config.json\n", _config->rope_theta);
         json_free(_js_root);
         return -1;
     }
+
     _config->rms_norm_eps = json_get_double(json_object_get(_js_root, "rms_norm_eps"), 1e-6);
     _config->tie_word_embeddings = json_get_bool(json_object_get(_js_root, "tie_word_embeddings"), 0);
     _config->d_head = json_get_int(json_object_get(_js_root, "head_dim"), _config->dim / _config->n_heads);

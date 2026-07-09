@@ -119,6 +119,7 @@ int32_t quantize_q3_to_file(const char *_model_dir_s, const char *_file_path_s,
 
     tokenizer tokenizer1;
     memset(&tokenizer1, 0, sizeof(tokenizer1));
+
     build_tokenizer(&tokenizer1, _tokenizer_path_s, _config->vocab_size);
     if (tokenizer_write_to_file(_file, &tokenizer1)) {
         log_msg(stderr, "ERROR: Failed to write tokenizer\n");
@@ -130,7 +131,8 @@ int32_t quantize_q3_to_file(const char *_model_dir_s, const char *_file_path_s,
     if (quantize_find_tensor(&_qt_ctx, "model.language_model.embed_tokens.weight")) {
         model_prefix = "model.language_model.";
         log_msg(stdout, "INFO: Detected VLM tensor naming convention (vision weights will be ignored).\n");
-    } else {
+    }
+    else {
         log_msg(stdout, "INFO: Detected standard text-only tensor naming convention.\n");
     }
 

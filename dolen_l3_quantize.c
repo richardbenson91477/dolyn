@@ -86,21 +86,25 @@ static int32_t write_layer_tensor(quantize_ctx *_qt_ctx, FILE *_file, int32_t la
 int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
         const quant_preset_t *_preset, const char *_tokenizer_path_s) {
     L3 model;
+
     memset(&model, 0, sizeof(model));
     if (load_config_l3(&model, _model_dir_s)) {
         return -1;
     }
+
     quantize_ctx qt_ctx;
     if (quantize_ctx_open(&qt_ctx, _model_dir_s)) {
         log_msg(stderr, "ERROR: Could not load safetensors metadata from %s\n", _model_dir_s);
         return -1;
     }
+
     FILE *_file = fopen(_file_path_s, "wb");
     if (! _file) {
         log_msg(stderr, "ERROR: Failed to open %s\n", _file_path_s);
         quantize_ctx_close(&qt_ctx);
         return -1;
     }
+
     config_l3 *p = &model.config;
     int32_t head_size = p->head_dim;
     int32_t kv_dim = p->n_kv_heads * head_size;
@@ -108,12 +112,14 @@ int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
     uint64_t magic = MAGIC_L3;
     uint32_t version = 2; // Bumped from 1 to 2 to account for config_l3 struct size change
     int32_t failed = 0;
+
     if (quantize_write_bytes(_file, &magic, sizeof(magic), 1) ||
             quantize_write_bytes(_file, &version, sizeof(version), 1) ||
             quantize_write_bytes(_file, p, sizeof(*p), 1)) {
         failed = 1;
         goto cleanup;
     }
+
     tokenizer tokenizer1;
     memset(&tokenizer1, 0, sizeof(tokenizer));
     build_tokenizer(&tokenizer1, _tokenizer_path_s, p->vocab_size);
@@ -122,12 +128,14 @@ int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
         failed = 1;
         goto cleanup;
     }
+
     if (quantize_write_tensor(&qt_ctx, _file, "model.embed_tokens.weight",
                 p->vocab_size, p->dim, _preset->embed)) {
         log_msg(stderr, "ERROR: Failed quantizing embedding weights\n");
         failed = 1;
         goto cleanup;
     }
+
     for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "input_layernorm.weight",
                     1, p->dim, Q_TYPE_F32)) {
@@ -135,6 +143,7 @@ int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "self_attn.q_proj.weight",
                     q_dim, p->dim, _preset->attn) ||
@@ -148,6 +157,7 @@ int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "post_attention_layernorm.weight",
                 1, p->dim, Q_TYPE_F32)) {
@@ -155,6 +165,7 @@ int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < p->n_layers; l++) {
         if (write_layer_tensor(&qt_ctx, _file, l, "mlp.gate_proj.weight",
                     p->hidden_dim, p->dim, _preset->mlp) ||
@@ -166,11 +177,13 @@ int32_t quantize_l3_to_file(const char *_model_dir_s, const char *_file_path_s,
             goto cleanup;
         }
     }
+
     if (quantize_write_tensor_or_empty(&qt_ctx, _file, "model.norm.weight",
                 1, p->dim, Q_TYPE_F32)) {
         failed = 1;
         goto cleanup;
     }
+
     if (! p->tie_word_embeddings &&
         quantize_write_tensor(&qt_ctx, _file, "lm_head.weight",
             p->vocab_size, p->dim, _preset->embed)) {

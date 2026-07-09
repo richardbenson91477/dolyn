@@ -140,6 +140,7 @@ int32_t quantize_q2_to_file(const char *_model_dir_s, const char *_file_path_s,
             goto cleanup;
         }
     }
+
     for (int32_t l = 0; l < _config->n_layers; l++) {
         if (write_layer_tensor(&_qt_ctx, _file, l, "post_attention_layernorm.weight",
                 1, _config->dim, Q_TYPE_F32)) {
