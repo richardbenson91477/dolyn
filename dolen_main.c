@@ -49,28 +49,29 @@ static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
     }
 
     int64_t start_t = 0;
-    int32_t next;
+    int32_t next_token;
     int32_t token = _prompt_tokens[0];
+
     int32_t pos = 0;
     while (pos < steps_n_max) {
         float *_logits = _model_i->forward(_model_i->_model, token, pos);
 
         if (pos < (prompt_tokens_n - 1)) {
-            next = _prompt_tokens[pos + 1];
+            next_token = _prompt_tokens[pos + 1];
         }
         else {
-            next = sample(_sampler, _logits);
+            next_token = sample(_sampler, _logits);
         }
 
         pos++;
-        if (is_stop_token(_model_i, next)) {
+        if (is_stop_token(_model_i, next_token)) {
             break;
         }
 
-        char *_piece_s = decode(_model_i->_tokenizer, next);
+        char *_piece_s = decode(_model_i->_tokenizer, next_token);
         log_msg(stdout, "%s", _piece_s);
 
-        token = next;
+        token = next_token;
 
         if (! start_t) {
             start_t = time_in_ms();
@@ -144,7 +145,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
     int32_t user_idx;
     bool user_turn_ = true;
     bool first_turn_ = true;
-    int32_t next = 0;
+    int32_t next_token = 0;
     int32_t token;
     int32_t pos = 0;
     int64_t start_t = 0;
@@ -218,15 +219,15 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
             token = _prompt_tokens[user_idx++];
         }
         else {
-            token = next;
+            token = next_token;
         }
 
         float *_logits = _model_i->forward(_model_i->_model, token, pos);
-        next = sample(_sampler, _logits);
+        next_token = sample(_sampler, _logits);
         pos++;
 
         if (user_idx >= prompt_tokens_n) {
-            if (is_stop_token(_model_i, next)) {
+            if (is_stop_token(_model_i, next_token)) {
                 log_msg(stdout, "\n");
                 int64_t end_t = time_in_ms();
                 if ((generated_tok_n > 0) &&
@@ -236,7 +237,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
                 user_turn_ = true;
             }
             else {
-                char *_piece_s = decode(_model_i->_tokenizer, next);
+                char *_piece_s = decode(_model_i->_tokenizer, next_token);
                 log_msg(stdout, "%s", _piece_s);
                 generated_tok_n++;
             }
