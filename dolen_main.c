@@ -33,55 +33,62 @@ static bool is_stop_token(const model_iface *_model_i, int32_t token) {
     return token == 2;
 }
 
-static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int32_t steps_n_max) {
-    if (_prompt_s == NULL) {
-        _prompt_s = "";
+static bool generate(model_iface *_model_i, sampler *_sampler, char *_init_prompt_s, int32_t steps_n_max) {
+    if (_init_prompt_s == NULL) {
+        _init_prompt_s = "";
     }
 
-    int32_t prompt_tokens_n = 0;
-    int32_t *_prompt_tokens = (int32_t *)a_calloc((strlen(_prompt_s) * 4 + 3) * sizeof(int32_t));
+    // Log the initial prompt
+    log_msg(stdout, "In: %s\n", _init_prompt_s);
 
-    encode(_model_i->_tokenizer, _prompt_s, _model_i->_tokenizer->bos_id, 0, _prompt_tokens, &prompt_tokens_n);
+    // PHASE 1: Tokenize Prompt
+    int32_t prompt_tokens_n = 0;
+    int32_t *_prompt_tokens = (int32_t *)a_calloc(((strlen(_init_prompt_s) * 4) + 3) * sizeof(int32_t));
+    
+    encode(_model_i->_tokenizer, _init_prompt_s, _model_i->_tokenizer->bos_id, 0, _prompt_tokens, &prompt_tokens_n);
 
     if (prompt_tokens_n < 1) {
         log_msg(stderr, "ERROR: Expected at least 1 prompt token\n");
+        free(_prompt_tokens);
         return false;
     }
 
-    int64_t start_t = 0;
-    int32_t next_token;
-    int32_t token = _prompt_tokens[0];
-
+    // PHASE 2: Prefill (Process Prompt, No Sampling)
+    // Feed all prompt tokens EXCEPT the last one to build the KV cache
     int32_t pos = 0;
+    for (int i = 0; i < prompt_tokens_n - 1; i++) {
+        _model_i->forward(_model_i->_model, _prompt_tokens[i], pos++);
+    }
+
+    // The final prompt token generates the first set of logits for sampling
+    float *_logits = _model_i->forward(_model_i->_model, _prompt_tokens[prompt_tokens_n - 1], pos++);
+    int32_t next_token = sample(_sampler, _logits);
+
+    log_msg(stdout, "Out: ");
+    int64_t start_t = time_in_ms();
+    int32_t generated_tok_n = 0;
+
+    // PHASE 3: Decode (Autoregressive Generation)
     while (pos < steps_n_max) {
-        float *_logits = _model_i->forward(_model_i->_model, token, pos);
-
-        if (pos < (prompt_tokens_n - 1)) {
-            next_token = _prompt_tokens[pos + 1];
-        }
-        else {
-            next_token = sample(_sampler, _logits);
-        }
-
-        pos++;
         if (is_stop_token(_model_i, next_token)) {
             break;
         }
 
         char *_piece_s = decode(_model_i->_tokenizer, next_token);
         log_msg(stdout, "%s", _piece_s);
+        generated_tok_n++;
 
-        token = next_token;
-
-        if (! start_t) {
-            start_t = time_in_ms();
-        }
+        // Feed generated token back in to get next logits
+        _logits = _model_i->forward(_model_i->_model, next_token, pos++);
+        next_token = sample(_sampler, _logits);
     }
-    log_msg(stdout, "\n");
 
-    if (pos > 1) {
+    log_msg(stdout, "\n");
+    
+    if (generated_tok_n > 0) {
         int64_t end_t = time_in_ms();
-        log_msg(stdout, "INFO: %f tokens per second.\n", (pos - 1) / (double)(end_t - start_t) * 1000);
+        log_msg(stdout, "INFO: %.2f tokens per second.\n", 
+                generated_tok_n / (double)(end_t - start_t) * 1000);
     }
 
     free(_prompt_tokens);
@@ -146,6 +153,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
         // PHASE 1: I/O and Command Handling
         if (first_turn_ && _init_prompt_s) {
             strncpy(_prompt_s, _init_prompt_s, prompt_n_max);
+            log_msg(stdout, "In: %s\n", _prompt_s);
         }
         else {
             log_msg(stdout, "In: ");
@@ -156,14 +164,13 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
             // Handle Commands
             if (strcmp(_prompt_s, "/clear\n") == 0) {
                 log_msg(stdout, "INFO: clearing context.\n");
-                // TODO: Call a hypothetical model_iface->reset_cache(_model_i) here!
                 pos = 0; 
                 first_turn_ = true;
                 continue;
             }
 
             if (strncmp(_prompt_s, "/read ", 6) == 0) {
-                char *_s = _prompt_s + strlen("/read ");
+                char *_s = _prompt_s + 6;
                 if ((! _s[0]) || (_s[0] == '\n')) {
                     log_msg(stderr, "ERROR: malformed read command\n");
                     continue;
@@ -179,6 +186,8 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
                 }
                 strcpy(_prompt_s, _new_prompt_s);
                 free(_new_prompt_s);
+
+                log_msg(stdout, "In: %s\n", _prompt_s);
                 continue;
             }
 
