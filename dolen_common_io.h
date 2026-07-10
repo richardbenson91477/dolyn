@@ -29,7 +29,7 @@ int64_t time_in_ms();
 
 void log_msg(FILE *_file, const char *_format, ...);
 
-void read_msg(char *_buf, size_t buf_len);
+bool read_msg(char *_buf, size_t buf_len);
 
 char *read_file(const char *_path_s);
 

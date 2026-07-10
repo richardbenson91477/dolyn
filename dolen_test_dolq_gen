@@ -7,6 +7,7 @@
 
 prompt="The capital of France is"
 seq_n=64
+seed=0
 
 model="$1"
 shift
@@ -16,5 +17,6 @@ $dolen_path/dolen_run \
         --model "$model" \
         --prompt "$prompt" \
         --seq_n "$seq_n" \
+        --seed "$seed" \
         "$@"
 

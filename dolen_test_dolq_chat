@@ -8,6 +8,7 @@
 prompt="Simply count from 1 to 10 (e.g., One, Two, ...)"
 system_prompt="You are a helpful language model."
 seq_n=1024
+seed=0
 
 model="$1"
 shift
@@ -18,5 +19,6 @@ $dolen_path/dolen_run \
         --prompt "$prompt" \
         --system_prompt "$system_prompt" \
         --seq_n "$seq_n" \
+        --seed "$seed" \
         "$@"
 

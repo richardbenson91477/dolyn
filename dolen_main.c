@@ -131,124 +131,119 @@ static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_,
     return _rendered_s;
 }
 
-static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_s, char *_init_prompt_s,
-        int32_t prompt_n_max, int32_t steps_n_max) {
-    const chat_template *_chat_tmpl = _model_i->_chat_template;
-    if (! _chat_tmpl) {
-        _chat_tmpl = &CHAT_TEMPLATE_CHATML;
-    }
-
-    int32_t _rendered_len = 0;
-    char *_rendered_prompt_s = NULL;
-    int32_t prompt_tokens_n = 0;
-    int32_t *_prompt_tokens = NULL;
-    int32_t user_idx;
-    bool user_turn_ = true;
+static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_s, 
+        char *_init_prompt_s, int32_t prompt_n_max, int32_t steps_n_max) {
+    
+    const chat_template *_chat_tmpl = _model_i->_chat_template ? _model_i->_chat_template : &CHAT_TEMPLATE_CHATML;
     bool first_turn_ = true;
-    int32_t next_token = 0;
-    int32_t token;
     int32_t pos = 0;
-    int64_t start_t = 0;
-    int32_t generated_tok_n = 0;
-
+    
+    // Allocate reusable buffers
     char *_prompt_s = (char *)a_calloc((prompt_n_max + 1) * sizeof(char));
+    int32_t *_prompt_tokens = NULL;
 
     while (pos < steps_n_max) {
-        while (user_turn_) {
-            if (first_turn_ &&
-                    _init_prompt_s) {
-                strncpy(_prompt_s, _init_prompt_s, prompt_n_max);
+        // PHASE 1: I/O and Command Handling
+        if (first_turn_ && _init_prompt_s) {
+            strncpy(_prompt_s, _init_prompt_s, prompt_n_max);
+        }
+        else {
+            log_msg(stdout, "In: ");
+            if (! read_msg(_prompt_s, prompt_n_max)) {
+                break; // EOF or error
             }
-            else {
-                log_msg(stdout, "In: ");
-                read_msg(_prompt_s, prompt_n_max);
+            
+            // Handle Commands
+            if (strcmp(_prompt_s, "/clear\n") == 0) {
+                log_msg(stdout, "INFO: clearing context.\n");
+                // TODO: Call a hypothetical model_iface->reset_cache(_model_i) here!
+                pos = 0; 
+                first_turn_ = true;
+                continue;
+            }
 
-                if (! strcmp(_prompt_s, "/clear\n")) {
-                    log_msg(stdout, "INFO: clearing.\n");
-                    pos = 0;
+            if (strncmp(_prompt_s, "/read ", 6) == 0) {
+                char *_s = _prompt_s + strlen("/read ");
+                if ((! _s[0]) || (_s[0] == '\n')) {
+                    log_msg(stderr, "ERROR: malformed read command\n");
                     continue;
                 }
-                else if (! strncmp(_prompt_s, "/read ", strlen("/read "))) {
-                    char *_s = _prompt_s + strlen("/read ");
-                    if ((! _s[0]) || (_s[0] == '\n')) {
-                        log_msg(stderr, "ERROR: malformed read command\n");
-                        continue;
-                    }
-                    _s[strlen(_s) - 1] = 0;
+                _s[strlen(_s) - 1] = 0;
 
-                    log_msg(stdout, "INFO: reading \"%s\".\n", _s);
+                log_msg(stdout, "INFO: reading \"%s\".\n", _s);
 
-                    char *_new_prompt_s = read_file(_s);
-                    if (! _new_prompt_s) {
-                        log_msg(stderr, "ERROR: read_file \"%s\" failed\n", _s);
-                        continue;
-                    }
-                    strcpy(_prompt_s, _new_prompt_s);
-                    free(_new_prompt_s);
+                char *_new_prompt_s = read_file(_s);
+                if (! _new_prompt_s) {
+                    log_msg(stderr, "ERROR: read_file \"%s\" failed\n", _s);
+                    continue;
                 }
+                strcpy(_prompt_s, _new_prompt_s);
+                free(_new_prompt_s);
+                continue;
             }
 
             if (_prompt_s[0] == '\0') {
                 continue;
             }
-
-            _rendered_prompt_s = render_chat_turn(_chat_tmpl, first_turn_, _system_prompt_s, _prompt_s, &_rendered_len);
-
-            if (_prompt_tokens) {
-                free(_prompt_tokens);
-            }
-
-            _prompt_tokens = (int32_t *)a_calloc(((size_t)_rendered_len * 4 + 3) * sizeof(int32_t));
-
-            int32_t bos_token = first_turn_ ? _model_i->_tokenizer->bos_id : 0;
-            encode(_model_i->_tokenizer, _rendered_prompt_s, bos_token, 0, _prompt_tokens, &prompt_tokens_n);
-
-            free(_rendered_prompt_s);
-            _rendered_prompt_s = NULL;
-
-            user_idx = 0;
-            user_turn_ = false;
-            first_turn_ = false;
-            generated_tok_n = 0;
-            start_t = time_in_ms();
-
-            log_msg(stdout, "Out: ");
         }
 
-        if (user_idx < prompt_tokens_n) {
-            token = _prompt_tokens[user_idx++];
+        // PHASE 2: Render & Tokenize (Prefill Prep)
+        int32_t _rendered_len = 0;
+        char *_rendered_prompt_s = render_chat_turn(_chat_tmpl, first_turn_, _system_prompt_s, _prompt_s, &_rendered_len);
+        
+        // Reallocate token buffer if needed
+        if (_prompt_tokens) {
+            free(_prompt_tokens);
         }
-        else {
-            token = next_token;
+        _prompt_tokens = (int32_t *)a_calloc(((size_t)_rendered_len * 4 + 3) * sizeof(int32_t));
+        
+        int32_t bos_token = first_turn_ ? _model_i->_tokenizer->bos_id : 0;
+        int32_t prompt_tokens_n = 0;
+        encode(_model_i->_tokenizer, _rendered_prompt_s, bos_token, 0, _prompt_tokens, &prompt_tokens_n);
+        free(_rendered_prompt_s);
+        
+        first_turn_ = false;
+        if (prompt_tokens_n < 1) {
+            continue;
         }
 
-        float *_logits = _model_i->forward(_model_i->_model, token, pos);
-        next_token = sample(_sampler, _logits);
-        pos++;
+        // PHASE 3: Prefill (Process Prompt, No Sampling)
+        // Feed all prompt tokens EXCEPT the last one to build the KV cache
+        for (int i = 0; i < prompt_tokens_n - 1; i++) {
+            _model_i->forward(_model_i->_model, _prompt_tokens[i], pos++);
+        }
+        
+        // The final prompt token generates the first set of logits
+        float *_logits = _model_i->forward(_model_i->_model, _prompt_tokens[prompt_tokens_n - 1], pos++);
+        int32_t next_token = sample(_sampler, _logits);
+        
+        log_msg(stdout, "Out: ");
+        int64_t start_t = time_in_ms();
+        int32_t generated_tok_n = 0;
 
-        if (user_idx >= prompt_tokens_n) {
+        // PHASE 4: Decode (Autoregressive Generation)
+        while (pos < steps_n_max) {
             if (is_stop_token(_model_i, next_token)) {
-                log_msg(stdout, "\n");
-                int64_t end_t = time_in_ms();
-                if ((generated_tok_n > 0) &&
-                        ((end_t - start_t) > 0)) {
-                    log_msg(stdout, "\ntok/s: %.2f\n", generated_tok_n / (double)(end_t - start_t) * 1000);
-                }
-                user_turn_ = true;
+                break;
             }
-            else {
-                char *_piece_s = decode(_model_i->_tokenizer, next_token);
-                log_msg(stdout, "%s", _piece_s);
-                generated_tok_n++;
-            }
+            
+            char *_piece_s = decode(_model_i->_tokenizer, next_token);
+            log_msg(stdout, "%s", _piece_s);
+            generated_tok_n++;
+            
+            // Feed generated token back in
+            _logits = _model_i->forward(_model_i->_model, next_token, pos++);
+            next_token = sample(_sampler, _logits);
+        }
+        
+        log_msg(stdout, "\n");
+        if (generated_tok_n > 0) {
+            int64_t end_t = time_in_ms();
+            log_msg(stdout, "\ntok/s: %.2f\n", generated_tok_n / (double)(end_t - start_t) * 1000);
         }
     }
-    log_msg(stdout, "\n");
 
-    if (_prompt_tokens) {
-        free(_prompt_tokens);
-    }
-
+    free(_prompt_tokens);
     free(_prompt_s);
 }
 

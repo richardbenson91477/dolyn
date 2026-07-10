@@ -43,9 +43,9 @@ void log_msg(FILE *_file, const char *_format, ...) {
     va_end(args1);
 }
 
-void read_msg(char *_buf, size_t buf_len) {
+bool read_msg(char *_buf, size_t buf_len) {
     if (! buf_len) {
-        return;
+        return false;
     }
 
     char *_p = _buf;
@@ -73,6 +73,7 @@ void read_msg(char *_buf, size_t buf_len) {
     }
 
     log_msg(NULL, "%s", _buf);
+    return true;
 }
 
 char *read_file(const char *_path_s) {
