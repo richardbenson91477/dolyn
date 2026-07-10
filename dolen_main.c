@@ -21,6 +21,18 @@ static const chat_template CHAT_TEMPLATE_CHATML = {
 };
 
 
+static bool is_stop_token(const model_iface *_model_i, int32_t token) {
+    if (token == _model_i->_tokenizer->im_end_id) {
+        return true;
+    }
+    if ((_model_i->_tokenizer->eos_id > 0) &&
+            (token == _model_i->_tokenizer->eos_id)) {
+        return true;
+    }
+
+    return token == 2;
+}
+
 static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, int32_t steps_n_max) {
     if (_prompt_s == NULL) {
         _prompt_s = "";
@@ -51,7 +63,7 @@ static bool generate(model_iface *_model_i, sampler *_sampler, char *_prompt_s, 
         }
 
         pos++;
-        if (next == 1) {
+        if (is_stop_token(_model_i, next)) {
             break;
         }
 
@@ -118,18 +130,6 @@ static char *render_chat_turn(const chat_template *_chat_tmpl, bool first_turn_,
     return _rendered_s;
 }
 
-static bool is_chat_stop_token(const model_iface *_model_i, int32_t token) {
-    if (token == _model_i->_tokenizer->im_end_id) {
-        return true;
-    }
-    if ((_model_i->_tokenizer->eos_id > 0) &&
-            (token == _model_i->_tokenizer->eos_id)) {
-        return true;
-    }
-
-    return token == 2;
-}
-
 static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_s, char *_init_prompt_s,
         int32_t prompt_n_max, int32_t steps_n_max) {
     const chat_template *_chat_tmpl = _model_i->_chat_template;
@@ -148,12 +148,12 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
     int32_t token;
     int32_t pos = 0;
     int64_t start_t = 0;
-    int32_t generated_tokens = 0;
+    int32_t generated_tok_n = 0;
 
     char *_prompt_s = (char *)a_calloc((prompt_n_max + 1) * sizeof(char));
 
     while (pos < steps_n_max) {
-        if (user_turn_) {
+        while (user_turn_) {
             if (first_turn_ &&
                     _init_prompt_s) {
                 strncpy(_prompt_s, _init_prompt_s, prompt_n_max);
@@ -161,7 +161,32 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
             else {
                 log_msg(stdout, "In: ");
                 read_msg(_prompt_s, prompt_n_max);
+
+                if (! strcmp(_prompt_s, "/clear\n")) {
+                    log_msg(stdout, "INFO: clearing.\n");
+                    pos = 0;
+                    continue;
+                }
+                else if (! strncmp(_prompt_s, "/read ", strlen("/read "))) {
+                    char *_s = _prompt_s + strlen("/read ");
+                    if ((! _s[0]) || (_s[0] == '\n')) {
+                        log_msg(stderr, "ERROR: malformed read command\n");
+                        continue;
+                    }
+                    _s[strlen(_s) - 1] = 0;
+
+                    log_msg(stdout, "INFO: reading \"%s\".\n", _s);
+
+                    char *_new_prompt_s = read_file(_s);
+                    if (! _new_prompt_s) {
+                        log_msg(stderr, "ERROR: read_file \"%s\" failed\n", _s);
+                        continue;
+                    }
+                    strcpy(_prompt_s, _new_prompt_s);
+                    free(_new_prompt_s);
+                }
             }
+
             if (_prompt_s[0] == '\0') {
                 continue;
             }
@@ -183,7 +208,7 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
             user_idx = 0;
             user_turn_ = false;
             first_turn_ = false;
-            generated_tokens = 0;
+            generated_tok_n = 0;
             start_t = time_in_ms();
 
             log_msg(stdout, "Out: ");
@@ -201,19 +226,19 @@ static void chat(model_iface *_model_i, sampler *_sampler, char *_system_prompt_
         pos++;
 
         if (user_idx >= prompt_tokens_n) {
-            if (is_chat_stop_token(_model_i, next)) {
+            if (is_stop_token(_model_i, next)) {
                 log_msg(stdout, "\n");
                 int64_t end_t = time_in_ms();
-                if ((generated_tokens > 0) &&
+                if ((generated_tok_n > 0) &&
                         ((end_t - start_t) > 0)) {
-                    log_msg(stdout, "\ntok/s: %.2f\n", generated_tokens / (double)(end_t - start_t) * 1000);
+                    log_msg(stdout, "\ntok/s: %.2f\n", generated_tok_n / (double)(end_t - start_t) * 1000);
                 }
-                user_turn_ = 1;
+                user_turn_ = true;
             }
             else {
                 char *_piece_s = decode(_model_i->_tokenizer, next);
                 log_msg(stdout, "%s", _piece_s);
-                generated_tokens++;
+                generated_tok_n++;
             }
         }
     }
@@ -269,7 +294,7 @@ int32_t main(int32_t argc, char *__argv[]) {
     int32_t prompt_n_max = DOLEN_MAIN_PROMPT_N_MAX_DEFAULT;
     char *_model_path_s = NULL;
     char *_prompt_s = NULL;
-    char *_prompt_file = NULL;
+    char *_prompt_path_s = NULL;
     char *_mode_s = NULL;
     char *_system_prompt_s = NULL;
     bool think_ = DOLEN_MAIN_THINK_DEFAULT;
@@ -325,7 +350,7 @@ int32_t main(int32_t argc, char *__argv[]) {
         }
         else if ((! strcmp(__argv[i], "-pf")) ||
                 (! strcmp(__argv[i], "--prompt_file"))) {
-            _prompt_file = strdup(__argv[i + 1]);
+            _prompt_path_s = strdup(__argv[i + 1]);
         }
         else if ((! strcmp(__argv[i], "-M")) ||
                 (! strcmp(__argv[i], "--mode"))) {
@@ -390,36 +415,16 @@ int32_t main(int32_t argc, char *__argv[]) {
     }
     log_msg(stdout, "INFO: Using seed %lu\n", seed);
 
-    if (_prompt_file) {
+    if (_prompt_path_s) {
         if (_prompt_s) {
             free(_prompt_s);
-            _prompt_s = NULL;
-        }
-        FILE *_file = fopen(_prompt_file, "r");
-        if (! _file) {
-            log_msg(stderr, "ERROR: Couldn't open prompt file %s\n", _prompt_file);
-            exit(EXIT_FAILURE);
-        }
-        fseek(_file, 0, SEEK_END);
-        int64_t f_len = ftell(_file);
-        fseek(_file, 0, SEEK_SET);
-
-        if (f_len < 0) {
-            log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", _prompt_file);
-            fclose(_file);
-            exit(EXIT_FAILURE);
         }
 
-        _prompt_s = (char *)a_calloc(f_len + 1);
+        _prompt_s = read_file(_prompt_path_s);
         if (! _prompt_s) {
-            log_msg(stderr, "ERROR: Memory allocation failed for prompt file\n");
-            fclose(_file);
+            log_msg(stderr, "ERROR: read_file \"%s\" failed\n", _prompt_path_s);
             exit(EXIT_FAILURE);
         }
-
-        size_t read_bytes = fread(_prompt_s, 1, f_len, _file);
-        _prompt_s[read_bytes] = '\0';
-        fclose(_file);
     }
 
     const char *_model_type_s = "unknown";
@@ -469,6 +474,14 @@ int32_t main(int32_t argc, char *__argv[]) {
     _model_i->free_model(_model_i->_model);
 
     free(_model_i);
+
+    if (_prompt_s) {
+        free(_prompt_s);
+    }
+
+    if (_system_prompt_s) {
+        free(_system_prompt_s);
+    }
 
     return 0;
 }

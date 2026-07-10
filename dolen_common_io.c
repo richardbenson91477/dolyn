@@ -1,4 +1,5 @@
 #include "dolen_common_io.h"
+#include "dolen_common_mem.h"
 
 
 char *_log_path = NULL;
@@ -72,6 +73,37 @@ void read_msg(char *_buf, size_t buf_len) {
     }
 
     log_msg(NULL, "%s", _buf);
+}
+
+char *read_file(const char *_path_s) {
+    FILE *_file = fopen(_path_s, "r");
+    if (! _file) {
+        log_msg(stderr, "ERROR: Couldn't open prompt file %s\n", _path_s);
+        return(NULL);
+    }
+
+    fseek(_file, 0, SEEK_END);
+    int64_t f_len = ftell(_file);
+    fseek(_file, 0, SEEK_SET);
+
+    if (f_len < 0) {
+        log_msg(stderr, "ERROR: Failed to determine size of prompt file %s\n", _path_s);
+        fclose(_file);
+        return NULL;
+    }
+
+    char *_in_s = (char *)a_calloc(f_len + 1);
+    if (! _in_s) {
+        log_msg(stderr, "ERROR: Memory allocation failed in read_file\n");
+        fclose(_file);
+        return(NULL);
+    }
+
+    size_t read_bytes = fread(_in_s, 1, f_len, _file);
+    _in_s[read_bytes] = '\0';
+    fclose(_file);
+
+    return _in_s;
 }
 
 float get_json_float_val(JsonValue *_json_val, float def) {

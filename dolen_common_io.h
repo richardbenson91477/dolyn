@@ -31,6 +31,8 @@ void log_msg(FILE *_file, const char *_format, ...);
 
 void read_msg(char *_buf, size_t buf_len);
 
+char *read_file(const char *_path_s);
+
 float get_json_float_val(JsonValue *_json_val, float def);
 
 int32_t seek_abs(FILE *_file, uint64_t offset);
