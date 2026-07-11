@@ -4,8 +4,8 @@ export OMP_PROC_BIND := close
 
 CC := gcc
 CFLAGS = -fPIC 
-CFLAGS_OPT = $(CFLAGS) -fopenmp -O3 -pipe -march=x86-64-v4 -fomit-frame-pointer -funroll-loops -fpermissive
-CFLAGS_DBG = $(CFLAGS) -fopenmp -Og -ggdb -fkeep-inline-functions
+CFLAGS_OPT = $(CFLAGS) -mf16c -fopenmp -O3 -pipe -march=x86-64-v4 -fomit-frame-pointer -funroll-loops -fpermissive
+CFLAGS_DBG = $(CFLAGS) -mf16c -fopenmp -Og -ggdb -fkeep-inline-functions
 
 SRC_EXT = ext/csafetensors.c ext/json.c
 INC_EXT = ext/csafetensors.h ext/json.h

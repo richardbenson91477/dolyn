@@ -263,8 +263,13 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
             rmsnorm_g4(_state->_v + h * head_dim, _state->_v + h * head_dim, NULL, head_dim, eps, false);
         }
 
-        memcpy(_state->__key_cache[l] + (int64_t)pos * kv_dim, _state->_k, kv_dim * sizeof(float));
-        memcpy(_state->__value_cache[l] + (int64_t)pos * kv_dim, _state->_v, kv_dim * sizeof(float));
+        _Float16 *_k_cache_row = _state->__key_cache[l] + (int64_t)pos * kv_dim;
+        _Float16 *_v_cache_row = _state->__value_cache[l] + (int64_t)pos * kv_dim;
+#pragma omp simd
+        for (int32_t i = 0; i < kv_dim; i++) {
+            _k_cache_row[i] = (_Float16)_state->_k[i];
+            _v_cache_row[i] = (_Float16)_state->_v[i];
+        }
 
         int32_t start_t = is_full ? 0 : fmax(0, pos - _config->sliding_window + 1);
 

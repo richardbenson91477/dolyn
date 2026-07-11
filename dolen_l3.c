@@ -166,8 +166,13 @@ float *forward_l3(L3 *_model, int32_t token, int32_t pos) {
             apply_rope(_state->_k + h * head_size, _state->_cos_cache, _state->_sin_cache, head_size, pos);
         }
 
-        memcpy(_state->__key_cache[l] + (int64_t)pos * kv_dim, _state->_k, kv_dim * sizeof(float));
-        memcpy(_state->__value_cache[l] + (int64_t)pos * kv_dim, _state->_v, kv_dim * sizeof(float));
+        _Float16 *_k_cache_row = _state->__key_cache[l] + (int64_t)pos * kv_dim;
+        _Float16 *_v_cache_row = _state->__value_cache[l] + (int64_t)pos * kv_dim; 
+#pragma omp simd
+        for (int32_t i = 0; i < kv_dim; i++) {
+            _k_cache_row[i] = (_Float16)_state->_k[i];
+            _v_cache_row[i] = (_Float16)_state->_v[i];
+        }
 
         float inv_sqrt_head = 1.0f / sqrtf((float)head_size);
 #pragma omp parallel for

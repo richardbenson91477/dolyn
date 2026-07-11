@@ -145,7 +145,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
             float *_cos_row = _state->_cos_cache + pos * rotary_half;
             float *_sin_row = _state->_sin_cache + pos * rotary_half;
 
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int32_t h = 0; h < _config->n_heads; h++) {
                 float *_q = _state->_q + h * _config->head_dim;
                 for (int32_t j = 0; j < rotary_half; j++) {
@@ -156,7 +156,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
                 }
             }
 
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int32_t h = 0; h < _config->n_kv_heads; h++) {
                 float *_k = _state->_k + h * _config->head_dim;
                 for (int32_t j = 0; j < rotary_half; j++) {
@@ -167,7 +167,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
                 }
             }
         } else {
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int32_t h = 0; h < _config->n_heads; h++) {
                 float *_q = _state->_q + h * _config->head_dim;
                 for (int32_t j = 0; j < rotary_half; j++) {
@@ -180,7 +180,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
                 }
             }
 
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int32_t h = 0; h < _config->n_kv_heads; h++) {
                 float *_k = _state->_k + h * _config->head_dim;
                 for (int32_t j = 0; j < rotary_half; j++) {
@@ -194,10 +194,15 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
             }
         }
 
-        memcpy(_state->_key_cache + loff + pos * kv_dim, _state->_k, kv_dim * sizeof(float));
-        memcpy(_state->_value_cache + loff + pos * kv_dim, _state->_v, kv_dim * sizeof(float));
+        _Float16 *_k_cache_row = _state->_key_cache + loff + pos * kv_dim;
+        _Float16 *_v_cache_row = _state->_value_cache + loff + pos * kv_dim;
+#pragma omp simd
+        for (int32_t i = 0; i < kv_dim; i++) {
+            _k_cache_row[i] = (_Float16)_state->_k[i];
+            _v_cache_row[i] = (_Float16)_state->_v[i];
+        }
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int32_t h = 0; h < _config->n_heads; h++) {
             float *_q = _state->_q + h * _config->head_dim;
             float *_att = _state->_att + h * _state->seq_n;
@@ -215,7 +220,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
                 } else {
                     const _Float16 *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                     float score = 0.0f;
-                    #pragma omp simd reduction(+ : score)
+#pragma omp simd reduction(+ : score)
                     for (int32_t i = 0; i < _config->head_dim; i++) {
                         score += _q[i] * (float)_k[i];
                     }
@@ -230,7 +235,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
             for (int32_t t = t_start; t <= pos; t++) {
                 const _Float16 *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                 float a = _att[t];
-                #pragma omp simd
+#pragma omp simd
                 for (int32_t i = 0; i < _config->head_dim; i++) {
                     _xb[i] += a * (float)_v[i];
                 }
@@ -250,7 +255,7 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
         matmul_qq(_state->_hb, &_state->xq, &_weights->_w1[l]);
         matmul_qq(_state->_hb2, &_state->xq, &_weights->_w3[l]);
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int32_t i = 0; i < _config->hidden_dim; i++) {
             _state->_hb[i] = _state->_hb[i] * (1.0f / (1.0f + expf(-_state->_hb[i]))) * _state->_hb2[i];
         }

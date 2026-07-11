@@ -221,8 +221,13 @@ float *forward_q2(Q2 *_model, int32_t token, int32_t pos) {
             }
         }
 
-        memcpy(_state->_key_cache + loff + pos * kv_dim, _state->_k, kv_dim * sizeof(float));
-        memcpy(_state->_value_cache + loff + pos * kv_dim, _state->_v, kv_dim * sizeof(float));
+        _Float16 *_k_cache_row = _state->_key_cache + loff + pos * kv_dim;
+        _Float16 *_v_cache_row = _state->_value_cache + loff + pos * kv_dim;
+#pragma omp simd
+        for (int32_t i = 0; i < kv_dim; i++) {
+            _k_cache_row[i] = (_Float16)_state->_k[i];
+            _v_cache_row[i] = (_Float16)_state->_v[i];
+        }
 
 #pragma omp parallel for
         for (int32_t h = 0; h < _config->n_heads; h++) {
