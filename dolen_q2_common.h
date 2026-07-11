@@ -59,8 +59,8 @@ typedef struct {
     float *_v;                  // value buffer (kv heads)
     float *_att;                // attention scores
     float *_logits;
-    float *_key_cache;
-    float *_value_cache;
+    _Float16 *_key_cache;
+    _Float16 *_value_cache;
     float *_cos_cache;          // precomputed cos
     float *_sin_cache;          // precomputed sin
 } state_q2;

@@ -177,11 +177,11 @@ float *forward_l3(L3 *_model, int32_t token, int32_t pos) {
             int32_t kv_head = h / kv_mul;
 
             for (int32_t t = 0; t <= pos; t++) {
-                float *_k = _state->__key_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;
+                const _Float16 *_k = _state->__key_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;
                 float score = 0.0f;
 #pragma omp simd reduction(+ : score)
                 for (int32_t i = 0; i < head_size; i++) {
-                    score += _q[i] * _k[i];
+                    score += _q[i] * (float)_k[i];
                 }
                 _att[t] = score * inv_sqrt_head;
             }
@@ -190,11 +190,11 @@ float *forward_l3(L3 *_model, int32_t token, int32_t pos) {
             float *_x_out = _state->_xb + h * head_size;
             memset(_x_out, 0, head_size * sizeof(float));
             for (int32_t t = 0; t <= pos; t++) {
-                float *_v = _state->__value_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;
+                const _Float16 *_v = _state->__value_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_size;
                 float a = _att[t];
 #pragma omp simd
                 for (int32_t i = 0; i < head_size; i++) {
-                    _x_out[i] += a * _v[i];
+                    _x_out[i] += a * (float)_v[i];
                 }
             }
         }

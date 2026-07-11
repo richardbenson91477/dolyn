@@ -51,8 +51,8 @@ typedef struct {
     float *_v;
     float *_att;
     float *_logits;
-    float **__key_cache;
-    float **__value_cache;
+    _Float16 **__key_cache;
+    _Float16 **__value_cache;
     qtensor xq;
     qtensor hq;
     float *_cos_cache;

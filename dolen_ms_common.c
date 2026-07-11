@@ -32,8 +32,8 @@ bool alloc_state_ms(MS *_model, int32_t seq_n) {
     _state->_v = a_calloc((size_t)kv_dim * sizeof(float));
     _state->_att = a_calloc((size_t)_config->n_heads * seq_n * sizeof(float));
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
-    _state->_key_cache = a_calloc((size_t)_config->n_layers * seq_n * kv_dim * sizeof(float));
-    _state->_value_cache = a_calloc((size_t)_config->n_layers * seq_n * kv_dim * sizeof(float));
+    _state->_key_cache = a_calloc((size_t)_config->n_layers * seq_n * kv_dim * sizeof(_Float16));
+    _state->_value_cache = a_calloc((size_t)_config->n_layers * seq_n * kv_dim * sizeof(_Float16));
 
     int32_t rotary_half = _config->head_dim / 2;
     if (rotary_half > 0) {

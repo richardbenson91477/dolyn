@@ -213,11 +213,11 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
                 if (t < t_start) {
                     _att[t] = -1e30f; // Mask out tokens outside the sliding window
                 } else {
-                    float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
+                    const _Float16 *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                     float score = 0.0f;
                     #pragma omp simd reduction(+ : score)
                     for (int32_t i = 0; i < _config->head_dim; i++) {
-                        score += _q[i] * _k[i];
+                        score += _q[i] * (float)_k[i];
                     }
                     _att[t] = score / sqrtf(_config->head_dim);
                 }
@@ -228,11 +228,11 @@ float *forward_ms(MS *_model, int32_t token, int32_t pos) {
             float *_xb = _state->_xb + h * _config->head_dim;
             memset(_xb, 0, _config->head_dim * sizeof(float));
             for (int32_t t = t_start; t <= pos; t++) {
-                float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
+                const _Float16 *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * _config->head_dim;
                 float a = _att[t];
                 #pragma omp simd
                 for (int32_t i = 0; i < _config->head_dim; i++) {
-                    _xb[i] += a * _v[i];
+                    _xb[i] += a * (float)_v[i];
                 }
             }
         }

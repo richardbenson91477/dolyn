@@ -55,8 +55,8 @@ typedef struct {
     float *_v;
     float *_att;
     float *_logits;
-    float *_key_cache;
-    float *_value_cache;
+    _Float16 *_key_cache;
+    _Float16 *_value_cache;
     float *_cos_cache;
     float *_sin_cache;
 } state_q3;

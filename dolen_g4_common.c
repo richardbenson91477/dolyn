@@ -36,8 +36,8 @@ bool alloc_state_g4(G4 *_model, int32_t seq_n) {
     _state->_logits = a_calloc((size_t)_config->vocab_size * sizeof(float));
 
     _state->n_layers = _config->n_layers;
-    _state->__key_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
-    _state->__value_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
+    _state->__key_cache = (_Float16 **)a_calloc((size_t)_config->n_layers * sizeof(_Float16 *));
+    _state->__value_cache = (_Float16 **)a_calloc((size_t)_config->n_layers * sizeof(_Float16 *));
     for (int32_t l = 0; l < _config->n_layers; l++) {
         int32_t is_full = _model->_layer_types ? _model->_layer_types[l] : 0;
         int32_t kv_heads = is_full ? _config->n_global_kv_heads : _config->n_kv_heads;

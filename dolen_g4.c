@@ -280,12 +280,12 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
 
             float attn_scale = 1.0f;
             for (int32_t t = start_t; t <= pos; t++) {
-                float *_k = _state->__key_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_dim;
+                const _Float16 *_k = _state->__key_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_dim;
                 float score = 0.0f;
 
 #pragma omp simd reduction(+ : score)
                 for (int32_t i = 0; i < head_dim; i++) {
-                    score += _q[i] * _k[i];
+                    score += _q[i] * (float)_k[i];
                 }
                 _att[t] = score * attn_scale;
             }
@@ -294,12 +294,12 @@ float *forward_g4(G4 *_model, int32_t token, int32_t pos) {
             float *_out = _state->_hb + h * head_dim;
             memset(_out, 0, head_dim * sizeof(float));
             for (int32_t t = start_t; t <= pos; t++) {
-                float *_v = _state->__value_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_dim;
+                const _Float16 *_v = _state->__value_cache[l] + (int64_t)t * kv_dim + (int64_t)kv_head * head_dim;
                 float a = _att[t];
 
 #pragma omp simd
                 for (int32_t i = 0; i < head_dim; i++) {
-                    _out[i] += a * _v[i];
+                    _out[i] += a * (float)_v[i];
                 }
             }
         }

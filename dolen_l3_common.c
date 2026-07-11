@@ -50,8 +50,8 @@ bool alloc_state_l3(L3 *_model, int seq_n) {
     _state->hq.cols = max_act_dim;
 
     _state->n_layers = _config->n_layers;
-    _state->__key_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
-    _state->__value_cache = (float **)a_calloc((size_t)_config->n_layers * sizeof(float *));
+    _state->__key_cache = (_Float16 **)a_calloc((size_t)_config->n_layers * sizeof(_Float16 *));
+    _state->__value_cache = (_Float16 **)a_calloc((size_t)_config->n_layers * sizeof(_Float16 *));
     
     if ((! _state->__key_cache) ||
             (! _state->__value_cache)) {
@@ -60,7 +60,7 @@ bool alloc_state_l3(L3 *_model, int seq_n) {
     }
 
     for (int32_t l = 0; l < _config->n_layers; l++) {
-        size_t cache_size = (size_t)seq_n * kv_dim * sizeof(float);
+        size_t cache_size = (size_t)seq_n * kv_dim * sizeof(_Float16);
         _state->__key_cache[l] = a_calloc(cache_size);
         _state->__value_cache[l] = a_calloc(cache_size);
         

@@ -71,8 +71,8 @@ typedef struct {
     float *_att;
     float *_logits;
     float *_gate;
-    float *_key_cache;
-    float *_value_cache;
+    _Float16 *_key_cache;
+    _Float16 *_value_cache;
     float *_qkv;
     float *_z;
     float *_beta;

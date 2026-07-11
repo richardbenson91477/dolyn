@@ -240,8 +240,8 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
     int32_t kv_mul = _config->n_heads / _config->n_kv_heads;
     int64_t loff = (int64_t)la * _state->seq_n * kv_dim;
     float eps = _config->rms_norm_eps;
-    float *_key_cache_row = _state->_key_cache + loff + pos * kv_dim;
-    float *_value_cache_row = _state->_value_cache + loff + pos * kv_dim;
+    _Float16 *_key_cache_row = _state->_key_cache + loff + pos * kv_dim;
+    _Float16 *_value_cache_row = _state->_value_cache + loff + pos * kv_dim;
     float *_rms_att_weight = (float *)_weights->_rms_att_weight[l]._data;
     float *_q_norm = (float *)_weights->_q_norm[la]._data;
     float *_k_norm = (float *)_weights->_k_norm[la]._data;
@@ -306,8 +306,11 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
         }
     }
 
-    memcpy(_key_cache_row, _state->_k, kv_dim * sizeof(float));
-    memcpy(_value_cache_row, _state->_v, kv_dim * sizeof(float));
+#pragma omp simd
+    for (int32_t i = 0; i < kv_dim; i++) {
+        _key_cache_row[i] = (_Float16)_state->_k[i];
+        _value_cache_row[i] = (_Float16)_state->_v[i];
+    }
 
     float inv_sqrt_head = 1.0f / sqrtf((float)head_size);
 
@@ -317,11 +320,11 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
         float *_att = _state->_att + h * _state->seq_n;
 
         for (int32_t t = 0; t <= pos; t++) {
-            float *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            const _Float16 *_k = _state->_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float score = 0.0f;
 #pragma omp simd reduction(+ : score)
             for (int32_t i = 0; i < head_size; i++) {
-                score += _q[i] * _k[i];
+                score += _q[i] * (float)_k[i];
             }
             _att[t] = score * inv_sqrt_head;
         }
@@ -332,11 +335,11 @@ void forward_q3_5_attention_layer(Q3_5 *_model, int32_t l, int32_t la, int32_t p
         memset(_xb, 0, head_size * sizeof(float));
 
         for (int32_t t = 0; t <= pos; t++) {
-            float *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            const _Float16 *_v = _state->_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
             float a = _att[t];
 #pragma omp simd
             for (int32_t i = 0; i < head_size; i++) {
-                _xb[i] += a * _v[i];
+                _xb[i] += a * (float)_v[i];
             }
         }
 
