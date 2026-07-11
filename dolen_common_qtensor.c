@@ -442,10 +442,9 @@ void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtenso
                 int32_t acc = 0;
 #pragma omp simd reduction(+ : acc)
                 for (int32_t k = 0; k < GROUP_SIZE; k++) {
-                    acc += (int32_t)_x_q[offset + k] * (int32_t)w_local[k];
+                    acc += _x_q[offset + k] * w_local[k];
                 }
-                val += (float)acc * _w_row_s[g] * _x_s[g];
-            }
+                val += (float)acc * _w_row_s[g] * _x_s[g];            }
 
             int32_t rem_start = full_groups * GROUP_SIZE;
             if (rem_start < n) {
@@ -491,7 +490,6 @@ void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtenso
                 
                 // 1. Unpack 64 Q4 weights into straight int8_t
                 for (int32_t k = 0; k < GROUP_SIZE / 2; k++) {
-                    // FIX: Must be int8_t to preserve arithmetic right shift (sign extension)
                     int8_t p = (int8_t)_w_row[(offset / 2) + k];
                     w_local[k * 2]     = ((int8_t)(p << 4)) >> 4;
                     w_local[k * 2 + 1] = (int8_t)(p >> 4);
@@ -501,7 +499,7 @@ void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtenso
                 int32_t acc = 0;
 #pragma omp simd reduction(+ : acc)
                 for (int32_t k = 0; k < GROUP_SIZE; k++) {
-                    acc += (int32_t)_x_q[offset + k] * (int32_t)w_local[k];
+                    acc += _x_q[offset + k] * w_local[k];
                 }
                 val += (float)acc * _w_row_s[g] * _x_s[g];
             }
@@ -524,119 +522,6 @@ void matmul_qq(float *restrict _output, const qtensor *restrict _x, const qtenso
             _output[i] = val;
         }
     }
-    /*
-    else if (_w->type == Q_TYPE_Q6) {
-        const uint8_t *_w_q = (const uint8_t *)_w->_data;
-        const float *_w_s = _w->_scales;
-#pragma omp parallel for schedule(static)
-        for (int32_t i = 0; i < d; i++) {
-            float val = 0.0f;
-            const uint8_t *_w_row = _w_q + ((size_t)i * n * 3) / 4;
-            const float *_w_row_s = _w_s + (size_t)i * n_groups;
-
-            for (int32_t g = 0; g < full_groups; g++) {
-                int32_t acc = 0;
-                const int32_t offset = g * GROUP_SIZE;
-#pragma omp simd reduction(+ : acc)
-                for (int32_t k = 0; k < GROUP_SIZE; k += 4) {
-                    int32_t idx = (offset + k) / 4 * 3;
-                    uint8_t b0 = _w_row[idx];
-                    uint8_t b1 = _w_row[idx + 1];
-                    uint8_t b2 = _w_row[idx + 2];
-
-                    uint8_t u0 = b0 & 0x3F;
-                    uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
-                    uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
-                    uint8_t u3 = (b2 >> 2) & 0x3F;
-
-                    int32_t w0 = (int32_t)((u0 ^ 0x20) - 0x20);
-                    int32_t w1 = (int32_t)((u1 ^ 0x20) - 0x20);
-                    int32_t w2 = (int32_t)((u2 ^ 0x20) - 0x20);
-                    int32_t w3 = (int32_t)((u3 ^ 0x20) - 0x20);
-
-                    acc += (int32_t)_x_q[offset + k]     * w0;
-                    acc += (int32_t)_x_q[offset + k + 1] * w1;
-                    acc += (int32_t)_x_q[offset + k + 2] * w2;
-                    acc += (int32_t)_x_q[offset + k + 3] * w3;
-                }
-                val += (float)acc * _w_row_s[g] * _x_s[g];
-            }
-            int32_t rem_start = full_groups * GROUP_SIZE;
-            if (rem_start < n) {
-                int32_t acc = 0;
-                for (int32_t k = rem_start; k < n; k += 4) {
-                    int32_t idx = k / 4 * 3;
-                    uint8_t b0 = _w_row[idx];
-                    uint8_t b1 = _w_row[idx + 1];
-                    uint8_t b2 = _w_row[idx + 2];
-
-                    uint8_t u0 = b0 & 0x3F;
-                    uint8_t u1 = ((b0 >> 6) & 0x03) | ((b1 & 0x0F) << 2);
-                    uint8_t u2 = ((b1 >> 4) & 0x0F) | ((b2 & 0x03) << 4);
-                    uint8_t u3 = (b2 >> 2) & 0x3F;
-
-                    int32_t w0 = (int32_t)((u0 ^ 0x20) - 0x20);
-                    int32_t w1 = (int32_t)((u1 ^ 0x20) - 0x20);
-                    int32_t w2 = (int32_t)((u2 ^ 0x20) - 0x20);
-                    int32_t w3 = (int32_t)((u3 ^ 0x20) - 0x20);
-
-                    acc += (int32_t)_x_q[k] * w0;
-                    if (k + 1 < n) {
-                        acc += (int32_t)_x_q[k + 1] * w1;
-                    }
-                    if (k + 2 < n) {
-                        acc += (int32_t)_x_q[k + 2] * w2;
-                    }
-                    if (k + 3 < n) {
-                        acc += (int32_t)_x_q[k + 3] * w3;
-                    }
-                }
-                val += (float)acc * _w_row_s[full_groups] * _x_s[full_groups];
-            }
-            _output[i] = val;
-        }
-    }
-    else if (_w->type == Q_TYPE_Q4) {
-        const uint8_t *_w_q = (const uint8_t *)_w->_data;
-        const float *_w_s = _w->_scales;
-#pragma omp parallel for schedule(static)
-        for (int32_t i = 0; i < d; i++) {
-            float val = 0.0f;
-            const uint8_t *_w_row = _w_q + ((size_t)i * n) / 2;
-            const float *_w_row_s = _w_s + (size_t)i * n_groups;
-
-            for (int32_t g = 0; g < full_groups; g++) {
-                int32_t acc = 0;
-                const int32_t offset = g * GROUP_SIZE;
-#pragma omp simd reduction(+ : acc)
-                for (int32_t k = 0; k < GROUP_SIZE; k += 2) {
-                    int8_t p = (int8_t)_w_row[(offset + k) / 2];
-                    int8_t w0 = ((int8_t)(p << 4)) >> 4; 
-                    int8_t w1 = (int8_t)(p >> 4);
-                    acc += (int32_t)_x_q[offset + k] * w0;
-                    acc += (int32_t)_x_q[offset + k + 1] * w1;
-                }
-                val += (float)acc * _w_row_s[g] * _x_s[g];
-            }
-            int32_t rem_start = full_groups * GROUP_SIZE;
-            if (rem_start < n) {
-                int32_t acc = 0;
-#pragma omp simd reduction(+ : acc)
-                for (int32_t k = rem_start; k < n; k += 2) {
-                    int8_t p = (int8_t)_w_row[k / 2];
-                    int8_t w0 = ((int8_t)(p << 4)) >> 4; 
-                    acc += (int32_t)_x_q[k] * w0;
-                    if (k + 1 < n) {
-                        int8_t w1 = (int8_t)(p >> 4);
-                        acc += (int32_t)_x_q[k + 1] * w1;
-                    }
-                }
-                val += (float)acc * _w_row_s[full_groups] * _x_s[full_groups];
-            }
-            _output[i] = val;
-        }
-    }
-    */
 }
 
 void free_qt(qtensor *_qt) {
