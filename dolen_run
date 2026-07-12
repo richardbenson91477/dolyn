@@ -4,7 +4,7 @@
 _bin_name="dolen_run"
 _prefix="${_bin_name}"
 _defaults_base="${dolen_path}/${_bin_name}_defaults/${_bin_name}_defaults"
-_suffixes="model temp top_k top_p seed seq_n prompt_n prompt mode system_prompt log think threads_n"
+_suffixes="model temp top_k top_p seed seq_n prompt_n prompt mode system_prompt chat_template log think threads_n"
 
 envarg_parse "$_bin_name" "$_prefix" "$_defaults_base" "$_suffixes" "$@" &&\
   shift $envarg_parse_shift_count
@@ -16,18 +16,19 @@ export OMP_PROC_BIND="close"
 
 
 echo "$0: running $dolen_path/dolen " \
-    "--model \"${dolen_run_model}\" \
-    "--temp \"${dolen_run_temp}\" \
-    "--top_k \"${dolen_run_top_k}\" \
-    "--top_p \"${dolen_run_top_p}\" \
-    "--seed \"${dolen_run_seed}\" \
-    "--seq_n \"${dolen_run_seq_n}\" \
-    "--prompt_n \"${dolen_run_prompt_n}\" \
-    "--prompt \"${dolen_run_prompt}\" \
-    "--mode \"${dolen_run_mode}\" \
-    "--system_prompt \"${dolen_run_system_prompt}\" \
-    "--log \"${dolen_run_log}\" \
-    "--think \"${dolen_run_think}\" \
+    "--model \"${dolen_run_model}\"" \
+    "--temp \"${dolen_run_temp}\"" \
+    "--top_k \"${dolen_run_top_k}\"" \
+    "--top_p \"${dolen_run_top_p}\"" \
+    "--seed \"${dolen_run_seed}\"" \
+    "--seq_n \"${dolen_run_seq_n}\"" \
+    "--prompt_n \"${dolen_run_prompt_n}\"" \
+    "--prompt \"${dolen_run_prompt}\"" \
+    "--mode \"${dolen_run_mode}\" "\
+    "--system_prompt \"${dolen_run_system_prompt}\"" \
+    "--chat_template \"${dolen_run_chat_template}\"" \
+    "--log \"${dolen_run_log}\"" \
+    "--think \"${dolen_run_think}\"" \
     "$@"
 
 
@@ -42,6 +43,7 @@ $dolen_path/dolen \
     --prompt "${dolen_run_prompt}" \
     --mode "${dolen_run_mode}" \
     --system_prompt "${dolen_run_system_prompt}" \
+    --chat_template "${dolen_run_chat_template}" \
     --log "${dolen_run_log}" \
     --think "${dolen_run_think}" \
     "$@"

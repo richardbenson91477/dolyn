@@ -10,6 +10,7 @@ dolen_run_prompt_n_default=32768
 dolen_run_prompt_default=""
 dolen_run_mode_default="chat"
 dolen_run_system_prompt_default="You are a helpful assistant."
+dolen_run_chat_template_default="model"
 dolen_run_log_default="/tmp/dolen_chat.log"
 dolen_run_think_default="false"
 dolen_run_threads_n_default=11

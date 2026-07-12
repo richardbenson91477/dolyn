@@ -7,12 +7,6 @@ static const chat_template CHAT_TEMPLATE_MS = {
         ._end_turn_s = "</s>",
 };
 
-static const chat_template CHAT_TEMPLATE_MS_OLD = {
-        ._system_s = NULL,
-        ._main_s = "<s>[INST] %s [/INST]",
-        ._end_turn_s = "</s>",
-};
-
 bool load_quantized_ms(const char *_file_path_s, MS *_model) {
     FILE *_file = fopen(_file_path_s, "rb");
     if (! _file) {
