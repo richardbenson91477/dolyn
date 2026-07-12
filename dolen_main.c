@@ -499,7 +499,7 @@ int32_t main(int32_t argc, char *__argv[]) {
             }
         }
         else {
-            _chat_template = &CHAT_TEMPLATE_CHATML;
+            _chat_template = _model_i->_chat_template;
         }
 
         chat(_model_i, &_sampler, _system_prompt_s, _prompt_s, _chat_template, prompt_n_max, _model_i->seq_n);
