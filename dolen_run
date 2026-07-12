@@ -15,6 +15,22 @@ export OMP_PLACES="cores"
 export OMP_PROC_BIND="close"
 
 
+echo "$0: running $dolen_path/dolen " \
+    "--model \"${dolen_run_model}\" \
+    "--temp \"${dolen_run_temp}\" \
+    "--top_k \"${dolen_run_top_k}\" \
+    "--top_p \"${dolen_run_top_p}\" \
+    "--seed \"${dolen_run_seed}\" \
+    "--seq_n \"${dolen_run_seq_n}\" \
+    "--prompt_n \"${dolen_run_prompt_n}\" \
+    "--prompt \"${dolen_run_prompt}\" \
+    "--mode \"${dolen_run_mode}\" \
+    "--system_prompt \"${dolen_run_system_prompt}\" \
+    "--log \"${dolen_run_log}\" \
+    "--think \"${dolen_run_think}\" \
+    "$@"
+
+
 $dolen_path/dolen \
     --model "${dolen_run_model}" \
     --temp "${dolen_run_temp}" \
