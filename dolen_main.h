@@ -43,6 +43,8 @@ model_iface *init_q3_5(const char *_model_path_s, int32_t seq_n, bool think_);
 
 model_iface *init_g4(const char *_model_path_s, int32_t seq_n, bool think_);
 
+model_iface *init_g4e(const char *_model_path_s, int32_t seq_n, bool think_);
+
 model_iface *init_ig4_1(const char *_model_path_s, int32_t seq_n, bool think_);
 
 model_iface *init_l3(const char *_model_path_s, int32_t seq_n, bool think_);

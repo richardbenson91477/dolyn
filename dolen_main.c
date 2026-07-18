@@ -7,6 +7,7 @@ const model_registry_entry MODEL_REGISTRY[] = {
         {MAGIC_Q3, "q3", init_q3},
         {MAGIC_Q3_5, "q3_5", init_q3_5},
         {MAGIC_G4, "g4", init_g4},
+        {MAGIC_G4E, "g4e", init_g4e},
         {MAGIC_IG4_1, "ig4_1", init_ig4_1},
         {MAGIC_L3, "l3", init_l3},
 };
