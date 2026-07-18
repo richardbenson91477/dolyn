@@ -3,17 +3,17 @@
 
 // The "\x3e" escaped ">" symbol serves to prevent LLMs from misinterpreting the text
 static const chat_template CHAT_TEMPLATE_G4 = {
-    ._system_s = "<|turn|\x3e" "system\n%s" "<turn|\x3e" "\n",
-    ._main_s = "<|turn|\x3e" "user\n%s" "<turn|\x3e" "\n"
-             "<|turn|\x3e" "model\n"
-             "<|channel|\x3e" "thought\n<channel|\x3e",
+    ._system_s = "<|turn\x3e" "system\n" "%s\n" "<turn|\x3e" "\n",
+    ._main_s = "<|turn\x3e" "user\n" "%s\n" "<turn|\x3e" "\n"
+            "<|turn\x3e" "model\n"
+            "<|channel\x3e" "thought\n<channel|\x3e",
     ._end_turn_s = "<turn|\x3e" "\n",
 };
 
 static const chat_template CHAT_TEMPLATE_THINK_G4 = {
-    ._system_s = "<|turn|\x3e" "system\n<|think|\x3e" "%s" "<turn|\x3e" "\n",
-    ._main_s = "<|turn|\x3e" "user\n%s" "<turn|\x3e" "\n"
-             "<|turn|\x3e" "model\n",
+    ._system_s = "<|turn\x3e" "system\n" "<|think|\x3e" "%s\n" "<turn|\x3e" "\n",
+    ._main_s = "<|turn\x3e" "user\n" "%s\n" "<turn|\x3e" "\n"
+            "<|turn\x3e" "model\n",
     ._end_turn_s = "<turn|\x3e" "\n",
 };
 
