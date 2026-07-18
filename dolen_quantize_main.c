@@ -5,7 +5,7 @@ void print_help(const char *_argv0) {
     log_msg(stdout, "Usage: %s "
             " [--model PATH] "
             " [--out PATH]"
-            " [--arch [ms | q2 | q3 | q3_5 | g4 | g4e | ig4_1 | l3]]"
+            " [--arch [ms | q2 | q3 | q3_5 | g4 | ig4_1 | l3]]"
             " [--tokenizer PATH]"
             " [--preset P]\n",
         _argv0);
@@ -86,9 +86,6 @@ int main(int argc, char *__argv[]) {
     }
     else if (! strcmp(_arch_s, "g4")) {
         return quantize_g4_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
-    }
-    else if (! strcmp(_arch_s, "g4e")) {
-        return quantize_g4e_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;
     }
     else if (! strcmp(_arch_s, "ig4_1")) {
         return quantize_ig4_1_to_file(_model_path_s, _out_path_s, _preset, _tokenizer_path_s) ? EXIT_FAILURE : EXIT_SUCCESS;

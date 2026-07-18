@@ -110,9 +110,6 @@ int32_t quantize_q3_5_to_file(const char *_model_dir_s, const char *_file_path_s
 int32_t quantize_g4_to_file(const char *_model_dir_s, const char *_file_path_s,
     const quant_preset_t *_preset, const char *_tokenizer_path_s);
 
-int32_t quantize_g4e_to_file(const char *_model_dir_s, const char *_file_path_s,
-    const quant_preset_t *_preset, const char *_tokenizer_path_s);
-
 int32_t quantize_ig4_1_to_file(const char *_model_dir_s, const char *_file_path_s,
     const quant_preset_t *_preset, const char *_tokenizer_path_s);
 
