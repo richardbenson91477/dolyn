@@ -5,8 +5,7 @@
 static const chat_template CHAT_TEMPLATE_G4 = {
     ._system_s = "<|turn\x3e" "system\n" "%s\n" "<turn|\x3e" "\n",
     ._main_s = "<|turn\x3e" "user\n" "%s\n" "<turn|\x3e" "\n"
-            "<|turn\x3e" "model\n"
-            "<|channel\x3e" "thought\n<channel|\x3e",
+            "<|turn\x3e" "model\n",
     ._end_turn_s = "<turn|\x3e" "\n",
 };
 
@@ -14,6 +13,7 @@ static const chat_template CHAT_TEMPLATE_THINK_G4 = {
     ._system_s = "<|turn\x3e" "system\n" "<|think|\x3e" "%s\n" "<turn|\x3e" "\n",
     ._main_s = "<|turn\x3e" "user\n" "%s\n" "<turn|\x3e" "\n"
             "<|turn\x3e" "model\n",
+            "<|channel\x3e" "thought\n",
     ._end_turn_s = "<turn|\x3e" "\n",
 };
 
